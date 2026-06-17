@@ -9,6 +9,7 @@ async function bootstrap() {
   //configuração do class-validator/class-transform
   app.useGlobalPipes(
     new ValidationPipe({
+      stopAtFirstError: true,
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,

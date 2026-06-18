@@ -1,7 +1,9 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { IUsersService } from './interface/users.service.interface';
 import type { IUsersRepository } from './interface/users.repository.interface';
+import { User } from './entities/user.entity';
+import { EErrors } from './enum/errors.enum';
 
 @Injectable()
 export class UsersService implements IUsersService {
@@ -11,6 +13,14 @@ export class UsersService implements IUsersService {
   ) {}
 
   async create(dto: CreateUserDto): Promise<string> {
+    const existingUser: User = await this.usersRepository.findOneByUsername(
+      dto.username,
+    );
+
+    if (!existingUser) {
+      throw new ConflictException(EErrors.USERNAME_EXIST);
+    }
+
     return await this.usersRepository.create(dto);
   }
 }

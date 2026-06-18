@@ -16,7 +16,7 @@ describe('UsersController', () => {
       controller = new UsersController(mockService);
     });
 
-    it(`It should return the message: ${ESuccess.USER_REGISTER} if the user is successfully registered.`, async () => {
+    it(`It should return the message "${ESuccess.USER_REGISTER}", if the user is successfully registered.`, async () => {
       const payload: CreateUserDto = {
         username: 'Edilson',
         password: '12345678',

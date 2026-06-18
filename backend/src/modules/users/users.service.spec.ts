@@ -19,7 +19,7 @@ describe('UsersService', () => {
     service = new UsersService(mockRepository);
   });
   describe('create', () => {
-    it(`It should return the message: ${ESuccess.USER_REGISTER} if the user is successfully registered.`, async () => {
+    it(`It should return the message "${ESuccess.USER_REGISTER}", if the user is successfully registered.`, async () => {
       const payload: CreateUserDto = {
         username: 'Edilson',
         password: '12345678',
@@ -33,7 +33,7 @@ describe('UsersService', () => {
     });
   });
 
-  it('must throw the ConflictException with the message: if the username is already registered', async () => {
+  it(`should throw the ConflictException with the message "${EErrors.USERNAME_EXIST}", if the username is already registered`, async () => {
     const payload: CreateUserDto = {
       username: 'edilson.segundo',
       password: '12345678',

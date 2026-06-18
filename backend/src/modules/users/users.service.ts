@@ -13,11 +13,10 @@ export class UsersService implements IUsersService {
   ) {}
 
   async create(dto: CreateUserDto): Promise<string> {
-    const existingUser: User = await this.usersRepository.findOneByUsername(
-      dto.username,
-    );
+    const existingUser: User | null =
+      await this.usersRepository.findOneByUsername(dto.username);
 
-    if (!existingUser) {
+    if (existingUser) {
       throw new ConflictException(EErrors.USERNAME_EXIST);
     }
 

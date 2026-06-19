@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { IUsersRepository } from './interface/users.repository.interface';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
+import { ESuccess } from './enum/success.enum';
+import { EErrorsGlobal } from '../../enum/errors-global.enum';
 
 @Injectable()
 export class UsersRepository implements IUsersRepository {
@@ -12,10 +14,20 @@ export class UsersRepository implements IUsersRepository {
   ) {}
 
   async create(dto: CreateUserDto): Promise<string> {
-    return await 'This action adds a new user';
+    try {
+      const user: User = this.repository.create(dto);
+      await this.repository.save(user);
+      return ESuccess.USER_REGISTER;
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
   }
 
   async findOneByUsername(username: string): Promise<User | null> {
-    return await this.repository.findOne({ where: { username } });
+    try {
+      return await this.repository.findOne({ where: { username } });
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
   }
 }

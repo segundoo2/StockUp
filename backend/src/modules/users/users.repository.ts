@@ -16,7 +16,9 @@ export class UsersRepository implements IUsersRepository {
   async create(dto: CreateUserDto): Promise<string> {
     try {
       const user: User = this.repository.create(dto);
+
       await this.repository.save(user);
+
       return ESuccess.USER_REGISTER;
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
@@ -25,7 +27,15 @@ export class UsersRepository implements IUsersRepository {
 
   async findOneByUsername(username: string): Promise<User | null> {
     try {
-      return await this.repository.findOne({ where: { username } });
+      return await this.repository.findOne({
+        where: { username },
+        select: {
+          id: true,
+          username: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }

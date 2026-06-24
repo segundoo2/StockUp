@@ -38,10 +38,6 @@ describe('UsersRepository', () => {
     );
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe('create', () => {
     it(`should return the message "${ESuccess.USER_REGISTER}", if the user is successfully registered`, async () => {
       const mockDto: CreateUserDto = {
@@ -69,10 +65,9 @@ describe('UsersRepository', () => {
   });
   describe('findOneByUsername', () => {
     it('should return a user when found in the database by TypeORM', async () => {
-      const mockUser: User = {
+      const mockUser: Partial<User> = {
         id: '1',
         username: 'john_doe',
-        password: '12345678',
         createdAt: new Date(),
         updatedAt: new Date(),
       };

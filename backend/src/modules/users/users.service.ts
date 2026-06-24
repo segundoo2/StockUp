@@ -1,4 +1,10 @@
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { IUsersService } from './interface/users.service.interface';
 import type { IUsersRepository } from './interface/users.repository.interface';
@@ -13,7 +19,7 @@ export class UsersService implements IUsersService {
   ) {}
 
   async create(dto: CreateUserDto): Promise<string> {
-    const existingUser: User | null =
+    const existingUser: Partial<User> | null =
       await this.usersRepository.findOneByUsername(dto.username);
 
     if (existingUser) {
@@ -21,5 +27,20 @@ export class UsersService implements IUsersService {
     }
 
     return await this.usersRepository.create(dto);
+  }
+
+  async findOneByUsername(username: string): Promise<Partial<User> | null> {
+    if (!username || username.trim() === '') {
+      throw new BadRequestException(EErrors.USERNAME_INVALID);
+    }
+
+    const user: Partial<User> | null =
+      await this.usersRepository.findOneByUsername(username);
+
+    if (!user) {
+      throw new NotFoundException(EErrors.USERNAME_NOT_FOUND);
+    }
+
+    return user;
   }
 }

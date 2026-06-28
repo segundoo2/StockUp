@@ -4,4 +4,6 @@ export enum EErrors {
   USERNAME_EXIST = 'O usuário informado já está cadastrado. Solicite um reset de senha a um administrador, se precisar.',
   USERNAME_NOT_FOUND = 'Usuário não encontrado.',
   USERNAME_INVALID = 'Nome de usuário inválido.',
+
+  USERS_NOT_FOUND = 'Lista de usuários não encontrada.',
 }

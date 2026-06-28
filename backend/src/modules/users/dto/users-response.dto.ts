@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { User } from '../entities/user.entity';
 
-export class UserResponseDto {
+export class UsersResponseDto {
   @ApiProperty({
     description: 'Mensagem informativa sobre o status da operação',
     example: 'Usuário encontrado com sucesso.',
@@ -13,5 +13,5 @@ export class UserResponseDto {
     type: User,
     nullable: true,
   })
-  data!: Partial<User> | null;
+  data!: Partial<User> | Partial<User>[] | null;
 }

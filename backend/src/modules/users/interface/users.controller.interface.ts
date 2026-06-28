@@ -1,7 +1,8 @@
 import { CreateUserDto } from '../dto/create-user.dto';
-import { UserResponseDto } from '../dto/user-response.dto';
+import { UsersResponseDto } from '../dto/users-response.dto';
 
 export interface IUsersController {
-  create(createUserDto: CreateUserDto): Promise<string>;
-  findOneByUsername(username: string): Promise<UserResponseDto>;
+  createUser(createUserDto: CreateUserDto): Promise<string>;
+  findAllUsers(): Promise<UsersResponseDto>;
+  findOneByUsername(username: string): Promise<UsersResponseDto>;
 }

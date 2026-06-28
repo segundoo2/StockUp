@@ -2,6 +2,7 @@ import { CreateUserDto } from '../dto/create-user.dto';
 import { User } from '../entities/user.entity';
 
 export interface IUsersRepository {
-  create(createUserDto: CreateUserDto): Promise<string>;
+  createUser(createUserDto: CreateUserDto): Promise<string>;
+  findAllUsers(): Promise<Partial<User>[] | null>;
   findOneByUsername(username: string): Promise<Partial<User> | null>;
 }

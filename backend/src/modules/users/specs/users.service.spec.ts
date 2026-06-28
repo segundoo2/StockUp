@@ -4,12 +4,13 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
-import { ESuccess } from './enum/success.enum';
-import { IUsersRepository } from './interface/users.repository.interface';
-import { UsersService } from './users.service';
-import { EErrors } from './enum/errors.enum';
-import { User } from './entities/user.entity';
+import { CreateUserDto } from '../dto/create-user.dto';
+import { ESuccess } from '../enum/success.enum';
+import { IUsersRepository } from '../interface/users.repository.interface';
+import { UsersService } from '../users.service';
+import { EErrors } from '../enum/errors.enum';
+import { User } from '../entities/user.entity';
+import { UsersResponseDto } from '../dto/users-response.dto';
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -18,6 +19,7 @@ describe('UsersService', () => {
   beforeEach(() => {
     mockRepository = {
       create: jest.fn(),
+      findAllUsers: jest.fn(),
       findOneByUsername: jest.fn(),
     };
     service = new UsersService(mockRepository);
@@ -30,7 +32,7 @@ describe('UsersService', () => {
       };
       mockRepository.create.mockResolvedValue(ESuccess.USER_REGISTER);
 
-      const result = await service.create(payload);
+      const result = await service.createUser(payload);
 
       expect(result).toBe(ESuccess.USER_REGISTER);
       expect(mockRepository.create).toHaveBeenCalledWith(payload);
@@ -52,14 +54,64 @@ describe('UsersService', () => {
 
       mockRepository.findOneByUsername.mockResolvedValue(existingUser);
 
-      await expect(service.create(payload)).rejects.toThrow(
+      await expect(service.createUser(payload)).rejects.toThrow(
         new ConflictException(EErrors.USERNAME_EXIST),
       );
     });
   });
 
+  describe('findAllUsers', () => {
+    it(`should return the object: { message: ${ESuccess.USERS_FOUND}, data: Partial<user>[] | null }`, async () => {
+      const usersMock: Partial<User>[] = [
+        {
+          id: 'uuid-0123',
+          username: 'segundo123',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: 'uuid-4567',
+          username: 'oliveira_dev',
+          createdAt: new Date('2026-01-15T10:00:00Z'),
+          updatedAt: new Date('2026-05-20T14:30:00Z'),
+        },
+        {
+          id: 'uuid-8910',
+          username: 'santos_qa',
+          createdAt: new Date('2026-03-01T08:22:00Z'),
+          updatedAt: new Date('2026-03-01T08:22:00Z'),
+        },
+        {
+          id: 'uuid-1112',
+          username: 'lima_admin',
+          createdAt: new Date('2025-12-25T18:00:00Z'),
+          updatedAt: new Date('2026-06-10T11:15:00Z'),
+        },
+      ];
+      const response: UsersResponseDto = {
+        message: ESuccess.USERS_FOUND,
+        data: usersMock,
+      };
+      mockRepository.findAllUsers.mockResolvedValue(usersMock);
+
+      const result: UsersResponseDto = await service.findAllUsers();
+
+      expect(result).toEqual(response);
+    });
+
+    it('should return a NotFoundException if the repository return null', async () => {
+      mockRepository.findAllUsers.mockResolvedValue(null);
+
+      const result = service.findAllUsers();
+
+      await expect(result).rejects.toThrow(
+        new NotFoundException(EErrors.USERS_NOT_FOUND),
+      );
+    });
+  });
+
   describe('findOneByUsername', () => {
-    it('should return the data of the specified user', async () => {
+    it(`should return the object: { message: ${ESuccess.USER_FOUND}, data: Partial<User> | null }`, async () => {
       const username: string = 'segundo123';
       const userMock: Partial<User> = {
         id: 'uuid-0123',
@@ -67,12 +119,16 @@ describe('UsersService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+      const response: UsersResponseDto = {
+        message: ESuccess.USER_FOUND,
+        data: userMock,
+      };
       mockRepository.findOneByUsername.mockResolvedValue(userMock);
 
-      const result: Partial<User> | null =
+      const result: UsersResponseDto =
         await service.findOneByUsername(username);
 
-      expect(result).toEqual(userMock);
+      expect(result).toEqual(response);
       expect(mockRepository.findOneByUsername).toHaveBeenCalledWith(username);
     });
 
@@ -91,7 +147,7 @@ describe('UsersService', () => {
       );
     });
 
-    it(`should return message: ${EErrors.USERNAME_NOT_FOUND} if the repository returns null.`, async () => {
+    it('should return a NotFoundException if the repository return null.', async () => {
       const result = service.findOneByUsername('segundo123');
 
       await expect(result).rejects.toThrow(

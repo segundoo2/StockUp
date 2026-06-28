@@ -13,13 +13,30 @@ export class UsersRepository implements IUsersRepository {
     @InjectRepository(User) private readonly repository: Repository<User>,
   ) {}
 
-  async create(dto: CreateUserDto): Promise<string> {
+  async createUser(dto: CreateUserDto): Promise<string> {
     try {
       const user: User = this.repository.create(dto);
 
       await this.repository.save(user);
 
       return ESuccess.USER_REGISTER;
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
+
+  async findAllUsers(): Promise<Partial<User>[] | null> {
+    try {
+      const users: Partial<User>[] = await this.repository.find({
+        select: {
+          id: true,
+          username: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      return users.length === 0 ? null : users;
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }

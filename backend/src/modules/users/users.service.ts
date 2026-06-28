@@ -11,6 +11,7 @@ import type { IUsersRepository } from './interface/users.repository.interface';
 import { User } from './entities/user.entity';
 import { EErrors } from './enum/errors.enum';
 import { ESuccess } from './enum/success.enum';
+import { UsersResponseDto } from './dto/users-response.dto';
 
 @Injectable()
 export class UsersService implements IUsersService {
@@ -19,7 +20,7 @@ export class UsersService implements IUsersService {
     private readonly usersRepository: IUsersRepository,
   ) {}
 
-  async create(dto: CreateUserDto): Promise<string> {
+  async createUser(dto: CreateUserDto): Promise<string> {
     const existingUser: Partial<User> | null =
       await this.usersRepository.findOneByUsername(dto.username);
 
@@ -28,6 +29,20 @@ export class UsersService implements IUsersService {
     }
 
     return await this.usersRepository.create(dto);
+  }
+
+  async findAllUsers(): Promise<UsersResponseDto> {
+    const users: Partial<User>[] | null =
+      await this.usersRepository.findAllUsers();
+
+    if (!users) {
+      throw new NotFoundException(EErrors.USERS_NOT_FOUND);
+    }
+
+    return {
+      message: ESuccess.USERS_FOUND,
+      data: users,
+    };
   }
 
   async findOneByUsername(

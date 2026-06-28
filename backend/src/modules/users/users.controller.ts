@@ -12,7 +12,7 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { IUsersController } from './interface/users.controller.interface';
 import type { IUsersService } from './interface/users.service.interface';
 import { ESuccess } from './enum/success.enum';
-import { UserResponseDto } from './dto/user-response.dto';
+import { UsersResponseDto } from './dto/users-response.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -28,8 +28,13 @@ export class UsersController implements IUsersController {
     type: String,
   })
   @Post()
-  async create(@Body() createUserDto: CreateUserDto): Promise<string> {
-    return await this.usersService.create(createUserDto);
+  async createUser(@Body() createUserDto: CreateUserDto): Promise<string> {
+    return await this.usersService.createUser(createUserDto);
+  }
+
+  @Get()
+  async findAllUsers(): Promise<UsersResponseDto> {
+    return await this.usersService.findAllUsers();
   }
 
   @ApiOperation({ summary: 'Buscar usuário através do username' })
@@ -37,12 +42,12 @@ export class UsersController implements IUsersController {
     status: HttpStatus.OK,
     description:
       'Retorna uma mensagem de status e os dados parciais do usuário (ou null caso não seja encontrado).',
-    type: UserResponseDto,
+    type: UsersResponseDto,
   })
   @Get(':username')
   async findOneByUsername(
     @Param('username') username: string,
-  ): Promise<UserResponseDto> {
+  ): Promise<UsersResponseDto> {
     return await this.usersService.findOneByUsername(username);
   }
 }

@@ -10,6 +10,7 @@ import { IUsersService } from './interface/users.service.interface';
 import type { IUsersRepository } from './interface/users.repository.interface';
 import { User } from './entities/user.entity';
 import { EErrors } from './enum/errors.enum';
+import { ESuccess } from './enum/success.enum';
 
 @Injectable()
 export class UsersService implements IUsersService {
@@ -29,7 +30,9 @@ export class UsersService implements IUsersService {
     return await this.usersRepository.create(dto);
   }
 
-  async findOneByUsername(username: string): Promise<Partial<User> | null> {
+  async findOneByUsername(
+    username: string,
+  ): Promise<{ message: string; data: Partial<User> | null }> {
     if (!username || username.trim() === '') {
       throw new BadRequestException(EErrors.USERNAME_INVALID);
     }
@@ -41,6 +44,6 @@ export class UsersService implements IUsersService {
       throw new NotFoundException(EErrors.USERNAME_NOT_FOUND);
     }
 
-    return user;
+    return { message: ESuccess.USER_FOUND, data: user };
   }
 }

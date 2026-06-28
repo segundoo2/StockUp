@@ -1,7 +1,7 @@
 import { CreateUserDto } from '../dto/create-user.dto';
-import { User } from '../entities/user.entity';
+import { UserResponseDto } from '../dto/user-response.dto';
 
 export interface IUsersController {
   create(createUserDto: CreateUserDto): Promise<string>;
-  findOneByUsername(username: string): Promise<Partial<User> | null>;
+  findOneByUsername(username: string): Promise<UserResponseDto>;
 }

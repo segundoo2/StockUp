@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { CreateUserDto } from './dto/create-user.dto';
+import { UserResponseDto } from './dto/user-response.dto';
 import { User } from './entities/user.entity';
 import { ESuccess } from './enum/success.enum';
 import { IUsersService } from './interface/users.service.interface';
@@ -42,12 +43,16 @@ describe('UsersController', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      mockService.findOneByUsername.mockResolvedValue(userMock);
+      const response: UserResponseDto = {
+        message: ESuccess.USER_FOUND,
+        data: userMock,
+      };
+      mockService.findOneByUsername.mockResolvedValue(response);
 
-      const result: Partial<User> | null =
+      const result: UserResponseDto =
         await controller.findOneByUsername(username);
 
-      expect(result).toEqual(userMock);
+      expect(result).toBe(response);
       expect(mockService.findOneByUsername).toHaveBeenCalledWith(username);
     });
   });

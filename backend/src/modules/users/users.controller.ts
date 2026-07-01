@@ -6,6 +6,7 @@ import {
   Get,
   Param,
   HttpStatus,
+  Patch,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -32,6 +33,17 @@ export class UsersController implements IUsersController {
     return await this.usersService.createUser(createUserDto);
   }
 
+  @ApiOperation({ summary: 'Atualizar a senha de um usuário' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: ESuccess.USERPASSWORD_UPDATE,
+    type: String,
+  })
+  @Patch()
+  async updateUserPassword(@Body() username: string): Promise<string> {
+    return await this.usersService.updateUserPassword(username);
+  }
+
   @Get()
   async findAllUsers(): Promise<UsersResponseDto> {
     return await this.usersService.findAllUsers();
@@ -49,5 +61,9 @@ export class UsersController implements IUsersController {
     @Param('username') username: string,
   ): Promise<UsersResponseDto> {
     return await this.usersService.findOneByUsername(username);
+  }
+
+  async deleteUser(username: string): Promise<string> {
+    return await this.usersService.deleteUser(username);
   }
 }

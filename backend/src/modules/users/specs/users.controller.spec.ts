@@ -13,8 +13,10 @@ describe('UsersController', () => {
   beforeEach(() => {
     mockService = {
       createUser: jest.fn(),
+      updateUserPassword: jest.fn(),
       findAllUsers: jest.fn(),
       findOneByUsername: jest.fn(),
+      deleteUser: jest.fn(),
     };
     controller = new UsersController(mockService);
   });
@@ -31,6 +33,19 @@ describe('UsersController', () => {
 
       expect(result).toBe(ESuccess.USER_REGISTER);
       expect(mockService.createUser).toHaveBeenCalledWith(payload);
+    });
+  });
+
+  describe('updateUserPassword', () => {
+    it(`should return the message ${ESuccess.USERPASSWORD_UPDATE} if the password was successfully updated.`, async () => {
+      const username: string = 'edilson.segundo';
+      const temporaryPassword: string = '12345678';
+      mockService.updateUserPassword.mockResolvedValue(temporaryPassword);
+
+      const result: string = await controller.updateUserPassword(username);
+
+      expect(result).toBe(temporaryPassword);
+      expect(mockService.updateUserPassword).toHaveBeenCalledWith(username);
     });
   });
 
@@ -94,6 +109,18 @@ describe('UsersController', () => {
 
       expect(result).toEqual(response);
       expect(mockService.findOneByUsername).toHaveBeenCalledWith(username);
+    });
+  });
+
+  describe('deleteUser', () => {
+    it(`It should return the message ${ESuccess.DELETE_USER} if the user is successfully deleted.`, async () => {
+      const username: string = 'edilson.segundo';
+      mockService.deleteUser.mockResolvedValue(ESuccess.DELETE_USER);
+
+      const result: string = await controller.deleteUser(username);
+
+      expect(result).toBe(ESuccess.DELETE_USER);
+      expect(mockService.deleteUser).toHaveBeenCalledWith(username);
     });
   });
 });

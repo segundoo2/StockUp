@@ -10,149 +10,169 @@ import { IUsersRepository } from '../interface/users.repository.interface';
 import { UsersService } from '../users.service';
 import { EErrors } from '../enum/errors.enum';
 import { User } from '../entities/user.entity';
-import { UsersResponseDto } from '../dto/users-response.dto';
 
 describe('UsersService', () => {
   let service: UsersService;
   let mockRepository: jest.Mocked<IUsersRepository>;
 
+  const createFakeUser = (username = 'edilson.segundo'): User => ({
+    id: 'some-uuid-or-id',
+    username,
+    password: 'hashed_password',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
   beforeEach(() => {
     mockRepository = {
-      create: jest.fn(),
+      createUser: jest.fn(),
+      updateUserPassword: jest.fn(),
       findAllUsers: jest.fn(),
       findOneByUsername: jest.fn(),
+      deleteUser: jest.fn(),
     };
     service = new UsersService(mockRepository);
   });
-  describe('create', () => {
-    it(`should return the message "${ESuccess.USER_REGISTER}", if the user is successfully registered`, async () => {
-      const payload: CreateUserDto = {
-        username: 'Edilson',
-        password: '12345678',
-      };
-      mockRepository.create.mockResolvedValue(ESuccess.USER_REGISTER);
 
-      const result = await service.createUser(payload);
+  // Passamos o nome do método e a função que deve ser executada para o laço testar todos de uma vez
+  describe('Shared Username Validation Guard', () => {
+    it.each([
+      { label: 'undefined', value: undefined as unknown as string },
+      { label: 'empty string', value: '' },
+      { label: 'only spaces', value: '   ' },
+    ])(
+      'should throw BadRequestException if username is $label',
+      async ({ value }) => {
+        await expect(service.updateUserPassword(value)).rejects.toThrow(
+          new BadRequestException(EErrors.USERNAME_INVALID),
+        );
+        await expect(service.findOneByUsername(value)).rejects.toThrow(
+          new BadRequestException(EErrors.USERNAME_INVALID),
+        );
+        await expect(service.deleteUser(value)).rejects.toThrow(
+          new BadRequestException(EErrors.USERNAME_INVALID),
+        );
+      },
+    );
+  });
 
-      expect(result).toBe(ESuccess.USER_REGISTER);
-      expect(mockRepository.create).toHaveBeenCalledWith(payload);
+  // ✅ CENTRALIZAÇÃO DAS VALIDAÇÕES DE USUÁRIO NÃO ENCONTRADO
+  describe('Shared NotFoundException Guard', () => {
+    it.each([
+      {
+        methodName: 'updateUserPassword',
+        action: (username: string) => service.updateUserPassword(username),
+      },
+      {
+        methodName: 'findOneByUsername',
+        action: (username: string) => service.findOneByUsername(username),
+      },
+      {
+        methodName: 'deleteUser',
+        action: (username: string) => service.deleteUser(username),
+      },
+    ])(
+      'should throw NotFoundException inside $methodName if user does not exist',
+      async ({ action }) => {
+        mockRepository.findOneByUsername.mockResolvedValue(null);
+
+        await expect(action('any-username')).rejects.toThrow(
+          new NotFoundException(EErrors.USER_NOT_FOUND),
+        );
+      },
+    );
+  });
+
+  describe('Create', () => {
+    const payload: CreateUserDto = {
+      username: 'Edilson',
+      password: '12345678',
+    };
+
+    it('should return success message if the user is successfully registered', async () => {
+      mockRepository.createUser.mockResolvedValue(ESuccess.USER_REGISTER);
+      expect(await service.createUser(payload)).toBe(ESuccess.USER_REGISTER);
     });
 
-    it(`should throw the ConflictException with the message "${EErrors.USERNAME_EXIST}", if the username is already registered`, async () => {
-      const payload: CreateUserDto = {
-        username: 'edilson.segundo',
-        password: '12345678',
-      };
-
-      const existingUser: User = {
-        id: 'some-uuid-or-id',
-        username: payload.username,
-        password: 'hashed_password',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      mockRepository.findOneByUsername.mockResolvedValue(existingUser);
-
+    it('should throw ConflictException if the username is already registered', async () => {
+      mockRepository.findOneByUsername.mockResolvedValue(
+        createFakeUser('edilson.segundo'),
+      );
       await expect(service.createUser(payload)).rejects.toThrow(
         new ConflictException(EErrors.USERNAME_EXIST),
       );
     });
   });
 
-  describe('findAllUsers', () => {
-    it(`should return the object: { message: ${ESuccess.USERS_FOUND}, data: Partial<user>[] | null }`, async () => {
-      const usersMock: Partial<User>[] = [
-        {
-          id: 'uuid-0123',
-          username: 'segundo123',
-          createdAt: new Date(),
-          updatedAt: new Date(),
+  describe('UpdateUserPassword', () => {
+    const username = 'edilson.segundo';
+
+    it('should return the temporary password if updated successfully', async () => {
+      let passwordCaptured = '';
+      mockRepository.findOneByUsername.mockResolvedValue(
+        createFakeUser(username),
+      );
+      mockRepository.updateUserPassword.mockImplementation(
+        (_, password: string) => {
+          passwordCaptured = password;
+          return Promise.resolve(password);
         },
-        {
-          id: 'uuid-4567',
-          username: 'oliveira_dev',
-          createdAt: new Date('2026-01-15T10:00:00Z'),
-          updatedAt: new Date('2026-05-20T14:30:00Z'),
-        },
-        {
-          id: 'uuid-8910',
-          username: 'santos_qa',
-          createdAt: new Date('2026-03-01T08:22:00Z'),
-          updatedAt: new Date('2026-03-01T08:22:00Z'),
-        },
-        {
-          id: 'uuid-1112',
-          username: 'lima_admin',
-          createdAt: new Date('2025-12-25T18:00:00Z'),
-          updatedAt: new Date('2026-06-10T11:15:00Z'),
-        },
-      ];
-      const response: UsersResponseDto = {
-        message: ESuccess.USERS_FOUND,
-        data: usersMock,
-      };
+      );
+
+      const result = await service.updateUserPassword(username);
+      expect(result).toBe(passwordCaptured);
+      expect(mockRepository.updateUserPassword).toHaveBeenCalledWith(
+        username,
+        expect.any(String),
+      );
+    });
+  });
+
+  describe('FindAllUsers', () => {
+    it('should return users response list payload', async () => {
+      const usersMock: Partial<User>[] = ['segundo123', 'oliveira_dev'].map(
+        createFakeUser,
+      );
       mockRepository.findAllUsers.mockResolvedValue(usersMock);
 
-      const result: UsersResponseDto = await service.findAllUsers();
-
-      expect(result).toEqual(response);
+      expect(await service.findAllUsers()).toEqual({
+        message: ESuccess.USERS_FOUND,
+        data: usersMock,
+      });
     });
 
-    it('should return a NotFoundException if the repository return null', async () => {
+    it('should throw NotFoundException if users list is null', async () => {
       mockRepository.findAllUsers.mockResolvedValue(null);
-
-      const result = service.findAllUsers();
-
-      await expect(result).rejects.toThrow(
+      await expect(service.findAllUsers()).rejects.toThrow(
         new NotFoundException(EErrors.USERS_NOT_FOUND),
       );
     });
   });
 
-  describe('findOneByUsername', () => {
-    it(`should return the object: { message: ${ESuccess.USER_FOUND}, data: Partial<User> | null }`, async () => {
-      const username: string = 'segundo123';
-      const userMock: Partial<User> = {
-        id: 'uuid-0123',
-        username: 'segundo123',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      const response: UsersResponseDto = {
-        message: ESuccess.USER_FOUND,
-        data: userMock,
-      };
+  describe('FindOneByUsername', () => {
+    const username = 'segundo123';
+
+    it('should return target user wrapped in response DTO', async () => {
+      const userMock = createFakeUser(username);
       mockRepository.findOneByUsername.mockResolvedValue(userMock);
 
-      const result: UsersResponseDto =
-        await service.findOneByUsername(username);
-
-      expect(result).toEqual(response);
-      expect(mockRepository.findOneByUsername).toHaveBeenCalledWith(username);
+      expect(await service.findOneByUsername(username)).toEqual({
+        message: ESuccess.USER_FOUND,
+        data: userMock,
+      });
     });
+  });
 
-    it('should return a BadRequestException if the username parameter is not defined.', async () => {
-      const result = service.findOneByUsername(undefined as unknown as string);
+  describe('DeleteUser', () => {
+    const username = 'edilson.segundo';
 
-      await expect(result).rejects.toThrow(
-        new BadRequestException(EErrors.USERNAME_INVALID),
+    it('should return success message upon deletion', async () => {
+      mockRepository.findOneByUsername.mockResolvedValue(
+        createFakeUser(username),
       );
-    });
+      mockRepository.deleteUser.mockResolvedValue(ESuccess.DELETE_USER);
 
-    it('should return a BadRequestException if the username parameter is an empty string.', async () => {
-      const result = service.findOneByUsername('');
-      await expect(result).rejects.toThrow(
-        new BadRequestException(EErrors.USERNAME_INVALID),
-      );
-    });
-
-    it('should return a NotFoundException if the repository return null.', async () => {
-      const result = service.findOneByUsername('segundo123');
-
-      await expect(result).rejects.toThrow(
-        new NotFoundException(EErrors.USERNAME_NOT_FOUND),
-      );
+      expect(await service.deleteUser(username)).toBe(ESuccess.DELETE_USER);
     });
   });
 });

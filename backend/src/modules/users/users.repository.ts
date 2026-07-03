@@ -3,7 +3,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { IUsersRepository } from './interface/users.repository.interface';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import { Repository } from 'typeorm';
+import { DeleteResult, Repository } from 'typeorm';
 import { ESuccess } from './enum/success.enum';
 import { EErrorsGlobal } from '../../enum/errors-global.enum';
 
@@ -20,6 +20,15 @@ export class UsersRepository implements IUsersRepository {
       await this.repository.save(user);
 
       return ESuccess.USER_REGISTER;
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
+
+  async updateUserPassword(user: User): Promise<string> {
+    try {
+      await this.repository.save(user);
+      return user.password;
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }
@@ -53,6 +62,14 @@ export class UsersRepository implements IUsersRepository {
           updatedAt: true,
         },
       });
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
+
+  async deleteUser(username: string): Promise<DeleteResult> {
+    try {
+      return await this.repository.delete(username);
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }

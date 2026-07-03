@@ -13,6 +13,7 @@ import { EErrors } from './enum/errors.enum';
 import { ESuccess } from './enum/success.enum';
 import { UsersResponseDto } from './dto/users-response.dto';
 import * as generatePassword from 'generate-password';
+import { DeleteResult } from 'typeorm';
 
 @Injectable()
 export class UsersService implements IUsersService {
@@ -37,11 +38,11 @@ export class UsersService implements IUsersService {
 
   async updateUserPassword(username: string): Promise<string> {
     this.verifyInvalidUsername(username);
-    await this.getExistingUser(username);
-    return this.usersRepository.updateUserPassword(
-      username,
-      this.generateTemporaryPassword(),
-    );
+    const user: Partial<User> = await this.getExistingUser(username);
+    return this.usersRepository.updateUserPassword({
+      ...user,
+      password: this.generateTemporaryPassword(),
+    });
   }
 
   private generateTemporaryPassword() {
@@ -90,8 +91,13 @@ export class UsersService implements IUsersService {
 
   async deleteUser(username: string): Promise<string> {
     this.verifyInvalidUsername(username);
-    await this.getExistingUser(username);
-    return await this.usersRepository.deleteUser(username);
+    const response: DeleteResult =
+      await this.usersRepository.deleteUser(username);
+
+    if (response.affected !== 0) {
+      throw new NotFoundException(EErrors.USER_NOT_FOUND);
+    }
+    return ESuccess.DELETE_USER;
   }
 
   private verifyInvalidUsername(username: string) {

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { UserDto } from '../dto/user.dto';
 import { UsersResponseDto } from '../dto/users-response.dto';
 import { User } from '../entities/user.entity';

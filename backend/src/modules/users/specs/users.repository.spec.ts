@@ -9,6 +9,7 @@ import { EErrorsGlobal } from '../../../enum/errors-global.enum';
 import { createFakeUser } from '../helpers/create-fake-user.helper';
 import { UserDto } from '../dto/user.dto';
 import { UpdateResult } from 'typeorm/browser';
+import { UpdateAdminDto } from '../dto/update-admin.dto';
 
 type MockRepository<T extends ObjectLiteral> = Partial<
   Record<keyof Repository<T>, jest.Mock>
@@ -66,6 +67,8 @@ describe('UsersRepository', () => {
     user.password = '12345678';
     const userDto: UserDto = {
       username: user.username as string,
+      admin: user.admin as boolean,
+      mustChangePassword: user.mustChangePassword as boolean,
       password: user.password,
     };
 
@@ -88,6 +91,8 @@ describe('UsersRepository', () => {
     user.password = '12345678';
     const userDto: UserDto = {
       username: user.username as string,
+      admin: user.admin as boolean,
+      mustChangePassword: user.mustChangePassword as boolean,
       password: user.password,
     };
     const response: UpdateResult = {
@@ -96,22 +101,54 @@ describe('UsersRepository', () => {
       generatedMaps: [],
     };
 
-    it('should return { raw: [], affected: 1, generatedMaps: [] } when the password has successfully persisted', async () => {
+    it('should return property affected === 1 when the password has successfully persisted', async () => {
       response.affected = 1;
       ormRepositoryMock.update?.mockResolvedValue(response);
       expect(await repository.updateUserPassword(userDto)).toEqual(response);
       expect(ormRepositoryMock.update).toHaveBeenCalledWith(userDto.username, {
+        mustChangePassword: userDto.mustChangePassword,
         password: userDto.password,
       });
     });
 
-    it('should return { raw: [], affected: 1, generatedMaps: [] } when the user not found', async () => {
+    it('should return the property affected === 0 when the user not found', async () => {
       ormRepositoryMock.update?.mockResolvedValue(response);
       expect(await repository.updateUserPassword(userDto)).toEqual(response);
     });
 
     shouldHandleDatabaseErrors(
       () => repository.updateUserPassword(userDto),
+      () => ormRepositoryMock.update,
+    );
+  });
+
+  describe('updateAdminUser', () => {
+    const adminDto: UpdateAdminDto = {
+      username: 'segundo',
+      admin: true,
+    };
+    const response: UpdateResult = {
+      raw: [],
+      affected: 1,
+      generatedMaps: [],
+    };
+
+    it('should return property affected === 1 when the password has successfully persisted', async () => {
+      ormRepositoryMock.update?.mockResolvedValue(response);
+      expect(await repository.updateAdminUser(adminDto)).toEqual(response);
+      expect(ormRepositoryMock.update).toHaveBeenCalledWith(adminDto.username, {
+        admin: adminDto.admin,
+      });
+    });
+
+    it('should return property affected === 0 when the user not found', async () => {
+      response.affected = 0;
+      ormRepositoryMock.update?.mockResolvedValue(response);
+      expect(await repository.updateAdminUser(adminDto)).toEqual(response);
+    });
+
+    shouldHandleDatabaseErrors(
+      () => repository.updateAdminUser(adminDto),
       () => ormRepositoryMock.update,
     );
   });

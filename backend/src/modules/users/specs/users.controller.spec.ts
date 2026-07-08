@@ -15,6 +15,7 @@ describe('UsersController', () => {
     mockService = {
       createUser: jest.fn(),
       updateUserPassword: jest.fn(),
+      updateAdminUser: jest.fn(),
       findAllUsers: jest.fn(),
       findOneByUsername: jest.fn(),
       deleteUser: jest.fn(),
@@ -30,7 +31,11 @@ describe('UsersController', () => {
       data: '12345678',
     };
     it(`should return the object { message: string, data: string }, if the user is successfully registered`, async () => {
-      const userDto: UserDto = { username: user.username as string };
+      const userDto: UserDto = {
+        username: user.username as string,
+        mustChangePassword: true,
+        admin: true,
+      };
       mockService.createUser.mockResolvedValue(response);
 
       expect(await controller.createUser(userDto)).toEqual(response);
@@ -46,6 +51,8 @@ describe('UsersController', () => {
     };
     const userDto: UserDto = {
       username: user.username as string,
+      admin: true,
+      mustChangePassword: true,
       password: user.password,
     };
 
@@ -62,6 +69,25 @@ describe('UsersController', () => {
 
       expect(await controller.updateUserPassword(userDto)).toEqual(response);
       expect(mockService.updateUserPassword).toHaveBeenCalledWith(userDto);
+    });
+  });
+
+  describe('updateAdminUser', () => {
+    it(`should return the message ${ESuccess.ADMIN_UPDATE} if the temporary password was successfully updated.`, async () => {
+      user.admin = true;
+      mockService.updateAdminUser.mockResolvedValue({
+        message: ESuccess.ADMIN_UPDATE,
+        data: user.admin as boolean,
+      });
+      expect(
+        await controller.updateAdminUser({
+          username: user.username as string,
+          admin: user.admin,
+        }),
+      ).toEqual({
+        message: ESuccess.ADMIN_UPDATE,
+        data: user.admin,
+      });
     });
   });
 

@@ -16,6 +16,8 @@ import { ESuccess } from './enum/success.enum';
 import { UsersResponseDto } from './dto/users-response.dto';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UserDto } from './dto/user.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
+import { UpdateAdminDto } from './dto/update-admin.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -43,9 +45,14 @@ export class UsersController implements IUsersController {
   })
   @Patch()
   async updateUserPassword(
-    @Body() userDto: UserDto,
+    @Body() userDto: UpdatePasswordDto,
   ): Promise<UsersResponseDto> {
     return await this.usersService.updateUserPassword(userDto);
+  }
+
+  @Patch('/admin')
+  async updateAdminUser(adminDto: UpdateAdminDto): Promise<UsersResponseDto> {
+    return await this.usersService.updateAdminUser(adminDto);
   }
 
   @ApiOperation({ summary: 'Buscar lista de usuários' })

@@ -6,6 +6,8 @@ import { DeleteResult, Repository } from 'typeorm';
 import { EErrorsGlobal } from '../../enum/errors-global.enum';
 import { UserDto } from './dto/user.dto';
 import { UpdateResult } from 'typeorm/browser';
+import { UpdatePasswordDto } from './dto/update-password.dto';
+import { UpdateAdminDto } from './dto/update-admin.dto';
 
 @Injectable()
 export class UsersRepository implements IUsersRepository {
@@ -22,10 +24,23 @@ export class UsersRepository implements IUsersRepository {
     }
   }
 
-  async updateUserPassword(userDto: UserDto): Promise<UpdateResult> {
+  async updateUserPassword(
+    passwordDto: UpdatePasswordDto,
+  ): Promise<UpdateResult> {
     try {
-      return await this.repository.update(userDto.username, {
-        password: userDto.password,
+      return await this.repository.update(passwordDto.username, {
+        password: passwordDto.password,
+        mustChangePassword: passwordDto.mustChangePassword,
+      });
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
+
+  async updateAdminUser(adminDto: UpdateAdminDto): Promise<UpdateResult> {
+    try {
+      return await this.repository.update(adminDto.username, {
+        admin: adminDto.admin,
       });
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);

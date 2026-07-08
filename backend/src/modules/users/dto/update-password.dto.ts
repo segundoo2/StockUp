@@ -9,7 +9,7 @@ import {
 } from 'class-validator';
 import { EErrors } from '../enum/errors.enum';
 
-export abstract class UserDto {
+export abstract class UpdatePasswordDto {
   @ApiProperty({
     description: 'Nome do usuário deve está no formato: nome.sobrenome',
     example: 'edilson.segundo',
@@ -20,13 +20,6 @@ export abstract class UserDto {
     message: EErrors.USERNAME_INVALID,
   })
   username!: string;
-
-  @ApiProperty({
-    description: 'O admin deve ser booleano.',
-  })
-  @IsString({ message: `${EErrors.ROLE} ${EErrors.CARACTERS_INVALID}` })
-  @IsNotEmpty({ message: EErrors.ROLE_INVALID })
-  admin!: boolean;
 
   @ApiProperty({
     description: 'Deve está true quando a senha temporária for gerada',

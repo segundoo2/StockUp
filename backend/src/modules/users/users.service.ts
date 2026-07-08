@@ -15,6 +15,8 @@ import * as generatePassword from 'generate-password';
 import { DeleteResult, UpdateResult } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { UserDto } from './dto/user.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
+import { UpdateAdminDto } from './dto/update-admin.dto';
 
 @Injectable()
 export class UsersService implements IUsersService {
@@ -23,7 +25,7 @@ export class UsersService implements IUsersService {
     private readonly usersRepository: IUsersRepository,
   ) {}
 
-  //utilizado pela maioria dos métodos CRUD
+  //utilizado por todos os métodos CRUD
   private verifyInvalidUsername(username: string) {
     if (!username || username.trim() === '') {
       throw new BadRequestException(EErrors.USERNAME_INVALID);
@@ -62,27 +64,29 @@ export class UsersService implements IUsersService {
     });
   }
 
-  async updateUserPassword(userDto: UserDto): Promise<UsersResponseDto> {
-    this.verifyInvalidUsername(userDto.username);
+  async updateUserPassword(
+    passwordDto: UpdatePasswordDto,
+  ): Promise<UsersResponseDto> {
+    this.verifyInvalidUsername(passwordDto.username);
     let passwordUpdated: UpdateResult;
 
-    if (!userDto.password) {
-      userDto.password = this.generateTemporaryPassword();
+    if (!passwordDto.password) {
+      passwordDto.password = this.generateTemporaryPassword();
       passwordUpdated = await this.usersRepository.updateUserPassword({
-        ...userDto,
-        password: await bcrypt.hash(userDto.password, this.saltRounds),
+        ...passwordDto,
+        password: await bcrypt.hash(passwordDto.password, this.saltRounds),
       });
 
       if (passwordUpdated.affected === 0) {
         throw new NotFoundException(EErrors.USER_NOT_FOUND);
       }
 
-      return { message: ESuccess.PASSWORD_UPDATE, data: userDto.password };
+      return { message: ESuccess.PASSWORD_UPDATE, data: passwordDto.password };
     }
 
     passwordUpdated = await this.usersRepository.updateUserPassword({
-      ...userDto,
-      password: await bcrypt.hash(userDto.password, 10),
+      ...passwordDto,
+      password: await bcrypt.hash(passwordDto.password, 10),
     });
 
     if (passwordUpdated.affected === 0) {
@@ -90,6 +94,16 @@ export class UsersService implements IUsersService {
     }
 
     return { message: ESuccess.PASSWORD_UPDATE, data: null };
+  }
+
+  async updateAdminUser(adminDto: UpdateAdminDto): Promise<UsersResponseDto> {
+    this.verifyInvalidUsername(adminDto.username);
+    const result: UpdateResult =
+      await this.usersRepository.updateAdminUser(adminDto);
+    if (result.affected === 0) {
+      throw new NotFoundException(EErrors.ADMIN_INVALID);
+    }
+    return { message: ESuccess.ADMIN_UPDATE, data: null };
   }
 
   async findAllUsers(): Promise<UsersResponseDto> {

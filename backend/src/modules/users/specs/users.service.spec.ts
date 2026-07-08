@@ -11,6 +11,7 @@ import { EErrors } from '../enum/errors.enum';
 import { User } from '../entities/user.entity';
 import { DeleteResult, UpdateResult } from 'typeorm';
 import { createFakeUser } from '../helpers/create-fake-user.helper';
+import { UpdateAdminDto } from '../dto/update-admin.dto';
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -20,6 +21,7 @@ describe('UsersService', () => {
     mockRepository = {
       createUser: jest.fn(),
       updateUserPassword: jest.fn(),
+      updateAdminUser: jest.fn(),
       findAllUsers: jest.fn(),
       findOneByUsername: jest.fn(),
       deleteUser: jest.fn(),
@@ -36,7 +38,13 @@ describe('UsersService', () => {
       'should throw BadRequestException if username is $label',
       async ({ value }) => {
         await expect(
-          service.updateUserPassword({ username: value }),
+          service.updateUserPassword({
+            username: value,
+            mustChangePassword: true,
+          }),
+        ).rejects.toThrow(new BadRequestException(EErrors.USERNAME_INVALID));
+        await expect(
+          service.updateAdminUser({ username: value, admin: true }),
         ).rejects.toThrow(new BadRequestException(EErrors.USERNAME_INVALID));
         await expect(service.findOneByUsername(value)).rejects.toThrow(
           new BadRequestException(EErrors.USERNAME_INVALID),
@@ -55,6 +63,8 @@ describe('UsersService', () => {
       user.password = '12345678';
       const result = await service.createUser({
         username: user.username as string,
+        admin: true,
+        mustChangePassword: true,
       });
 
       expect(result.message).toBe(ESuccess.CREATE_USER);
@@ -65,7 +75,11 @@ describe('UsersService', () => {
     it('should throw ConflictException if the username is already registered', async () => {
       mockRepository.findOneByUsername.mockResolvedValue(createFakeUser());
       await expect(
-        service.createUser({ username: user.username as string }),
+        service.createUser({
+          username: user.username as string,
+          admin: true,
+          mustChangePassword: true,
+        }),
       ).rejects.toThrow(new ConflictException(EErrors.USERNAME_EXIST));
     });
   });
@@ -83,6 +97,7 @@ describe('UsersService', () => {
 
       const result = await service.updateUserPassword({
         username: user.username as string,
+        mustChangePassword: true,
       });
 
       expect(result.message).toBe(ESuccess.PASSWORD_UPDATE);
@@ -103,6 +118,7 @@ describe('UsersService', () => {
 
       const result = await service.updateUserPassword({
         username: user.username as string,
+        mustChangePassword: true,
         password: 'NovaSenhaDefinida123',
       });
 
@@ -122,8 +138,41 @@ describe('UsersService', () => {
       mockRepository.updateUserPassword.mockResolvedValue(response);
 
       await expect(
-        service.updateUserPassword({ username: user.username as string }),
+        service.updateUserPassword({
+          username: user.username as string,
+          mustChangePassword: true,
+        }),
       ).rejects.toThrow(new NotFoundException(EErrors.USER_NOT_FOUND));
+    });
+  });
+
+  describe('updateAdminUser', () => {
+    const adminDto: UpdateAdminDto = {
+      username: user.username as string,
+      admin: user.admin as boolean,
+    };
+    const repositoryReturn: UpdateResult = {
+      raw: [],
+      affected: 1,
+      generatedMaps: [],
+    };
+
+    it(`should return the message ${ESuccess.ADMIN_UPDATE} if the temporary password was successfully updated.`, async () => {
+      mockRepository.updateAdminUser.mockResolvedValue(repositoryReturn);
+      expect(await service.updateAdminUser(adminDto)).toEqual({
+        message: ESuccess.ADMIN_UPDATE,
+        data: null,
+      });
+      expect(mockRepository.updateAdminUser).toHaveBeenCalledWith(adminDto);
+    });
+
+    it('should return NotFoundException when affected is zero', async () => {
+      repositoryReturn.affected = 0;
+      mockRepository.updateAdminUser.mockResolvedValue(repositoryReturn);
+      await expect(service.updateAdminUser(adminDto)).rejects.toThrow(
+        new NotFoundException(EErrors.ADMIN_INVALID),
+      );
+      expect(mockRepository.updateAdminUser).toHaveBeenCalledWith(adminDto);
     });
   });
 

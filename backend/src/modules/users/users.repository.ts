@@ -1,13 +1,13 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { IUsersRepository } from './interface/users.repository.interface';
+import { IUsersRepository } from './interfaces/users.repository.interface';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { DeleteResult, Repository } from 'typeorm';
 import { EErrorsGlobal } from '../../enum/errors-global.enum';
-import { UserDto } from './dto/user.dto';
+import { UserDto } from './dtos/user.dto';
 import { UpdateResult } from 'typeorm/browser';
-import { UpdatePasswordDto } from './dto/update-password.dto';
-import { UpdateAdminDto } from './dto/update-admin.dto';
+import { UpdatePasswordDto } from './dtos/update-password.dto';
+import { UpdateAdminDto } from './dtos/update-admin.dto';
 
 @Injectable()
 export class UsersRepository implements IUsersRepository {

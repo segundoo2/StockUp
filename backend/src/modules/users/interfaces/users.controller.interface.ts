@@ -1,7 +1,7 @@
-import { UpdateAdminDto } from '../dto/update-admin.dto';
-import { UpdatePasswordDto } from '../dto/update-password.dto';
-import { UserDto } from '../dto/user.dto';
-import { UsersResponseDto } from '../dto/users-response.dto';
+import { UpdateAdminDto } from '../dtos/update-admin.dto';
+import { UpdatePasswordDto } from '../dtos/update-password.dto';
+import { UserDto } from '../dtos/user.dto';
+import { UsersResponseDto } from '../dtos/users-response.dto';
 
 export interface IUsersController {
   createUser(userDto: UserDto): Promise<UsersResponseDto>;

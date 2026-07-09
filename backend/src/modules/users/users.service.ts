@@ -5,18 +5,18 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { IUsersService } from './interface/users.service.interface';
-import type { IUsersRepository } from './interface/users.repository.interface';
+import { IUsersService } from './interfaces/users.service.interface';
+import type { IUsersRepository } from './interfaces/users.repository.interface';
 import { User } from './entities/user.entity';
-import { EErrors } from './enum/errors.enum';
-import { ESuccess } from './enum/success.enum';
-import { UsersResponseDto } from './dto/users-response.dto';
+import { EErrors } from './enums/errors.enum';
+import { ESuccess } from './enums/success.enum';
+import { UsersResponseDto } from './dtos/users-response.dto';
 import * as generatePassword from 'generate-password';
 import { DeleteResult, UpdateResult } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { UserDto } from './dto/user.dto';
-import { UpdatePasswordDto } from './dto/update-password.dto';
-import { UpdateAdminDto } from './dto/update-admin.dto';
+import { UserDto } from './dtos/user.dto';
+import { UpdatePasswordDto } from './dtos/update-password.dto';
+import { UpdateAdminDto } from './dtos/update-admin.dto';
 
 @Injectable()
 export class UsersService implements IUsersService {

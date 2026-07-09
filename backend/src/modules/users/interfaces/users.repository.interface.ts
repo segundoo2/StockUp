@@ -1,8 +1,8 @@
 import { DeleteResult, UpdateResult } from 'typeorm';
 import { User } from '../entities/user.entity';
-import { UserDto } from '../dto/user.dto';
-import { UpdatePasswordDto } from '../dto/update-password.dto';
-import { UpdateAdminDto } from '../dto/update-admin.dto';
+import { UserDto } from '../dtos/user.dto';
+import { UpdatePasswordDto } from '../dtos/update-password.dto';
+import { UpdateAdminDto } from '../dtos/update-admin.dto';
 
 export interface IUsersRepository {
   createUser(userDto: UserDto): Promise<void>;

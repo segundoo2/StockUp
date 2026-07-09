@@ -2,14 +2,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DeleteResult, ObjectLiteral, Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
-import { ESuccess } from '../enum/success.enum';
+import { ESuccess } from '../enums/success.enum';
 import { UsersRepository } from '../users.repository';
 import { InternalServerErrorException } from '@nestjs/common';
 import { EErrorsGlobal } from '../../../enum/errors-global.enum';
 import { createFakeUser } from '../helpers/create-fake-user.helper';
-import { UserDto } from '../dto/user.dto';
+import { UserDto } from '../dtos/user.dto';
 import { UpdateResult } from 'typeorm/browser';
-import { UpdateAdminDto } from '../dto/update-admin.dto';
+import { UpdateAdminDto } from '../dtos/update-admin.dto';
 
 type MockRepository<T extends ObjectLiteral> = Partial<
   Record<keyof Repository<T>, jest.Mock>

@@ -10,14 +10,14 @@ import {
   Delete,
   HttpCode,
 } from '@nestjs/common';
-import { IUsersController } from './interface/users.controller.interface';
-import type { IUsersService } from './interface/users.service.interface';
-import { ESuccess } from './enum/success.enum';
-import { UsersResponseDto } from './dto/users-response.dto';
+import { IUsersController } from './interfaces/users.controller.interface';
+import type { IUsersService } from './interfaces/users.service.interface';
+import { ESuccess } from './enums/success.enum';
+import { UsersResponseDto } from './dtos/users-response.dto';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { UserDto } from './dto/user.dto';
-import { UpdatePasswordDto } from './dto/update-password.dto';
-import { UpdateAdminDto } from './dto/update-admin.dto';
+import { UserDto } from './dtos/user.dto';
+import { UpdatePasswordDto } from './dtos/update-password.dto';
+import { UpdateAdminDto } from './dtos/update-admin.dto';
 
 @ApiTags('Users')
 @Controller('users')

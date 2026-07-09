@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { UserDto } from '../dto/user.dto';
-import { UsersResponseDto } from '../dto/users-response.dto';
+import { UserDto } from '../dtos/user.dto';
+import { UsersResponseDto } from '../dtos/users-response.dto';
 import { User } from '../entities/user.entity';
-import { ESuccess } from '../enum/success.enum';
+import { ESuccess } from '../enums/success.enum';
 import { createFakeUser } from '../helpers/create-fake-user.helper';
-import { IUsersService } from '../interface/users.service.interface';
+import { IUsersService } from '../interfaces/users.service.interface';
 import { UsersController } from '../users.controller';
 
 describe('UsersController', () => {

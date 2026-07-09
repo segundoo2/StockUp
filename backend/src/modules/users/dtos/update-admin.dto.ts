@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, Matches } from 'class-validator';
-import { EErrors } from '../enum/errors.enum';
+import { EErrors } from '../enums/errors.enum';
 
 export abstract class UpdateAdminDto {
   @ApiProperty({

@@ -4,14 +4,14 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { ESuccess } from '../enum/success.enum';
-import { IUsersRepository } from '../interface/users.repository.interface';
+import { ESuccess } from '../enums/success.enum';
+import { IUsersRepository } from '../interfaces/users.repository.interface';
 import { UsersService } from '../users.service';
-import { EErrors } from '../enum/errors.enum';
+import { EErrors } from '../enums/errors.enum';
 import { User } from '../entities/user.entity';
 import { DeleteResult, UpdateResult } from 'typeorm';
 import { createFakeUser } from '../helpers/create-fake-user.helper';
-import { UpdateAdminDto } from '../dto/update-admin.dto';
+import { UpdateAdminDto } from '../dtos/update-admin.dto';
 
 describe('UsersService', () => {
   let service: UsersService;

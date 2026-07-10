@@ -13,5 +13,5 @@ export class UsersResponseDto {
     type: User,
     nullable: true,
   })
-  data!: Partial<User> | Partial<User>[] | string | boolean | null;
+  data!: Partial<User> | Partial<User>[] | boolean | null;
 }

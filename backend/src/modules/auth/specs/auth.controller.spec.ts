@@ -21,14 +21,14 @@ describe('AuthController', () => {
   };
 
   describe('login', () => {
-    it('should return the message when the user login in sucessfully', async () => {
+    it(`should return the message "${ESuccess.LOGIN}" when the user login in sucessfully`, async () => {
       mockService.login.mockResolvedValue(ESuccess.LOGIN);
       expect(await controller.login(user)).toBe(ESuccess.LOGIN);
     });
   });
 
   describe('logout', () => {
-    it('should clear the authentication token and return 204 when user logs out', async () => {
+    it(`should return the message "${ESuccess.LOGOUT}" when logout the user successfully`, async () => {
       mockService.logout.mockResolvedValue(ESuccess.LOGOUT);
       expect(await controller.logout(user.username)).toBe(ESuccess.LOGOUT);
     });

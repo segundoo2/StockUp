@@ -14,7 +14,7 @@ export class AuthController implements IAuthController {
     return await this.authService.login(userDto);
   }
 
-  @Post()
+  @Post('/logout')
   async logout(username: string): Promise<string> {
     return await this.authService.logout(username);
   }

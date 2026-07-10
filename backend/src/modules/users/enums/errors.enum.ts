@@ -9,7 +9,7 @@ export enum EErrors {
 
   ADMIN_INVALID = 'Nível de acesso invalido.',
 
-  USERNAME_PASSWORD_INCORRECT = 'Nome de usuário ou senha inválido.',
+  PASSWORD_INCORRECT = 'Nome de usuário ou senha inválido.',
   MUST_CHANGE_PASSWORD_INVALID = 'Must change password inválido.',
 
   USER_NOT_FOUND = 'Usuário não encontrado.',

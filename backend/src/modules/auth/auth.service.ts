@@ -47,7 +47,7 @@ export class AuthService implements IAuthService {
       dbUserPasswordHash,
     );
     if (!isPasswordValid) {
-      throw new BadRequestException(EErrors.USERNAME_PASSWORD_INCORRECT);
+      throw new BadRequestException(EErrors.PASSWORD_INCORRECT);
     }
   }
 

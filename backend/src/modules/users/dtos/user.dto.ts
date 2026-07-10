@@ -24,8 +24,8 @@ export abstract class UserDto {
   @ApiProperty({
     description: 'O admin deve ser booleano.',
   })
-  @IsString({ message: `${EErrors.ROLE} ${EErrors.CARACTERS_INVALID}` })
-  @IsNotEmpty({ message: EErrors.ROLE_INVALID })
+  @IsBoolean({ message: EErrors.ADMIN_INVALID })
+  @IsNotEmpty({ message: EErrors.ADMIN_INVALID })
   admin!: boolean;
 
   @ApiProperty({

@@ -11,7 +11,7 @@ import type { IAuthRepository } from './interfaces/auth.repository.interface';
 import { EErrors } from '../users/enums/errors.enum';
 import * as bcrypt from 'bcrypt';
 import { User } from '../users/entities/user.entity';
-import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { IJwtPayload } from './interfaces/jwt-payload.interface';
 import type {
   ITokenService,
   TokenDuration,
@@ -53,7 +53,7 @@ export class AuthService implements IAuthService {
     user: Pick<User, 'id' | 'username' | 'admin'>,
     expiresIn: TokenDuration,
   ): Promise<string> {
-    const payload: JwtPayload = {
+    const payload: IJwtPayload = {
       sub: user.id,
       username: user.username,
       admin: user.admin,

@@ -11,6 +11,13 @@ describe('AuthController', () => {
   let controller: AuthController;
   let mockService: jest.Mocked<IAuthService>;
 
+  const mockRequest = {
+    headers: {
+      'user-agent': 'test-agent',
+    },
+    user: null,
+  } as unknown as RequestWithCookies;
+
   beforeEach(() => {
     mockService = {
       login: jest.fn(),
@@ -30,7 +37,9 @@ describe('AuthController', () => {
         message: ESuccess.LOGIN,
         data: { accessToken: 'access-token', refreshToken: 'refresh-token' },
       });
-      expect(await controller.login(user)).toEqual({
+
+      // Passando o mockRequest como primeiro argumento do login
+      expect(await controller.login(mockRequest, user)).toEqual({
         message: ESuccess.LOGIN,
         data: { accessToken: 'access-token', refreshToken: 'refresh-token' },
       });
@@ -43,6 +52,7 @@ describe('AuthController', () => {
         sub: 'user-id-123',
         username: 'user.name',
         admin: false,
+        fingerprint: 'test-agent', // 👈 Incluído no payload
       };
 
       const mockAuthPayload = {
@@ -53,15 +63,22 @@ describe('AuthController', () => {
         },
       };
 
-      const mockRequest = {
+      const mockRefreshRequest = {
+        headers: {
+          'user-agent': 'test-agent',
+        },
         user: mockJwtPayload,
       } as unknown as RequestWithCookies;
 
       mockService.refresh.mockResolvedValue(mockAuthPayload);
 
-      const result = await controller.refresh(mockRequest);
+      const result = await controller.refresh(mockRefreshRequest);
 
-      expect(mockService.refresh).toHaveBeenCalledWith(mockJwtPayload);
+      // O controller agora repassa o payload e o fingerprint extraído da requisição
+      expect(mockService.refresh).toHaveBeenCalledWith(
+        mockJwtPayload,
+        'test-agent',
+      );
       expect(result).toEqual(mockAuthPayload);
     });
   });

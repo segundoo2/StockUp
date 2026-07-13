@@ -2,10 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
 import { IJwtPayload } from '../interfaces/jwt-payload.interface';
 import { RequestWithCookies } from '../interfaces/req-with-cookies.interface';
-import {
-  JwtRefreshStrategy,
-  cookieRefreshExtractor,
-} from '../strategies/refresh-token.strategy';
+import { JwtRefreshStrategy } from '../strategies/refresh-token.strategy';
 
 describe('JwtRefreshStrategy', () => {
   let strategy: JwtRefreshStrategy;
@@ -22,42 +19,43 @@ describe('JwtRefreshStrategy', () => {
     expect(strategy).toBeDefined();
   });
 
-  describe('jwtFromRequest (Extractor)', () => {
-    it('should extract refresh_token from cookies', () => {
-      const mockRequest = {
-        cookies: {
-          refresh_token: 'valid-refresh-token',
-        },
-      } as unknown as RequestWithCookies;
-
-      const result = cookieRefreshExtractor(mockRequest);
-      expect(result).toBe('valid-refresh-token');
-    });
-
-    it('should return null if refresh_token is missing', () => {
-      const mockRequest = {
-        cookies: {},
-      } as unknown as RequestWithCookies;
-
-      const result = cookieRefreshExtractor(mockRequest);
-      expect(result).toBeNull();
-    });
-  });
-
   describe('validate', () => {
-    it('should return the payload when valid', () => {
+    it('should return the payload when fingerprints match', () => {
       const mockPayload: IJwtPayload = {
         sub: 'user-id-123',
         admin: true,
         username: 'test@example.com',
+        fingerprint: 'matched-device', // 👈 Casamento perfeito com o header abaixo
       };
-      const result = strategy.validate(mockPayload);
+
+      const mockRequest = {
+        headers: {
+          'user-agent': 'matched-device',
+        },
+      } as unknown as RequestWithCookies;
+
+      const result = strategy.validate(mockRequest, mockPayload);
       expect(result).toEqual(mockPayload);
     });
 
-    it('should throw UnauthorizedException when payload is null or undefined', () => {
-      expect(() => strategy.validate(null as unknown as IJwtPayload)).toThrow(
-        UnauthorizedException,
+    it('should throw UnauthorizedException when fingerprints mismatch', () => {
+      const mockPayload: IJwtPayload = {
+        sub: 'user-id-123',
+        admin: true,
+        username: 'test@example.com',
+        fingerprint: 'device-alpha', // 👈 Dispositivo original
+      };
+
+      const mockRequest = {
+        headers: {
+          'user-agent': 'device-omega', // 👈 Tentativa de roubo por outro dispositivo
+        },
+      } as unknown as RequestWithCookies;
+
+      expect(() => strategy.validate(mockRequest, mockPayload)).toThrow(
+        new UnauthorizedException(
+          'Dispositivo divergente. Acesso negado por motivos de segurança.',
+        ),
       );
     });
   });

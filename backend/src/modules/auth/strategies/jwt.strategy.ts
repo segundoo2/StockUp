@@ -1,7 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-jwt';
-import { Request } from 'express';
 import { IJwtPayload } from '../interfaces/jwt-payload.interface';
 import { RequestWithCookies } from '../interfaces/req-with-cookies.interface';
 
@@ -28,6 +27,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     if (!payload) {
       throw new UnauthorizedException('Sessão inválida ou expirada.');
     }
+
     return payload;
   }
 }

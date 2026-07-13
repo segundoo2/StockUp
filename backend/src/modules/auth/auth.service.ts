@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { IAuthService } from './interfaces/auth.service.interface';
 import { UserDto } from '../users/dtos/user.dto';
@@ -29,20 +30,28 @@ export class AuthService implements IAuthService {
 
   async login(
     userDto: Pick<UserDto, 'username' | 'password'>,
+    fingerprint: string,
   ): Promise<IAuthPayload> {
     const user: Pick<User, 'id' | 'username' | 'password' | 'admin'> =
       await this.findUserByUsername(userDto.username);
     await this.comparePasswordHash(userDto.password as string, user.password);
 
+    const userPayload = {
+      id: user.id,
+      username: user.username,
+      admin: user.admin,
+      fingerprint,
+    };
+
     return {
       message: ESuccess.LOGIN,
       data: {
         accessToken: await this.generateToken(
-          { id: user.id, username: user.username, admin: user.admin },
+          userPayload,
           process.env.ACCESS_TOKEN_EXPIRES_IN as TokenDuration,
         ),
         refreshToken: await this.generateToken(
-          { id: user.id, username: user.username, admin: user.admin },
+          userPayload,
           process.env.REFRESH_TOKEN_EXPIRES_IN as TokenDuration,
         ),
       },
@@ -50,13 +59,14 @@ export class AuthService implements IAuthService {
   }
 
   private async generateToken(
-    user: Pick<User, 'id' | 'username' | 'admin'>,
+    user: Pick<User, 'id' | 'username' | 'admin'> & { fingerprint: string },
     expiresIn: TokenDuration,
   ): Promise<string> {
     const payload: IJwtPayload = {
       sub: user.id,
       username: user.username,
       admin: user.admin,
+      fingerprint: user.fingerprint, // 👈 Agora o compilador reconhece perfeitamente
     };
     return await this.jwtService.signAsync(payload, { expiresIn });
   }
@@ -85,11 +95,19 @@ export class AuthService implements IAuthService {
     }
   }
 
-  async refresh(payload: IJwtPayload): Promise<IAuthPayload> {
+  async refresh(
+    payload: IJwtPayload,
+    fingerprint: string,
+  ): Promise<IAuthPayload> {
+    if (payload.fingerprint !== fingerprint) {
+      throw new UnauthorizedException('Dispositivo inválido. Sessão revogada.');
+    }
+
     const userSummary = {
       id: payload.sub,
       username: payload.username,
       admin: payload.admin,
+      fingerprint,
     };
 
     return {

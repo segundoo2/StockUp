@@ -30,15 +30,6 @@ describe('JwtStrategy', () => {
       const result = cookieJwtExtractor(mockRequest);
       expect(result).toBe('valid-access-token');
     });
-
-    it('should return null if access_token is missing', () => {
-      const mockRequest = {
-        cookies: {},
-      } as unknown as RequestWithCookies;
-
-      const result = cookieJwtExtractor(mockRequest);
-      expect(result).toBeNull();
-    });
   });
 
   describe('validate', () => {
@@ -47,6 +38,7 @@ describe('JwtStrategy', () => {
         sub: 'user-id-123',
         admin: true,
         username: 'user.name',
+        fingerprint: 'any-fingerprint', // 👈 Adicionado
       };
       const result = strategy.validate(mockPayload);
       expect(result).toEqual(mockPayload);

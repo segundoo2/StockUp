@@ -3,6 +3,9 @@ import { IJwtPayload } from './jwt-payload.interface';
 import { IAuthPayload } from './auth-payload.interface';
 
 export interface IAuthService {
-  login(userDto: Pick<UserDto, 'username' | 'password'>): Promise<IAuthPayload>;
-  refresh(payload: IJwtPayload): Promise<IAuthPayload>;
+  login(
+    userDto: Pick<UserDto, 'username' | 'password'>,
+    fingerprint: string,
+  ): Promise<IAuthPayload>;
+  refresh(payload: IJwtPayload, fingerprint: string): Promise<IAuthPayload>;
 }

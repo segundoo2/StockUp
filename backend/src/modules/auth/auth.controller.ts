@@ -8,6 +8,7 @@ import {
   UseGuards,
   UseInterceptors,
   Body,
+  Logger,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,8 +16,9 @@ import {
   ApiResponse,
   ApiBody,
   ApiCookieAuth,
+  ApiHeader,
 } from '@nestjs/swagger';
-import type { Response } from 'express';
+import type { Response, Request } from 'express'; // 👈 Importado o tipo Request do Express
 import { IAuthController } from './interfaces/auth.controller.interface';
 import type { IAuthService } from './interfaces/auth.service.interface';
 import { UserDto } from '../users/dtos/user.dto';
@@ -28,16 +30,27 @@ import type { RequestWithCookies } from './interfaces/req-with-cookies.interface
 import { ESuccess } from './enums/success.enum';
 import { AuthResponseDto, LogoutResponseDto } from './dtos/auth-response.dto';
 import { LoginDto } from './dtos/login.dto';
+import { ThrottlerGuard } from '@nestjs/throttler';
+import { AuthService } from './auth.service';
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController implements IAuthController {
   constructor(private readonly authService: IAuthService) {}
 
+  private readonly logger = new Logger(AuthService.name);
+
   @Post()
+  @UseGuards(ThrottlerGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Realiza a autenticação do usuário' })
   @ApiBody({ type: LoginDto })
+  @ApiHeader({
+    name: 'x-device-id',
+    required: false,
+    description: 'ID único do hardware do dispositivo móvel (Flutter)',
+    example: 'uuid-1234-5678-9101',
+  })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Login efetuado com sucesso e tokens gerados.',
@@ -52,16 +65,37 @@ export class AuthController implements IAuthController {
     description: 'Senha incorreta.',
   })
   async login(
+    @Req() req: Request,
     @Body() userDto: Pick<UserDto, 'username' | 'password'>,
   ): Promise<IAuthPayload> {
-    return await this.authService.login(userDto);
+    const fingerprint =
+      (req.headers['x-device-id'] as string) ||
+      (req.headers['user-agent'] as string) ||
+      'unknown';
+
+    try {
+      const response = await this.authService.login(userDto, fingerprint);
+      this.logger.log(`[AUTH] Usuário ${userDto.username} logado com sucesso.`);
+      return response;
+    } catch (error) {
+      this.logger.warn(
+        `[AUTH] Tentativa de login falhou para o usuário: ${userDto.username}`,
+      );
+      throw error;
+    }
   }
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt-refresh'))
+  @UseGuards(AuthGuard('jwt-refresh'), ThrottlerGuard)
   @UseInterceptors(SetCookiesInterceptor)
   @ApiCookieAuth('refresh_token')
+  @ApiHeader({
+    name: 'x-device-id',
+    required: false,
+    description: 'ID único do hardware do dispositivo móvel (Flutter)',
+    example: 'uuid-1234-5678-9101',
+  })
   @ApiOperation({
     summary: 'Renova os tokens de acesso a partir do cookie de refresh',
   })
@@ -72,16 +106,23 @@ export class AuthController implements IAuthController {
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
-    description: 'Refresh token inválido ou expirado.',
+    description: 'Refresh token inválido, expirado ou dispositivo divergente.',
   })
   async refresh(@Req() req: RequestWithCookies): Promise<IAuthPayload> {
     const userPayload = req.user as IJwtPayload;
-    return await this.authService.refresh(userPayload);
+
+    // Captura o fingerprint atual enviado na requisição HTTP de refresh para validação cruzada
+    const fingerprint =
+      (req.headers['x-device-id'] as string) ||
+      (req.headers['user-agent'] as string) ||
+      'unknown';
+
+    return await this.authService.refresh(userPayload, fingerprint);
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), ThrottlerGuard)
   @ApiCookieAuth('access_token')
   @ApiOperation({
     summary: 'Invalida a sessão removendo os cookies de autenticação',

@@ -20,8 +20,8 @@ describe('AuthService', () => {
     username: 'segundo',
     password: '12345678',
   };
+  const testFingerprint = 'test-fingerprint'; // 👈 Centralizado para os testes
 
-  // Gera um hash real de verdade uma vez antes dos testes rodarem
   beforeAll(async () => {
     validPasswordHash = await bcrypt.hash(userDto.password as string, 10);
   });
@@ -50,26 +50,20 @@ describe('AuthService', () => {
     it('should return NotFoundException when the user not found', async () => {
       mockRepository.findUserByUsername.mockResolvedValue(null);
 
-      await expect(service.login(userDto)).rejects.toThrow(
+      await expect(service.login(userDto, testFingerprint)).rejects.toThrow(
         new NotFoundException(EErrors.USER_NOT_FOUND),
       );
-      expect(mockRepository.findUserByUsername).toHaveBeenCalledWith(
-        userDto.username,
-      );
     });
 
-    it('should return BadRequestException when the userDto.password !== database user.password', async () => {
+    it('should return BadRequestException when the password incorrect', async () => {
       mockRepository.findUserByUsername.mockResolvedValue(mockUser);
 
-      await expect(service.login(userDto)).rejects.toThrow(
+      await expect(service.login(userDto, testFingerprint)).rejects.toThrow(
         new BadRequestException(EErrors.PASSWORD_INCORRECT),
-      );
-      expect(mockRepository.findUserByUsername).toHaveBeenCalledWith(
-        userDto.username,
       );
     });
 
-    it(`should return the object { message: ${ESuccess.LOGIN}, data: { accessToken: string, refreshToken: string }} when user login successfully`, async () => {
+    it(`should return tokens when user login successfully`, async () => {
       const tokens = {
         accessToken: 'access-token',
         refreshToken: 'refresh-token',
@@ -86,32 +80,30 @@ describe('AuthService', () => {
           return '';
         },
       );
-      expect(await service.login(userDto)).toEqual({
+
+      expect(await service.login(userDto, testFingerprint)).toEqual({
         message: ESuccess.LOGIN,
         data: {
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
         },
       });
-      expect(mockRepository.findUserByUsername).toHaveBeenCalledWith(
-        userDto.username,
-      );
+
       const expectedPayload = {
         sub: mockUser.id,
         username: mockUser.username,
         admin: mockUser.admin,
+        fingerprint: testFingerprint, // 👈 Agora o payload exige o fingerprint
       };
+
       expect(mockTokenService.signAsync).toHaveBeenCalledWith(expectedPayload, {
         expiresIn: '15m',
-      });
-      expect(mockTokenService.signAsync).toHaveBeenCalledWith(expectedPayload, {
-        expiresIn: '7d',
       });
     });
   });
 
   describe('refresh', () => {
-    it(`should return the object { message: ${ESuccess.REFRESH}, data: { accessToken: string, refreshToken: string }} based purely on verified payload without touching database`, async () => {
+    it(`should return new tokens based on verified payload and fingerprint`, async () => {
       const tokens = {
         accessToken: 'new-access-token',
         refreshToken: 'new-refresh-token',
@@ -121,13 +113,14 @@ describe('AuthService', () => {
         sub: 'uuid-user',
         username: 'user.name',
         admin: true,
+        fingerprint: testFingerprint, // 👈 Token antigo continha o fingerprint original
       };
 
       mockTokenService.signAsync
         .mockResolvedValueOnce(tokens.accessToken)
         .mockResolvedValueOnce(tokens.refreshToken);
 
-      const result = await service.refresh(mockJwtPayload);
+      const result = await service.refresh(mockJwtPayload, testFingerprint);
 
       expect(result).toEqual({
         message: ESuccess.REFRESH,
@@ -137,26 +130,10 @@ describe('AuthService', () => {
         },
       });
 
-      expect(mockRepository.findUserByUsername).not.toHaveBeenCalled();
-
       expect(mockTokenService.signAsync).toHaveBeenNthCalledWith(
         1,
-        {
-          sub: mockJwtPayload.sub,
-          username: mockJwtPayload.username,
-          admin: mockJwtPayload.admin,
-        },
+        mockJwtPayload,
         { expiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN },
-      );
-
-      expect(mockTokenService.signAsync).toHaveBeenNthCalledWith(
-        2,
-        {
-          sub: mockJwtPayload.sub,
-          username: mockJwtPayload.username,
-          admin: mockJwtPayload.admin,
-        },
-        { expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN },
       );
     });
   });

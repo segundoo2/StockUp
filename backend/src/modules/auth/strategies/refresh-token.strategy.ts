@@ -26,13 +26,26 @@ export class JwtRefreshStrategy extends PassportStrategy(
       jwtFromRequest: cookieRefreshExtractor,
       ignoreExpiration: false,
       secretOrKey: process.env.JWT_REFRESH_SECRET || 'refresh-secret-key',
+      passReqToCallback: true,
     });
   }
 
-  validate(payload: IJwtPayload): IJwtPayload {
+  validate(req: RequestWithCookies, payload: IJwtPayload): IJwtPayload {
     if (!payload) {
       throw new UnauthorizedException(EErrors.FAILED_RETRIEVE_SESSION);
     }
+
+    const currentFingerprint =
+      (req.headers['x-device-id'] as string) ||
+      (req.headers['user-agent'] as string) ||
+      'unknown';
+
+    if (payload.fingerprint !== currentFingerprint) {
+      throw new UnauthorizedException(
+        'Dispositivo divergente. Acesso negado por motivos de segurança.',
+      );
+    }
+
     return payload;
   }
 }

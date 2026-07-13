@@ -6,6 +6,7 @@ import { User } from '../users/entities/user.entity';
 import { AuthRepository } from './auth.repository';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtAdapter } from './adapters/jwt.adapter';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -15,6 +16,12 @@ import { JwtAdapter } from './adapters/jwt.adapter';
       secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '7d' },
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // 1 minuto
+        limit: 10, // Máximo de 10 requisições por minuto na rota protegida
+      },
+    ]),
   ],
   controllers: [AuthController],
   providers: [

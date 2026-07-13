@@ -16,7 +16,7 @@ import type {
   ITokenService,
   TokenDuration,
 } from './interfaces/jwt-service.interface';
-import { ILoginResponse } from './interfaces/login-response.interface';
+import { IAuthPayload } from './interfaces/login-response.interface';
 
 @Injectable()
 export class AuthService implements IAuthService {
@@ -29,7 +29,7 @@ export class AuthService implements IAuthService {
 
   async login(
     userDto: Pick<UserDto, 'username' | 'password'>,
-  ): Promise<ILoginResponse> {
+  ): Promise<IAuthPayload> {
     const user: Pick<User, 'id' | 'username' | 'password' | 'admin'> =
       await this.findUserByUsername(userDto.username);
     await this.comparePasswordHash(userDto.password as string, user.password);

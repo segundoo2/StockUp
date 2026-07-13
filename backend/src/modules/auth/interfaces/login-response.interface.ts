@@ -3,7 +3,7 @@ interface ITokens {
   refreshToken: string;
 }
 
-export interface ILoginResponse {
+export interface IAuthPayload {
   message: string;
   data: ITokens;
 }

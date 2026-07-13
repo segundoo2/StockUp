@@ -39,11 +39,11 @@ export class AuthService implements IAuthService {
       data: {
         accessToken: await this.generateToken(
           { id: user.id, username: user.username, admin: user.admin },
-          '15m',
+          process.env.ACCESS_TOKEN_EXPIRES_IN as TokenDuration,
         ),
         refreshToken: await this.generateToken(
           { id: user.id, username: user.username, admin: user.admin },
-          '7d',
+          process.env.REFRESH_TOKEN_EXPIRES_IN as TokenDuration,
         ),
       },
     };

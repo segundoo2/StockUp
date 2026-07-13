@@ -24,6 +24,7 @@ export class SetCookiesInterceptor implements NestInterceptor {
             httpOnly: true,
             secure: process.env.NODE_ENV !== 'development' ? true : false,
             sameSite: 'strict' as const,
+            path: '/',
           };
 
           response.cookie('access_token', result.data.accessToken, {
@@ -32,6 +33,7 @@ export class SetCookiesInterceptor implements NestInterceptor {
           });
           response.cookie('refresh_token', result.data.refreshToken, {
             ...cookieOptions,
+            path: '/auth',
             maxAge: 7 * 24 * 60 * 60 * 1000,
           });
           return { message: result.message };

@@ -18,7 +18,7 @@ import {
   ApiCookieAuth,
   ApiHeader,
 } from '@nestjs/swagger';
-import type { Response, Request } from 'express'; // 👈 Importado o tipo Request do Express
+import type { Response, Request } from 'express';
 import { IAuthController } from './interfaces/auth.controller.interface';
 import type { IAuthService } from './interfaces/auth.service.interface';
 import { UserDto } from '../users/dtos/user.dto';
@@ -30,7 +30,6 @@ import type { RequestWithCookies } from './interfaces/req-with-cookies.interface
 import { ESuccess } from './enums/success.enum';
 import { AuthResponseDto, LogoutResponseDto } from './dtos/auth-response.dto';
 import { LoginDto } from './dtos/login.dto';
-import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 
 @ApiTags('Authentication')
@@ -41,7 +40,6 @@ export class AuthController implements IAuthController {
   private readonly logger = new Logger(AuthService.name);
 
   @Post()
-  @UseGuards(ThrottlerGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Realiza a autenticação do usuário' })
   @ApiBody({ type: LoginDto })
@@ -87,7 +85,7 @@ export class AuthController implements IAuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt-refresh'), ThrottlerGuard)
+  @UseGuards(AuthGuard('jwt-refresh'))
   @UseInterceptors(SetCookiesInterceptor)
   @ApiCookieAuth('refresh_token')
   @ApiHeader({
@@ -111,18 +109,28 @@ export class AuthController implements IAuthController {
   async refresh(@Req() req: RequestWithCookies): Promise<IAuthPayload> {
     const userPayload = req.user as IJwtPayload;
 
-    // Captura o fingerprint atual enviado na requisição HTTP de refresh para validação cruzada
     const fingerprint =
       (req.headers['x-device-id'] as string) ||
       (req.headers['user-agent'] as string) ||
       'unknown';
 
-    return await this.authService.refresh(userPayload, fingerprint);
+    try {
+      const response = await this.authService.refresh(userPayload, fingerprint);
+      this.logger.log(
+        `[AUTH] Usuário ${userPayload.username} renovou a sessão com sucesso.`,
+      );
+      return response;
+    } catch (error) {
+      this.logger.warn(
+        `[AUTH] Tentativa de renovação de sessão falhou para o usuário: ${userPayload.username}`,
+      );
+      throw error;
+    }
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'), ThrottlerGuard)
+  @UseGuards(AuthGuard('jwt'))
   @ApiCookieAuth('access_token')
   @ApiOperation({
     summary: 'Invalida a sessão removendo os cookies de autenticação',
@@ -136,16 +144,21 @@ export class AuthController implements IAuthController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Não autorizado.',
   })
-  logout(@Res() res: Response): Response {
+  logout(@Req() req: Request, @Res() res: Response): Response {
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict' as const,
+      path: '/',
     };
+    const userPayload = req.user as IJwtPayload;
 
     res.clearCookie('access_token', cookieOptions);
-    res.clearCookie('refresh_token', cookieOptions);
+    res.clearCookie('refresh_token', { ...cookieOptions, path: '/auth' });
 
-    return res.json({ message: ESuccess.LOGOUT });
+    const response = res.json({ message: ESuccess.LOGOUT });
+    this.logger.warn(`[AUTH] O usuário ${userPayload.username} fez logout.`);
+
+    return response;
   }
 }

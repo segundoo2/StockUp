@@ -5,7 +5,8 @@ import { UsersModule } from './modules/users/users.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from './modules/auth/auth.module';
-import { AuthRepositoryService } from './modules/auth/auth.repository';
+import { UsersRepository } from './modules/users/users.repository';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -22,10 +23,16 @@ import { AuthRepositoryService } from './modules/auth/auth.repository';
         synchronize: configService.get<string>('NODE_ENV') === 'development',
       }),
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // 1 minuto
+        limit: 10, // Máximo de 10 requisições por minuto na rota protegida
+      },
+    ]),
     UsersModule,
     AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService, AuthRepositoryService],
+  providers: [AppService, UsersRepository, ThrottlerGuard],
 })
 export class AppModule {}

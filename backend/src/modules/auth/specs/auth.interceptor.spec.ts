@@ -2,7 +2,7 @@ import { ExecutionContext, CallHandler } from '@nestjs/common';
 import { of } from 'rxjs';
 import { Response } from 'express';
 import { SetCookiesInterceptor } from '../interceptors/auth.interceptor';
-import { IAuthPayload } from '../interfaces/login-response.interface';
+import { IAuthPayload } from '../interfaces/auth-payload.interface';
 
 describe('SetCookiesInterceptor', () => {
   let interceptor: SetCookiesInterceptor;

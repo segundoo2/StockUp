@@ -5,7 +5,7 @@ import {
   NestInterceptor,
 } from '@nestjs/common';
 import { map, Observable } from 'rxjs';
-import { IAuthPayload } from '../interfaces/login-response.interface';
+import { IAuthPayload } from '../interfaces/auth-payload.interface';
 import { Response } from 'express';
 
 @Injectable()

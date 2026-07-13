@@ -16,7 +16,7 @@ import type {
   ITokenService,
   TokenDuration,
 } from './interfaces/jwt-service.interface';
-import { IAuthPayload } from './interfaces/login-response.interface';
+import { IAuthPayload } from './interfaces/auth-payload.interface';
 
 @Injectable()
 export class AuthService implements IAuthService {
@@ -83,5 +83,27 @@ export class AuthService implements IAuthService {
     if (!isPasswordValid) {
       throw new BadRequestException(EErrors.PASSWORD_INCORRECT);
     }
+  }
+
+  async refresh(payload: IJwtPayload): Promise<IAuthPayload> {
+    const userSummary = {
+      id: payload.sub,
+      username: payload.username,
+      admin: payload.admin,
+    };
+
+    return {
+      message: ESuccess.REFRESH,
+      data: {
+        accessToken: await this.generateToken(
+          userSummary,
+          process.env.ACCESS_TOKEN_EXPIRES_IN as TokenDuration,
+        ),
+        refreshToken: await this.generateToken(
+          userSummary,
+          process.env.REFRESH_TOKEN_EXPIRES_IN as TokenDuration,
+        ),
+      },
+    };
   }
 }

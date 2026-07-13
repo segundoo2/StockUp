@@ -8,6 +8,7 @@ import { ESuccess } from '../enums/success.enum';
 import * as bcrypt from 'bcrypt';
 import { User } from '../../users/entities/user.entity';
 import { ITokenService } from '../interfaces/jwt-service.interface';
+import { IJwtPayload } from '../interfaces/jwt-payload.interface';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -26,6 +27,9 @@ describe('AuthService', () => {
   });
 
   beforeEach(() => {
+    process.env.ACCESS_TOKEN_EXPIRES_IN = '15m';
+    process.env.REFRESH_TOKEN_EXPIRES_IN = '7d';
+
     mockRepository = {
       findUserByUsername: jest.fn(),
     };
@@ -103,6 +107,57 @@ describe('AuthService', () => {
       expect(mockTokenService.signAsync).toHaveBeenCalledWith(expectedPayload, {
         expiresIn: '7d',
       });
+    });
+  });
+
+  describe('refresh', () => {
+    it(`should return the object { message: ${ESuccess.REFRESH}, data: { accessToken: string, refreshToken: string }} based purely on verified payload without touching database`, async () => {
+      const tokens = {
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
+      };
+
+      const mockJwtPayload: IJwtPayload = {
+        sub: 'uuid-user',
+        username: 'user.name',
+        admin: true,
+      };
+
+      mockTokenService.signAsync
+        .mockResolvedValueOnce(tokens.accessToken)
+        .mockResolvedValueOnce(tokens.refreshToken);
+
+      const result = await service.refresh(mockJwtPayload);
+
+      expect(result).toEqual({
+        message: ESuccess.REFRESH,
+        data: {
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+        },
+      });
+
+      expect(mockRepository.findUserByUsername).not.toHaveBeenCalled();
+
+      expect(mockTokenService.signAsync).toHaveBeenNthCalledWith(
+        1,
+        {
+          sub: mockJwtPayload.sub,
+          username: mockJwtPayload.username,
+          admin: mockJwtPayload.admin,
+        },
+        { expiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN },
+      );
+
+      expect(mockTokenService.signAsync).toHaveBeenNthCalledWith(
+        2,
+        {
+          sub: mockJwtPayload.sub,
+          username: mockJwtPayload.username,
+          admin: mockJwtPayload.admin,
+        },
+        { expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN },
+      );
     });
   });
 });

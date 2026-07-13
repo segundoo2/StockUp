@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, Matches } from 'class-validator';
+import { IsString, IsNotEmpty, Matches, IsBoolean } from 'class-validator';
 import { EErrors } from '../enums/errors.enum';
 
 export abstract class UpdateAdminDto {
@@ -18,7 +18,7 @@ export abstract class UpdateAdminDto {
     description: 'O admin deve ser booleano.',
     example: 'true = usuário administrador',
   })
-  @IsString({ message: `${EErrors.ROLE} ${EErrors.CARACTERS_INVALID}` })
-  @IsNotEmpty({ message: EErrors.ROLE_INVALID })
+  @IsBoolean({ message: EErrors.ADMIN_INVALID })
+  @IsNotEmpty({ message: EErrors.ADMIN_INVALID })
   admin!: boolean;
 }

@@ -4,14 +4,15 @@ import { UsersService } from './users.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { UsersRepository } from './users.repository';
+import { RedisModule } from '../../common/redis/redis.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User])],
+  imports: [TypeOrmModule.forFeature([User]), RedisModule],
   controllers: [UsersController],
   providers: [
     { provide: 'IUsersService', useClass: UsersService },
     { provide: 'IUsersRepository', useClass: UsersRepository },
   ],
-  exports: ['IUsersServie'],
+  exports: ['IUsersService'],
 })
 export class UsersModule {}

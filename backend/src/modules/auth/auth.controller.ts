@@ -9,6 +9,7 @@ import {
   UseInterceptors,
   Body,
   Logger,
+  Inject,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -34,10 +35,11 @@ import { LoginDto } from './dtos/login.dto';
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController implements IAuthController {
-  // Corrigido para carregar o nome do próprio Controller no contexto do log
   private readonly logger = new Logger(AuthController.name);
 
-  constructor(private readonly authService: IAuthService) {}
+  constructor(
+    @Inject('IAuthService') private readonly authService: IAuthService,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.OK)
@@ -109,7 +111,6 @@ export class AuthController implements IAuthController {
     description: 'Refresh token inválido, expirado ou dispositivo divergente.',
   })
   async refresh(@Req() req: RequestWithCookies): Promise<IAuthPayload> {
-    // Usando a interface estrita com o 'exp' mapeado
     const userPayload = req.user as IJwtPayloadWithExpiry;
 
     const fingerprint =
@@ -118,7 +119,6 @@ export class AuthController implements IAuthController {
       'unknown';
 
     try {
-      // O service executa a rotação e invalida o token antigo no Redis
       const response = await this.authService.refresh(userPayload, fingerprint);
       this.logger.log(
         `[AUTH] Sessão do usuário "${userPayload.username}" rotacionada com sucesso.`,
@@ -134,7 +134,7 @@ export class AuthController implements IAuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt-refresh')) // Modificado para jwt-refresh para obtermos o payload completo do token que está sendo descartado
+  @UseGuards(AuthGuard('jwt-refresh'))
   @ApiCookieAuth('refresh_token')
   @ApiOperation({
     summary:
@@ -155,7 +155,6 @@ export class AuthController implements IAuthController {
   ): Promise<Response> {
     const userPayload = req.user as IJwtPayloadWithExpiry;
 
-    // 1. Executa a invalidação persistente no Redis antes de limpar os cookies
     await this.authService.logout(userPayload);
 
     const isProd = process.env.NODE_ENV === 'production';
@@ -164,10 +163,9 @@ export class AuthController implements IAuthController {
       secure: isProd,
     };
 
-    // 2. Limpeza cirúrgica dos cookies respeitando os mesmos paths de criação
     res.clearCookie('access_token', {
       ...cookieOptions,
-      sameSite: 'lax',
+      sameSite: 'strict',
       path: '/',
     });
     res.clearCookie('refresh_token', {

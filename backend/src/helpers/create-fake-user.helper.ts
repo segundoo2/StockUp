@@ -1,4 +1,4 @@
-import { User } from '../entities/user.entity';
+import { User } from '../modules/users/entities/user.entity';
 
 export const createFakeUser = (): Partial<User> => ({
   id: 'some-uuid-or-id',

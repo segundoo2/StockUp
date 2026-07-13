@@ -5,7 +5,6 @@ import { UsersModule } from './modules/users/users.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from './modules/auth/auth.module';
-import { UsersRepository } from './modules/users/users.repository';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
@@ -33,6 +32,6 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
     AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService, UsersRepository, ThrottlerGuard],
+  providers: [AppService, ThrottlerGuard],
 })
 export class AppModule {}

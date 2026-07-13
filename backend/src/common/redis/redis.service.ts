@@ -16,8 +16,8 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     await this.client.connect();
   }
 
-  async onModuleDestroy(): Promise<void> {
-    await this.client.disconnect();
+  onModuleDestroy(): void {
+    this.client.destroy();
   }
 
   async setWithExpiry(

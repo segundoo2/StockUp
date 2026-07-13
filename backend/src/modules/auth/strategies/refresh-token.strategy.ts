@@ -5,6 +5,17 @@ import { IJwtPayload } from '../interfaces/jwt-payload.interface';
 import { RequestWithCookies } from '../interfaces/req-with-cookies.interface';
 import { EErrors } from '../enums/errors.enum';
 
+export const cookieRefreshExtractor = (
+  req: RequestWithCookies,
+): string | null => {
+  const strictReq = req;
+  if (strictReq && strictReq.cookies) {
+    const token = strictReq.cookies['refresh_token'];
+    if (token) return token;
+  }
+  return null;
+};
+
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(
   Strategy,
@@ -12,14 +23,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
 ) {
   constructor() {
     super({
-      jwtFromRequest: (req: RequestWithCookies): string | null => {
-        const strictReq = req;
-        if (strictReq && strictReq.cookies) {
-          const token = strictReq.cookies['refresh_token'];
-          if (token) return token;
-        }
-        return null;
-      },
+      jwtFromRequest: cookieRefreshExtractor,
       ignoreExpiration: false,
       secretOrKey: process.env.JWT_REFRESH_SECRET || 'refresh-secret-key',
     });

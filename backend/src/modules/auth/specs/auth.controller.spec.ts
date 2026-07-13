@@ -5,6 +5,7 @@ import { IAuthService } from '../interfaces/auth.service.interface';
 import { ESuccess } from '../enums/success.enum';
 import { IJwtPayload } from '../interfaces/jwt-payload.interface';
 import { RequestWithCookies } from '../interfaces/req-with-cookies.interface';
+import type { Response } from 'express';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -56,13 +57,47 @@ describe('AuthController', () => {
         user: mockJwtPayload,
       } as unknown as RequestWithCookies;
 
-      // Definimos o valor de retorno esperado para o mock do refresh antes da chamada
       mockService.refresh.mockResolvedValue(mockAuthPayload);
 
       const result = await controller.refresh(mockRequest);
 
       expect(mockService.refresh).toHaveBeenCalledWith(mockJwtPayload);
       expect(result).toEqual(mockAuthPayload);
+    });
+  });
+
+  describe('logout', () => {
+    it('should clear access and refresh tokens from cookies and return a success response', () => {
+      const mockResponse = {
+        clearCookie: jest.fn(),
+        json: jest.fn(),
+      } as unknown as Response;
+
+      (mockResponse.json as jest.Mock).mockImplementation(
+        (body: unknown) => body,
+      );
+
+      const result = controller.logout(mockResponse);
+
+      const expectedCookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict' as const,
+      };
+
+      expect(mockResponse.clearCookie).toHaveBeenCalledWith(
+        'access_token',
+        expectedCookieOptions,
+      );
+      expect(mockResponse.clearCookie).toHaveBeenCalledWith(
+        'refresh_token',
+        expectedCookieOptions,
+      );
+
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        message: ESuccess.LOGOUT,
+      });
+      expect(result).toEqual({ message: ESuccess.LOGOUT });
     });
   });
 });

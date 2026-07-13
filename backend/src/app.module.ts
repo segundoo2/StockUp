@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from './modules/auth/auth.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ProductsModule } from './modules/products/products.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
     ]),
     UsersModule,
     AuthModule,
+    ProductsModule,
   ],
   controllers: [AppController],
   providers: [AppService, ThrottlerGuard],

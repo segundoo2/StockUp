@@ -6,10 +6,13 @@ import { AuthService } from '../auth.service';
 import { IAuthRepository } from '../interfaces/auth.repository.interface';
 import { ESuccess } from '../enums/success.enum';
 import * as bcrypt from 'bcrypt';
+import { User } from '../../users/entities/user.entity';
+import { ITokenService } from '../interfaces/jwt-service.interface';
 
 describe('AuthService', () => {
   let service: AuthService;
   let mockRepository: jest.Mocked<IAuthRepository>;
+  let mockTokenService: jest.Mocked<ITokenService>;
   let validPasswordHash: string;
 
   const userDto: Pick<UserDto, 'username' | 'password'> = {
@@ -24,44 +27,82 @@ describe('AuthService', () => {
 
   beforeEach(() => {
     mockRepository = {
-      findHashPasswordByUsername: jest.fn(),
+      findUserByUsername: jest.fn(),
     };
-    service = new AuthService(mockRepository);
+    mockTokenService = {
+      signAsync: jest.fn(),
+    };
+    service = new AuthService(mockRepository, mockTokenService);
   });
+
+  const mockUser: Pick<User, 'id' | 'username' | 'admin' | 'password'> = {
+    id: 'uuid-user',
+    username: 'user.name',
+    admin: true,
+    password: '12345678',
+  };
 
   describe('login', () => {
     it('should return NotFoundException when the user not found', async () => {
-      mockRepository.findHashPasswordByUsername.mockResolvedValue(null);
+      mockRepository.findUserByUsername.mockResolvedValue(null);
 
       await expect(service.login(userDto)).rejects.toThrow(
         new NotFoundException(EErrors.USER_NOT_FOUND),
       );
-      expect(mockRepository.findHashPasswordByUsername).toHaveBeenCalledWith(
+      expect(mockRepository.findUserByUsername).toHaveBeenCalledWith(
         userDto.username,
       );
     });
 
     it('should return BadRequestException when the userDto.password !== database user.password', async () => {
-      const invalidHash = await bcrypt.hash('senha_errada_qualquer', 10);
-      mockRepository.findHashPasswordByUsername.mockResolvedValue(invalidHash);
+      mockRepository.findUserByUsername.mockResolvedValue(mockUser);
 
       await expect(service.login(userDto)).rejects.toThrow(
-        new BadRequestException(EErrors.USERNAME_PASSWORD_INCORRECT),
+        new BadRequestException(EErrors.PASSWORD_INCORRECT),
       );
-      expect(mockRepository.findHashPasswordByUsername).toHaveBeenCalledWith(
+      expect(mockRepository.findUserByUsername).toHaveBeenCalledWith(
         userDto.username,
       );
     });
 
-    it(`should return the message "${ESuccess.LOGIN}" when user login successfully`, async () => {
-      mockRepository.findHashPasswordByUsername.mockResolvedValue(
-        validPasswordHash,
-      );
+    it(`should return the object { message: ${ESuccess.LOGIN}, data: { accessToken: string, refreshToken: string }} when user login successfully`, async () => {
+      const tokens = {
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      };
 
-      expect(await service.login(userDto)).toBe(ESuccess.LOGIN);
-      expect(mockRepository.findHashPasswordByUsername).toHaveBeenCalledWith(
+      mockRepository.findUserByUsername.mockResolvedValue(mockUser);
+      mockUser.password = validPasswordHash;
+
+      mockTokenService.signAsync.mockImplementation(
+        // eslint-disable-next-line @typescript-eslint/require-await
+        async (payload, options) => {
+          if (options?.expiresIn === '15m') return tokens.accessToken;
+          if (options?.expiresIn === '7d') return tokens.refreshToken;
+          return '';
+        },
+      );
+      expect(await service.login(userDto)).toEqual({
+        message: ESuccess.LOGIN,
+        data: {
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+        },
+      });
+      expect(mockRepository.findUserByUsername).toHaveBeenCalledWith(
         userDto.username,
       );
+      const expectedPayload = {
+        sub: mockUser.id,
+        username: mockUser.username,
+        admin: mockUser.admin,
+      };
+      expect(mockTokenService.signAsync).toHaveBeenCalledWith(expectedPayload, {
+        expiresIn: '15m',
+      });
+      expect(mockTokenService.signAsync).toHaveBeenCalledWith(expectedPayload, {
+        expiresIn: '7d',
+      });
     });
   });
 });

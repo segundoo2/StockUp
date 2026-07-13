@@ -10,32 +10,66 @@ import { ESuccess } from './enums/success.enum';
 import type { IAuthRepository } from './interfaces/auth.repository.interface';
 import { EErrors } from '../users/enums/errors.enum';
 import * as bcrypt from 'bcrypt';
+import { User } from '../users/entities/user.entity';
+import { JwtPayload } from './interfaces/jwt-payload.interface';
+import type {
+  ITokenService,
+  TokenDuration,
+} from './interfaces/jwt-service.interface';
+import { ILoginResponse } from './interfaces/login-response.interface';
 
 @Injectable()
 export class AuthService implements IAuthService {
   constructor(
     @Inject('IAuthRepository')
     private readonly authRepository: IAuthRepository,
+    @Inject('ITokenService')
+    private readonly jwtService: ITokenService,
   ) {}
 
   async login(
     userDto: Pick<UserDto, 'username' | 'password'>,
-  ): Promise<string> {
-    const dbUserPasswordHash = await this.getUserPasswordHash(userDto.username);
-    await this.comparePasswordHash(
-      userDto.password as string,
-      dbUserPasswordHash,
-    );
-    return ESuccess.LOGIN;
+  ): Promise<ILoginResponse> {
+    const user: Pick<User, 'id' | 'username' | 'password' | 'admin'> =
+      await this.findUserByUsername(userDto.username);
+    await this.comparePasswordHash(userDto.password as string, user.password);
+
+    return {
+      message: ESuccess.LOGIN,
+      data: {
+        accessToken: await this.generateToken(
+          { id: user.id, username: user.username, admin: user.admin },
+          '15m',
+        ),
+        refreshToken: await this.generateToken(
+          { id: user.id, username: user.username, admin: user.admin },
+          '7d',
+        ),
+      },
+    };
   }
 
-  private async getUserPasswordHash(username: string): Promise<string> {
-    const userPassword: string | null =
-      await this.authRepository.findHashPasswordByUsername(username);
-    if (!userPassword) {
+  private async generateToken(
+    user: Pick<User, 'id' | 'username' | 'admin'>,
+    expiresIn: TokenDuration,
+  ): Promise<string> {
+    const payload: JwtPayload = {
+      sub: user.id,
+      username: user.username,
+      admin: user.admin,
+    };
+    return await this.jwtService.signAsync(payload, { expiresIn });
+  }
+
+  private async findUserByUsername(
+    username: string,
+  ): Promise<Pick<User, 'id' | 'username' | 'admin' | 'password'>> {
+    const user: Pick<User, 'id' | 'username' | 'admin' | 'password'> | null =
+      await this.authRepository.findUserByUsername(username);
+    if (!user) {
       throw new NotFoundException(EErrors.USER_NOT_FOUND);
     }
-    return userPassword;
+    return user;
   }
 
   private async comparePasswordHash(
@@ -50,8 +84,4 @@ export class AuthService implements IAuthService {
       throw new BadRequestException(EErrors.PASSWORD_INCORRECT);
     }
   }
-
-  // async logout(username: string): Promise<string> {
-  //   return ESuccess.LOGOUT;
-  // }
 }

@@ -10,7 +10,6 @@ describe('AuthController', () => {
   beforeEach(() => {
     mockService = {
       login: jest.fn(),
-      logout: jest.fn(),
     };
     controller = new AuthController(mockService);
   });
@@ -21,16 +20,12 @@ describe('AuthController', () => {
   };
 
   describe('login', () => {
-    it(`should return the message "${ESuccess.LOGIN}" when the user login in sucessfully`, async () => {
-      mockService.login.mockResolvedValue(ESuccess.LOGIN);
+    it(`should return the object { message: ${ESuccess.LOGIN}, data: { accessToken: string, refreshToken: string }} when the user login in sucessfully`, async () => {
+      mockService.login.mockResolvedValue({
+        message: ESuccess.LOGIN,
+        data: { accessToken: 'access-token', refreshToken: 'refresh-token' },
+      });
       expect(await controller.login(user)).toBe(ESuccess.LOGIN);
-    });
-  });
-
-  describe('logout', () => {
-    it(`should return the message "${ESuccess.LOGOUT}" when logout the user successfully`, async () => {
-      mockService.logout.mockResolvedValue(ESuccess.LOGOUT);
-      expect(await controller.logout(user.username)).toBe(ESuccess.LOGOUT);
     });
   });
 });

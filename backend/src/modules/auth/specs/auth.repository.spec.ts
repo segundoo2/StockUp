@@ -2,7 +2,6 @@ import { ObjectLiteral, Repository } from 'typeorm';
 import { UserDto } from '../../users/dtos/user.dto';
 import { User } from '../../users/entities/user.entity';
 import { AuthRepository } from '../auth.repository';
-import * as bcrypt from 'bcrypt';
 import { InternalServerErrorException } from '@nestjs/common';
 import { EErrorsGlobal } from '../../../enum/errors-global.enum';
 
@@ -13,17 +12,18 @@ type MockRepository<T extends ObjectLiteral> = Record<
 
 describe('AuthRepository', () => {
   let repository: AuthRepository;
-  let validPasswordHash: string;
   let ormRepositoryMock: MockRepository<User>;
 
   const userDto: Pick<UserDto, 'username' | 'password'> = {
     username: 'segundo',
     password: '12345678',
   };
-
-  beforeAll(async () => {
-    validPasswordHash = await bcrypt.hash(userDto.password as string, 10);
-  });
+  const mockUser: Pick<User, 'id' | 'username' | 'admin' | 'password'> = {
+    id: 'uuid-user',
+    username: 'user.name',
+    admin: true,
+    password: '12345678',
+  };
 
   beforeEach(() => {
     ormRepositoryMock = {
@@ -54,33 +54,26 @@ describe('AuthRepository', () => {
     });
   };
 
-  describe('findHashPasswordByUsername', () => {
+  describe('findUserByUsername', () => {
     it('should return the hash password when the user found', async () => {
-      const dbUserMock = {
-        id: 'some-uuid',
-        password: validPasswordHash,
-      } as unknown as User;
+      ormRepositoryMock.findOne.mockResolvedValue(mockUser);
 
-      ormRepositoryMock.findOne.mockResolvedValue(dbUserMock);
-
-      expect(
-        await repository.findHashPasswordByUsername(userDto.username),
-      ).toBe(validPasswordHash);
+      expect(await repository.findUserByUsername(userDto.username)).toBe(
+        mockUser,
+      );
       expect(ormRepositoryMock.findOne).toHaveBeenCalledWith({
         where: { username: userDto.username },
-        select: { password: true },
+        select: { id: true, username: true, admin: true, password: true },
       });
     });
 
     it('should return null when the user not found', async () => {
       ormRepositoryMock.findOne.mockResolvedValue(null);
-      expect(
-        await repository.findHashPasswordByUsername(userDto.username),
-      ).toBe(null);
+      expect(await repository.findUserByUsername(userDto.username)).toBe(null);
     });
 
     shouldHandleDatabaseErrors(
-      () => repository.findHashPasswordByUsername(userDto.username),
+      () => repository.findUserByUsername(userDto.username),
       () => ormRepositoryMock.findOne,
     );
   });

@@ -1,3 +1,7 @@
+import { User } from '../../users/entities/user.entity';
+
 export interface IAuthRepository {
-  findHashPasswordByUsername(username: string): Promise<string | null>;
+  findUserByUsername(
+    username: string,
+  ): Promise<Pick<User, 'id' | 'username' | 'admin' | 'password'> | null>;
 }

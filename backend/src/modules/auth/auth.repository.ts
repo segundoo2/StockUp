@@ -12,13 +12,16 @@ export class AuthRepository implements IAuthRepository {
     private readonly repository: Repository<User>,
   ) {}
 
-  async findHashPasswordByUsername(username: string): Promise<string | null> {
+  async findUserByUsername(
+    username: string,
+  ): Promise<Pick<User, 'id' | 'username' | 'admin' | 'password'> | null> {
     try {
-      const passwordHash = await this.repository.findOne({
-        where: { username },
-        select: { password: true },
-      });
-      return (passwordHash?.password as string) ?? null;
+      return (
+        (await this.repository.findOne({
+          where: { username },
+          select: { id: true, username: true, admin: true, password: true },
+        })) ?? null
+      );
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }

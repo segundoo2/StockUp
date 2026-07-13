@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { Application } from 'express';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -34,6 +35,22 @@ async function bootstrap() {
 
   // Configuração de parsing de cookie
   app.use(cookieParser());
+
+  // configurações do Helmet
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: [`'self'`],
+          styleSrc: [`'self'`, `'unsafe-inline'`],
+          imgSrc: [`'self'`, 'data:', 'blob:'],
+          scriptSrc: [`'self'`],
+        },
+      },
+      crossOriginEmbedderPolicy: true,
+      hidePoweredBy: true,
+    }),
+  );
 
   // Configurações de Cors
   app.enableCors({

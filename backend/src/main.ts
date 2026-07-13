@@ -41,6 +41,7 @@ async function bootstrap() {
     credentials: true,
   });
 
+  //configuração do Express para Proxy reverso
   const expressApp = app.getHttpAdapter().getInstance() as Application;
   expressApp.set('trust proxy', 1);
 

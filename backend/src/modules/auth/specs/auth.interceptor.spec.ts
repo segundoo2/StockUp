@@ -2,6 +2,7 @@ import { ExecutionContext, CallHandler } from '@nestjs/common';
 import { of } from 'rxjs';
 import { Response } from 'express';
 import { SetCookiesInterceptor } from '../interceptors/auth.interceptor';
+import { IAuthPayload } from '../interfaces/login-response.interface';
 
 describe('SetCookiesInterceptor', () => {
   let interceptor: SetCookiesInterceptor;
@@ -23,7 +24,7 @@ describe('SetCookiesInterceptor', () => {
     };
   });
 
-  it('should extract tokens from data and append them to cookies', async () => {
+  it('should extract tokens from data and append them to cookies', () => {
     const mockServiceResult = {
       message: 'LOGIN_SUCCESS',
       data: {
@@ -32,11 +33,11 @@ describe('SetCookiesInterceptor', () => {
       },
     };
 
-    const mockCallHandler: CallHandler = {
+    const mockCallHandler: CallHandler<IAuthPayload> = {
       handle: () => of(mockServiceResult),
     };
 
-    const observable = await interceptor.intercept(
+    const observable = interceptor.intercept(
       mockContext as ExecutionContext,
       mockCallHandler,
     );
@@ -51,6 +52,18 @@ describe('SetCookiesInterceptor', () => {
             httpOnly: true,
             secure: true,
             sameSite: 'strict',
+            maxAge: 900000,
+          },
+        );
+
+        expect(mockResponse.cookie).toHaveBeenCalledWith(
+          'refresh_token',
+          'refresh-456',
+          {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'strict',
+            maxAge: 604800000,
           },
         );
 

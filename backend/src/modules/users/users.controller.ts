@@ -10,6 +10,7 @@ import {
   Delete,
   HttpCode,
   UseGuards,
+  Logger,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -33,6 +34,8 @@ import { RequiresAdmin } from '../../decorators/admin.decorator';
 @ApiTags('Users')
 @Controller('users')
 export class UsersController implements IUsersController {
+  private readonly logger = new Logger(UsersController.name);
+
   constructor(
     @Inject('IUsersService') private readonly usersService: IUsersService,
   ) {}
@@ -62,7 +65,14 @@ export class UsersController implements IUsersController {
     description: 'Token de acesso inválido ou ausente.',
   })
   async createUser(@Body() userDto: UserDto): Promise<UsersResponseDto> {
-    return await this.usersService.createUser(userDto);
+    this.logger.log(
+      `Tentativa de criação de usuário pelo administrador para o username: "${userDto.username}"`,
+    );
+
+    const result = await this.usersService.createUser(userDto);
+
+    this.logger.log(`Usuário "${userDto.username}" criado com sucesso.`);
+    return result;
   }
 
   @Patch()
@@ -87,7 +97,14 @@ export class UsersController implements IUsersController {
   async updateUserPassword(
     @Body() userDto: UpdatePasswordDto,
   ): Promise<UsersResponseDto> {
-    return await this.usersService.updateUserPassword(userDto);
+    this.logger.log(
+      'Requisição recebida para atualização de senha de usuário.',
+    );
+
+    const result = await this.usersService.updateUserPassword(userDto);
+
+    this.logger.log('Senha do usuário atualizada com sucesso.');
+    return result;
   }
 
   @Patch('/admin')
@@ -120,7 +137,16 @@ export class UsersController implements IUsersController {
   async updateAdminUser(
     @Body() adminDto: UpdateAdminDto,
   ): Promise<UsersResponseDto> {
-    return await this.usersService.updateAdminUser(adminDto);
+    this.logger.warn(
+      `Alteração de privilégios administrativos solicitada para o usuário: "${adminDto.username}". Novo status Admin: ${adminDto.admin}`,
+    );
+
+    const result = await this.usersService.updateAdminUser(adminDto);
+
+    this.logger.log(
+      `Privilégios administrativos modificados com sucesso para o usuário: "${adminDto.username}".`,
+    );
+    return result;
   }
 
   @Get()
@@ -143,6 +169,7 @@ export class UsersController implements IUsersController {
     description: 'Não autorizado.',
   })
   async findAllUsers(): Promise<UsersResponseDto> {
+    this.logger.log('Buscando listagem geral de usuários cadastrados.');
     return await this.usersService.findAllUsers();
   }
 
@@ -173,6 +200,9 @@ export class UsersController implements IUsersController {
   async findOneByUsername(
     @Param('username') username: string,
   ): Promise<UsersResponseDto> {
+    this.logger.log(
+      `Buscando dados parciais do perfil do username: "${username}".`,
+    );
     return await this.usersService.findOneByUsername(username);
   }
 
@@ -207,6 +237,15 @@ export class UsersController implements IUsersController {
     description: 'Não autorizado.',
   })
   async deleteUser(@Param('username') username: string): Promise<string> {
-    return await this.usersService.deleteUser(username);
+    this.logger.warn(
+      `COMANDO CRÍTICO: Solicitação de exclusão permanente para o username: "${username}".`,
+    );
+
+    const result = await this.usersService.deleteUser(username);
+
+    this.logger.log(
+      `Usuário "${username}" foi excluído permanentemente do banco de dados.`,
+    );
+    return result;
   }
 }

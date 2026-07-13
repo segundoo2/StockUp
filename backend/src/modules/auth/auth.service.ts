@@ -1,127 +1,131 @@
+import { Injectable, Inject, UnauthorizedException } from '@nestjs/common';
 import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { IAuthService } from './interfaces/auth.service.interface';
-import { UserDto } from '../users/dtos/user.dto';
-import { ESuccess } from './enums/success.enum';
-import type { IAuthRepository } from './interfaces/auth.repository.interface';
-import { EErrors } from '../users/enums/errors.enum';
-import * as bcrypt from 'bcrypt';
-import { User } from '../users/entities/user.entity';
-import { IJwtPayload } from './interfaces/jwt-payload.interface';
+  IJwtPayload,
+  IJwtPayloadWithExpiry,
+} from './interfaces/jwt-payload.interface';
 import type {
   ITokenService,
   TokenDuration,
 } from './interfaces/jwt-service.interface';
+import type { IAuthRepository } from './interfaces/auth.repository.interface';
+import type { IAuthService } from './interfaces/auth.service.interface';
+import { ESuccess } from './enums/success.enum';
+import { RedisService } from '../../common/redis/redis.service';
+import { UserDto } from '../users/dtos/user.dto';
 import { IAuthPayload } from './interfaces/auth-payload.interface';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService implements IAuthService {
   constructor(
-    @Inject('IAuthRepository')
-    private readonly authRepository: IAuthRepository,
-    @Inject('ITokenService')
-    private readonly jwtService: ITokenService,
+    @Inject('ITokenService') private readonly tokenService: ITokenService,
+    @Inject('IAuthRepository') private readonly authRepository: IAuthRepository,
+    private readonly redisService: RedisService,
   ) {}
 
   async login(
     userDto: Pick<UserDto, 'username' | 'password'>,
     fingerprint: string,
   ): Promise<IAuthPayload> {
-    const user: Pick<User, 'id' | 'username' | 'password' | 'admin'> =
-      await this.findUserByUsername(userDto.username);
-    await this.comparePasswordHash(userDto.password as string, user.password);
+    const user = await this.authRepository.findUserByUsername(userDto.username);
+    if (!user) {
+      throw new UnauthorizedException(
+        'Usuário não encontrado ou credenciais inválidas.',
+      );
+    }
 
-    const userPayload = {
-      id: user.id,
-      username: user.username,
-      admin: user.admin,
-      fingerprint,
-    };
+    await this.validatePassword(userDto.password as string, user.password);
 
-    return {
-      message: ESuccess.LOGIN,
-      data: {
-        accessToken: await this.generateToken(
-          userPayload,
-          process.env.ACCESS_TOKEN_EXPIRES_IN as TokenDuration,
-        ),
-        refreshToken: await this.generateToken(
-          userPayload,
-          process.env.REFRESH_TOKEN_EXPIRES_IN as TokenDuration,
-        ),
-      },
-    };
-  }
-
-  private async generateToken(
-    user: Pick<User, 'id' | 'username' | 'admin'> & { fingerprint: string },
-    expiresIn: TokenDuration,
-  ): Promise<string> {
     const payload: IJwtPayload = {
       sub: user.id,
       username: user.username,
       admin: user.admin,
-      fingerprint: user.fingerprint, // 👈 Agora o compilador reconhece perfeitamente
+      fingerprint,
     };
-    return await this.jwtService.signAsync(payload, { expiresIn });
-  }
+    const tokens = await this.generateTokenPair(payload);
 
-  private async findUserByUsername(
-    username: string,
-  ): Promise<Pick<User, 'id' | 'username' | 'admin' | 'password'>> {
-    const user: Pick<User, 'id' | 'username' | 'admin' | 'password'> | null =
-      await this.authRepository.findUserByUsername(username);
-    if (!user) {
-      throw new NotFoundException(EErrors.USER_NOT_FOUND);
-    }
-    return user;
-  }
-
-  private async comparePasswordHash(
-    userDtoPassword: string,
-    dbUserPasswordHash: string,
-  ) {
-    const isPasswordValid = await bcrypt.compare(
-      userDtoPassword,
-      dbUserPasswordHash,
-    );
-    if (!isPasswordValid) {
-      throw new BadRequestException(EErrors.PASSWORD_INCORRECT);
-    }
+    return {
+      message: ESuccess.LOGIN,
+      data: tokens,
+    };
   }
 
   async refresh(
-    payload: IJwtPayload,
-    fingerprint: string,
+    payload: IJwtPayloadWithExpiry,
+    currentFingerprint: string,
   ): Promise<IAuthPayload> {
-    if (payload.fingerprint !== fingerprint) {
-      throw new UnauthorizedException('Dispositivo inválido. Sessão revogada.');
+    const ttlSeconds = this.calculateTtlSeconds(payload.exp);
+
+    if (ttlSeconds > 0) {
+      const blacklistKey = `blacklist:refresh:${payload.sub}:${payload.exp}`;
+      await this.redisService.setWithExpiry(
+        blacklistKey,
+        'rotated',
+        ttlSeconds,
+      );
     }
 
-    const userSummary = {
-      id: payload.sub,
+    const newPayload: IJwtPayload = {
+      sub: payload.sub,
       username: payload.username,
       admin: payload.admin,
-      fingerprint,
+      fingerprint: currentFingerprint,
     };
+    const tokens = await this.generateTokenPair(newPayload);
 
     return {
       message: ESuccess.REFRESH,
-      data: {
-        accessToken: await this.generateToken(
-          userSummary,
-          process.env.ACCESS_TOKEN_EXPIRES_IN as TokenDuration,
-        ),
-        refreshToken: await this.generateToken(
-          userSummary,
-          process.env.REFRESH_TOKEN_EXPIRES_IN as TokenDuration,
-        ),
-      },
+      data: tokens,
     };
+  }
+
+  async logout(payload: IJwtPayloadWithExpiry): Promise<{ message: ESuccess }> {
+    const ttlSeconds = this.calculateTtlSeconds(payload.exp);
+
+    if (ttlSeconds > 0) {
+      const blacklistKey = `blacklist:refresh:${payload.sub}:${payload.exp}`;
+      await this.redisService.setWithExpiry(
+        blacklistKey,
+        'revoked',
+        ttlSeconds,
+      );
+    }
+
+    return { message: ESuccess.LOGOUT };
+  }
+
+  // ==========================================
+  // MÉTODOS AUXILIARES (Isolamento de Funções)
+  // ==========================================
+
+  private async validatePassword(
+    password: string,
+    hash: string,
+  ): Promise<void> {
+    const isPasswordValid = await bcrypt.compare(password, hash);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Senha incorreta.');
+    }
+  }
+
+  private async generateTokenPair(
+    payload: IJwtPayload,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    const accessToken = await this.tokenService.signAsync(payload, {
+      expiresIn:
+        (process.env.ACCESS_TOKEN_EXPIRES_IN as TokenDuration) || '15m',
+    });
+
+    const refreshToken = await this.tokenService.signAsync(payload, {
+      expiresIn:
+        (process.env.REFRESH_TOKEN_EXPIRES_IN as TokenDuration) || '7d',
+    });
+
+    return { accessToken, refreshToken };
+  }
+
+  private calculateTtlSeconds(exp: number): number {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    return exp - nowSeconds;
   }
 }

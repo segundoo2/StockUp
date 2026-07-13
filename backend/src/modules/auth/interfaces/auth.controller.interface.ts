@@ -8,6 +8,8 @@ export interface IAuthController {
     req: Request,
     userDto: Pick<UserDto, 'username' | 'password'>,
   ): Promise<IAuthPayload>;
+
   refresh(req: RequestWithCookies): Promise<IAuthPayload>;
-  logout(req: Request, res: Response): Response;
+
+  logout(req: RequestWithCookies, res: Response): Promise<Response>;
 }

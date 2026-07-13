@@ -25,19 +25,19 @@ import { UserDto } from '../users/dtos/user.dto';
 import { IAuthPayload } from './interfaces/auth-payload.interface';
 import { AuthGuard } from '@nestjs/passport';
 import { SetCookiesInterceptor } from './interceptors/auth.interceptor';
-import { IJwtPayload } from './interfaces/jwt-payload.interface';
+import { IJwtPayloadWithExpiry } from './interfaces/jwt-payload.interface';
 import type { RequestWithCookies } from './interfaces/req-with-cookies.interface';
 import { ESuccess } from './enums/success.enum';
 import { AuthResponseDto, LogoutResponseDto } from './dtos/auth-response.dto';
 import { LoginDto } from './dtos/login.dto';
-import { AuthService } from './auth.service';
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController implements IAuthController {
-  constructor(private readonly authService: IAuthService) {}
+  // Corrigido para carregar o nome do próprio Controller no contexto do log
+  private readonly logger = new Logger(AuthController.name);
 
-  private readonly logger = new Logger(AuthService.name);
+  constructor(private readonly authService: IAuthService) {}
 
   @Post()
   @HttpCode(HttpStatus.OK)
@@ -73,11 +73,13 @@ export class AuthController implements IAuthController {
 
     try {
       const response = await this.authService.login(userDto, fingerprint);
-      this.logger.log(`[AUTH] Usuário ${userDto.username} logado com sucesso.`);
+      this.logger.log(
+        `[AUTH] Usuário "${userDto.username}" logado com sucesso.`,
+      );
       return response;
     } catch (error) {
       this.logger.warn(
-        `[AUTH] Tentativa de login falhou para o usuário: ${userDto.username}`,
+        `[AUTH] Tentativa de login falhou para o usuário: "${userDto.username}"`,
       );
       throw error;
     }
@@ -107,7 +109,8 @@ export class AuthController implements IAuthController {
     description: 'Refresh token inválido, expirado ou dispositivo divergente.',
   })
   async refresh(@Req() req: RequestWithCookies): Promise<IAuthPayload> {
-    const userPayload = req.user as IJwtPayload;
+    // Usando a interface estrita com o 'exp' mapeado
+    const userPayload = req.user as IJwtPayloadWithExpiry;
 
     const fingerprint =
       (req.headers['x-device-id'] as string) ||
@@ -115,14 +118,15 @@ export class AuthController implements IAuthController {
       'unknown';
 
     try {
+      // O service executa a rotação e invalida o token antigo no Redis
       const response = await this.authService.refresh(userPayload, fingerprint);
       this.logger.log(
-        `[AUTH] Usuário ${userPayload.username} renovou a sessão com sucesso.`,
+        `[AUTH] Sessão do usuário "${userPayload.username}" rotacionada com sucesso.`,
       );
       return response;
     } catch (error) {
       this.logger.warn(
-        `[AUTH] Tentativa de renovação de sessão falhou para o usuário: ${userPayload.username}`,
+        `[AUTH] Falha na rotação de token para o usuário: "${userPayload.username}"`,
       );
       throw error;
     }
@@ -130,10 +134,11 @@ export class AuthController implements IAuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'))
-  @ApiCookieAuth('access_token')
+  @UseGuards(AuthGuard('jwt-refresh')) // Modificado para jwt-refresh para obtermos o payload completo do token que está sendo descartado
+  @ApiCookieAuth('refresh_token')
   @ApiOperation({
-    summary: 'Invalida a sessão removendo os cookies de autenticação',
+    summary:
+      'Invalida a sessão removendo os cookies de autenticação e revogando o token',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -144,21 +149,37 @@ export class AuthController implements IAuthController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Não autorizado.',
   })
-  logout(@Req() req: Request, @Res() res: Response): Response {
+  async logout(
+    @Req() req: RequestWithCookies,
+    @Res() res: Response,
+  ): Promise<Response> {
+    const userPayload = req.user as IJwtPayloadWithExpiry;
+
+    // 1. Executa a invalidação persistente no Redis antes de limpar os cookies
+    await this.authService.logout(userPayload);
+
+    const isProd = process.env.NODE_ENV === 'production';
     const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict' as const,
-      path: '/',
+      secure: isProd,
     };
-    const userPayload = req.user as IJwtPayload;
 
-    res.clearCookie('access_token', cookieOptions);
-    res.clearCookie('refresh_token', { ...cookieOptions, path: '/auth' });
+    // 2. Limpeza cirúrgica dos cookies respeitando os mesmos paths de criação
+    res.clearCookie('access_token', {
+      ...cookieOptions,
+      sameSite: 'lax',
+      path: '/',
+    });
+    res.clearCookie('refresh_token', {
+      ...cookieOptions,
+      sameSite: 'strict',
+      path: '/auth',
+    });
 
-    const response = res.json({ message: ESuccess.LOGOUT });
-    this.logger.warn(`[AUTH] O usuário ${userPayload.username} fez logout.`);
+    this.logger.log(
+      `[AUTH] O usuário "${userPayload.username}" encerrou a sessão (Logout concluído).`,
+    );
 
-    return response;
+    return res.json({ message: ESuccess.LOGOUT });
   }
 }

@@ -4,3 +4,7 @@ export interface IJwtPayload {
   admin: boolean;
   fingerprint: string;
 }
+
+export interface IJwtPayloadWithExpiry extends IJwtPayload {
+  exp: number;
+}

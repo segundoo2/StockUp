@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { RolesGuard } from './roles.guard';
+import { AdminGuard } from './admin.guard';
 import { ForbiddenException } from '@nestjs/common';
 import { IJwtPayload } from '../modules/auth/interfaces/jwt-payload.interface';
 
 describe('RolesGuard', () => {
-  let guard: RolesGuard;
+  let guard: AdminGuard;
   let mockReflector: jest.Mocked<Reflector>;
 
   beforeEach(() => {
@@ -14,10 +14,9 @@ describe('RolesGuard', () => {
       get: jest.fn(),
     } as unknown as jest.Mocked<Reflector>;
 
-    guard = new RolesGuard(mockReflector);
+    guard = new AdminGuard(mockReflector);
   });
 
-  // Função auxiliar para criar um ExecutionContext mockado de forma estrita
   const createMockContext = (
     userPayload: IJwtPayload | undefined,
   ): ExecutionContext => {
@@ -27,12 +26,12 @@ describe('RolesGuard', () => {
           user: userPayload,
         }),
       }),
-      getHandler: () => () => {}, // 👈 A correção está aqui
+      getHandler: () => () => {},
     } as unknown as ExecutionContext;
   };
 
   it('should allow access if the route does not require admin rights', () => {
-    mockReflector.get.mockReturnValue(false); // Rota não exige admin
+    mockReflector.get.mockReturnValue(false);
 
     const context = createMockContext({
       sub: '1',
@@ -49,7 +48,7 @@ describe('RolesGuard', () => {
   });
 
   it('should allow access if the route requires admin and the user is an admin', () => {
-    mockReflector.get.mockReturnValue(true); // Rota exige admin
+    mockReflector.get.mockReturnValue(true);
 
     const context = createMockContext({
       sub: '1',
@@ -62,7 +61,7 @@ describe('RolesGuard', () => {
   });
 
   it('should throw ForbiddenException if the route requires admin but the user is not an admin', () => {
-    mockReflector.get.mockReturnValue(true); // Rota exige admin
+    mockReflector.get.mockReturnValue(true);
 
     const context = createMockContext({
       sub: '2',

@@ -14,6 +14,7 @@ import { RedisService } from '../../common/redis/redis.service';
 import { UserDto } from '../users/dtos/user.dto';
 import { IAuthPayload } from './interfaces/auth-payload.interface';
 import * as bcrypt from 'bcrypt';
+import { EErrors } from './enums/errors.enum';
 
 @Injectable()
 export class AuthService implements IAuthService {
@@ -54,6 +55,12 @@ export class AuthService implements IAuthService {
     payload: IJwtPayloadWithExpiry,
     currentFingerprint: string,
   ): Promise<IAuthPayload> {
+    const user = await this.authRepository.findUserByUsername(payload.username);
+
+    if (!user) {
+      throw new UnauthorizedException(EErrors.FAILED_RETRIEVE_SESSION);
+    }
+
     const ttlSeconds = this.calculateTtlSeconds(payload.exp);
 
     if (ttlSeconds > 0) {

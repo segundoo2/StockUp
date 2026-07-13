@@ -17,16 +17,17 @@ import * as bcrypt from 'bcrypt';
 import { UserDto } from './dtos/user.dto';
 import { UpdatePasswordDto } from './dtos/update-password.dto';
 import { UpdateAdminDto } from './dtos/update-admin.dto';
+import { RedisService } from '../../common/redis/redis.service';
 
 @Injectable()
 export class UsersService implements IUsersService {
   constructor(
     @Inject('IUsersRepository')
     private readonly usersRepository: IUsersRepository,
+    private readonly redisService: RedisService,
   ) {}
 
-  //utilizado por todos os métodos CRUD
-  private verifyInvalidUsername(username: string) {
+  private verifyInvalidUsername(username: string): void {
     if (!username || username.trim() === '') {
       throw new BadRequestException(EErrors.USERNAME_INVALID);
     }
@@ -44,7 +45,7 @@ export class UsersService implements IUsersService {
     return { message: ESuccess.CREATE_USER, data: userDto.password };
   }
 
-  private async verifyUserNotExisting(username: string) {
+  private async verifyUserNotExisting(username: string): Promise<void> {
     this.verifyInvalidUsername(username);
     const user: Partial<User> | null =
       await this.usersRepository.findOneByUsername(username);
@@ -86,7 +87,7 @@ export class UsersService implements IUsersService {
 
     passwordUpdated = await this.usersRepository.updateUserPassword({
       ...passwordDto,
-      password: await bcrypt.hash(passwordDto.password, 10),
+      password: await bcrypt.hash(passwordDto.password, this.saltRounds),
     });
 
     if (passwordUpdated.affected === 0) {
@@ -141,12 +142,27 @@ export class UsersService implements IUsersService {
 
   async deleteUser(username: string): Promise<string> {
     this.verifyInvalidUsername(username);
+
+    const user: Partial<User> | null =
+      await this.usersRepository.findOneByUsername(username);
+    if (!user || !user.id) {
+      throw new NotFoundException(EErrors.USER_NOT_FOUND);
+    }
+
     const response: DeleteResult =
       await this.usersRepository.deleteUser(username);
-
     if (response.affected === 0) {
       throw new NotFoundException(EErrors.USER_NOT_FOUND);
     }
+
+    const blockKey = `blacklist:user:${user.id}`;
+    const fifteenMinutesInSeconds = 900;
+    await this.redisService.setWithExpiry(
+      blockKey,
+      'deleted',
+      fifteenMinutesInSeconds,
+    );
+
     return ESuccess.DELETE_USER;
   }
 }

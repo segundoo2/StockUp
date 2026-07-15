@@ -8,6 +8,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Category } from './category.entity';
 
 @Entity({ name: 'products' })
 @Index(['tenantId', 'sku'], { unique: true })
@@ -32,7 +33,7 @@ export class Product {
     type: 'decimal',
     name: 'current_stock',
     precision: 12,
-    scale: 12,
+    scale: 4,
     default: 0.0,
     transformer: {
       to: (value: number): number => value,
@@ -54,13 +55,40 @@ export class Product {
   })
   minimumStock!: number;
 
+  @Column({
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    default: 0.0,
+    transformer: {
+      to: (value: number): number => value,
+      from: (value: string): number => parseFloat(value),
+    },
+  })
+  price!: number;
+
+  @Column({
+    type: 'decimal',
+    name: 'cost_price',
+    precision: 12,
+    scale: 2,
+    default: 0.0,
+    transformer: {
+      to: (value: number): number => value,
+      from: (value: string): number => parseFloat(value),
+    },
+  })
+  costPrice!: number;
+
+  // --- RELACIONAMENTOS ---
   @Column({ type: 'uuid', name: 'category_id' })
   categoryId!: string;
 
   @ManyToOne(() => Category, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'category_id' })
-  category!: AudioContextLatencyCategory;
+  category!: Category;
 
+  // --- DADOS FISCAIS ---
   @Column({ type: 'varchar', length: 14, unique: true, nullable: true })
   ean?: string | null;
 
@@ -70,9 +98,25 @@ export class Product {
   @Column({ type: 'varchar', length: 7, nullable: true })
   cest?: string | null;
 
+  @Column({ type: 'varchar', length: 1, default: '0' })
+  origin!: string; // Origem da mercadoria (ex: '0' para Nacional)
+
+  @Column({ type: 'varchar', length: 3, nullable: true })
+  csosn?: string | null; // Usado se o tenant for do Simples Nacional
+
+  @Column({ type: 'varchar', length: 2, nullable: true })
+  cst?: string | null; // Usado se o tenant for Regime Normal (Lucro Presumido/Real)
+
+  // ---------------------
+  @Column({ type: 'varchar', name: 'created_by', length: 100, nullable: true })
+  createdBy?: string;
+
   @CreateDateColumn({ type: 'timestamp with time zone', name: 'created_at' })
   createdAt!: Date;
 
   @UpdateDateColumn({ type: 'timestamp with time zone', name: 'updated_at' })
   updatedAt!: Date;
+
+  @Column({ type: 'varchar', name: 'updated_by', length: 100, nullable: true })
+  updatedBy?: string;
 }

@@ -11,5 +11,9 @@ export class ProductsController implements IProductsController {
     private readonly productsService: IProductsService,
   ) {}
 
-  createProduct(productDto: ProductDto): Promise<IProductsResponse<null>> {}
+  async createProduct(
+    productDto: ProductDto,
+  ): Promise<IProductsResponse<ProductDto | null>> {
+    return await this.productsService.createProduct(productDto);
+  }
 }

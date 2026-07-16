@@ -1,8 +1,7 @@
 import { ProductDto } from '../dtos/product.dto';
-import { IProductsResponse } from './products-response.interface';
+import { Product } from '../entities/product.entity';
 
 export interface IProductsRepository {
-  createProduct(
-    productDto: ProductDto,
-  ): Promise<IProductsResponse<ProductDto | null>>;
+  createProduct(productDto: ProductDto): Promise<Product>;
+  findOneBySku(sku: string): Promise<Product | null>;
 }

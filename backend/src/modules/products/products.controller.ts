@@ -1,9 +1,9 @@
 import { Controller, Inject } from '@nestjs/common';
 import { IProductsController } from './interfaces/products.controller.interface';
 import { ProductDto } from './dtos/product.dto';
-import { IProductsResponse } from './interfaces/products-response.interface';
 import type { IProductsService } from './interfaces/products.service.interface';
 import { Product } from './entities/product.entity';
+import { IResponse } from '../../interfaces/response.interface';
 
 @Controller('products')
 export class ProductsController implements IProductsController {
@@ -14,11 +14,11 @@ export class ProductsController implements IProductsController {
 
   async createProduct(
     productDto: ProductDto,
-  ): Promise<IProductsResponse<ProductDto | null>> {
+  ): Promise<IResponse<ProductDto | null>> {
     return await this.productsService.createProduct(productDto);
   }
 
-  async findOneBySku(sku: string): Promise<IProductsResponse<Product | null>> {
+  async findOneBySku(sku: string): Promise<IResponse<Product | null>> {
     return await this.productsService.findOneBySku(sku);
   }
 }

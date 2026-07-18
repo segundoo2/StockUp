@@ -25,10 +25,13 @@ export class AuthService implements IAuthService {
   ) {}
 
   async login(
-    userDto: Pick<UserDto, 'username' | 'password'>,
+    userDto: Pick<UserDto, 'username' | 'password' | 'tenantId'>,
     fingerprint: string,
   ): Promise<IAuthPayload> {
-    const user = await this.authRepository.findUserByUsername(userDto.username);
+    const user = await this.authRepository.findUserByUsername(
+      userDto.username,
+      userDto.tenantId,
+    );
     if (!user) {
       throw new UnauthorizedException(
         'Usuário não encontrado ou credenciais inválidas.',
@@ -39,6 +42,7 @@ export class AuthService implements IAuthService {
 
     const payload: IJwtPayload = {
       sub: user.id,
+      tenantId: user.tenantId,
       username: user.username,
       admin: user.admin,
       fingerprint,
@@ -55,7 +59,10 @@ export class AuthService implements IAuthService {
     payload: IJwtPayloadWithExpiry,
     currentFingerprint: string,
   ): Promise<IAuthPayload> {
-    const user = await this.authRepository.findUserByUsername(payload.username);
+    const user = await this.authRepository.findUserByUsername(
+      payload.username,
+      payload.tenantId,
+    );
 
     if (!user) {
       throw new UnauthorizedException(EErrors.FAILED_RETRIEVE_SESSION);
@@ -74,6 +81,7 @@ export class AuthService implements IAuthService {
 
     const newPayload: IJwtPayload = {
       sub: payload.sub,
+      tenantId: payload.tenantId,
       username: payload.username,
       admin: payload.admin,
       fingerprint: currentFingerprint,

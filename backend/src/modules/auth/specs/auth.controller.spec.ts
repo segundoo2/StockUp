@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { UserDto } from '../../users/dtos/user.dto';
 import { AuthController } from '../auth.controller';
 import { IAuthService } from '../interfaces/auth.service.interface';
 import { ESuccess } from '../enums/success.enum';
-import { IJwtPayload } from '../interfaces/jwt-payload.interface';
+import { IJwtPayloadWithExpiry } from '../interfaces/jwt-payload.interface';
 import { RequestWithCookies } from '../interfaces/req-with-cookies.interface';
-import type { Response } from 'express';
+import { LoginDto } from '../dtos/login.dto';
+import type { Response, Request } from 'express';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -16,47 +16,53 @@ describe('AuthController', () => {
       'user-agent': 'test-agent',
     },
     user: null,
-  } as unknown as RequestWithCookies;
+  } as unknown as Request;
 
   beforeEach(() => {
     mockService = {
       login: jest.fn(),
       refresh: jest.fn(),
+      logout: jest.fn(),
     };
     controller = new AuthController(mockService);
   });
 
-  const user: Pick<UserDto, 'username' | 'password'> = {
+  const loginDto: LoginDto = {
     username: 'segundo',
     password: '12345678',
+    tenantId: 'tenant-uuid-123',
   };
 
   describe('login', () => {
-    it(`should return the object { message: ${ESuccess.LOGIN}, data: { accessToken: string, refreshToken: string }} when the user login in sucessfully`, async () => {
-      mockService.login.mockResolvedValue({
+    it('should return the object envelope when the user logs in successfully', async () => {
+      const mockResponseData = {
         message: ESuccess.LOGIN,
         data: { accessToken: 'access-token', refreshToken: 'refresh-token' },
-      });
+      };
 
-      // Passando o mockRequest como primeiro argumento do login
-      expect(await controller.login(mockRequest, user)).toEqual({
-        message: ESuccess.LOGIN,
-        data: { accessToken: 'access-token', refreshToken: 'refresh-token' },
-      });
+      mockService.login.mockResolvedValue(mockResponseData);
+
+      const result = await controller.login(mockRequest, loginDto);
+
+      expect(mockService.login).toHaveBeenCalledWith(loginDto, 'test-agent');
+      expect(result).toEqual(mockResponseData);
     });
   });
 
   describe('refresh', () => {
     it('should call authService.refresh with user payload and return new tokens', async () => {
-      const mockJwtPayload: IJwtPayload = {
+      const mockJwtPayload: IJwtPayloadWithExpiry = {
         sub: 'user-id-123',
+        tenantId: 'tenant-uuid-123',
         username: 'user.name',
-        admin: false,
-        fingerprint: 'test-agent', // 👈 Incluído no payload
+        admin: true,
+        fingerprint: 'test-agent',
+        exp: 1718900000,
+        iat: 1718800000,
       };
 
       const mockAuthPayload = {
-        message: ESuccess.LOGIN,
+        message: ESuccess.REFRESH,
         data: {
           accessToken: 'new-access-token',
           refreshToken: 'new-refresh-token',
@@ -74,7 +80,6 @@ describe('AuthController', () => {
 
       const result = await controller.refresh(mockRefreshRequest);
 
-      // O controller agora repassa o payload e o fingerprint extraído da requisição
       expect(mockService.refresh).toHaveBeenCalledWith(
         mockJwtPayload,
         'test-agent',
@@ -84,33 +89,52 @@ describe('AuthController', () => {
   });
 
   describe('logout', () => {
-    it('should clear access and refresh tokens from cookies and return a success response', () => {
+    it('should clear access and refresh tokens from cookies, invoke service logout and return a success response', async () => {
+      const mockJwtPayload: IJwtPayloadWithExpiry = {
+        sub: 'user-id-123',
+        username: 'user.name',
+        admin: true,
+        tenantId: 'tenant-uuid-123',
+        fingerprint: 'test-agent',
+        exp: 1718900000,
+        iat: 1718800000,
+      };
+
       const mockResponse = {
         clearCookie: jest.fn(),
         json: jest.fn(),
       } as unknown as Response;
 
+      const mockLogoutRequest = {
+        headers: {
+          'user-agent': 'test-agent',
+        },
+        user: mockJwtPayload,
+      } as unknown as RequestWithCookies;
+
       (mockResponse.json as jest.Mock).mockImplementation(
         (body: unknown) => body,
       );
+      mockService.logout.mockResolvedValue({ message: ESuccess.LOGOUT });
 
-      const result = controller.logout(mockResponse);
+      const result = await controller.logout(mockLogoutRequest, mockResponse);
 
-      const expectedCookieOptions = {
+      const isProd = process.env.NODE_ENV === 'production';
+      const expectedBaseOptions = {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: isProd,
         sameSite: 'strict' as const,
       };
 
-      expect(mockResponse.clearCookie).toHaveBeenCalledWith(
-        'access_token',
-        expectedCookieOptions,
-      );
-      expect(mockResponse.clearCookie).toHaveBeenCalledWith(
-        'refresh_token',
-        expectedCookieOptions,
-      );
-
+      expect(mockService.logout).toHaveBeenCalledWith(mockJwtPayload);
+      expect(mockResponse.clearCookie).toHaveBeenCalledWith('access_token', {
+        ...expectedBaseOptions,
+        path: '/',
+      });
+      expect(mockResponse.clearCookie).toHaveBeenCalledWith('refresh_token', {
+        ...expectedBaseOptions,
+        path: '/auth',
+      });
       expect(mockResponse.json).toHaveBeenCalledWith({
         message: ESuccess.LOGOUT,
       });

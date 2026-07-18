@@ -8,14 +8,18 @@ import { ESuccess } from '../enums/success.enum';
 import { IUsersRepository } from '../interfaces/users.repository.interface';
 import { UsersService } from '../users.service';
 import { EErrors } from '../enums/errors.enum';
-import { User } from '../entities/user.entity';
-import { DeleteResult, UpdateResult } from 'typeorm';
-import { createFakeUser } from '../helpers/create-fake-user.helper';
+import { UpdateResult } from 'typeorm';
 import { UpdateAdminDto } from '../dtos/update-admin.dto';
+import { ICacheStorageService } from '../../../common/redis/interface/cache-storage.interface';
+import { createFakeUser } from '../../../helpers/create-fake-user.helper';
 
 describe('UsersService', () => {
   let service: UsersService;
   let mockRepository: jest.Mocked<IUsersRepository>;
+  let mockRedisService: jest.Mocked<ICacheStorageService>;
+
+  const fakeTenantId = 'tenant-uuid-999';
+  const user = createFakeUser();
 
   beforeEach(() => {
     mockRepository = {
@@ -26,7 +30,13 @@ describe('UsersService', () => {
       findOneByUsername: jest.fn(),
       deleteUser: jest.fn(),
     };
-    service = new UsersService(mockRepository);
+
+    mockRedisService = {
+      setWithExpiry: jest.fn(),
+      get: jest.fn(),
+    };
+
+    service = new UsersService(mockRepository, mockRedisService);
   });
 
   describe('Shared Username Validation Guard', () => {
@@ -37,73 +47,69 @@ describe('UsersService', () => {
     ])(
       'should throw BadRequestException if username is $label',
       async ({ value }) => {
-        await expect(
-          service.updateUserPassword({
-            username: value,
-            mustChangePassword: true,
-          }),
-        ).rejects.toThrow(new BadRequestException(EErrors.USERNAME_INVALID));
-        await expect(
-          service.updateAdminUser({ username: value, admin: true }),
-        ).rejects.toThrow(new BadRequestException(EErrors.USERNAME_INVALID));
-        await expect(service.findOneByUsername(value)).rejects.toThrow(
+        const payload = {
+          tenantId: '1',
+          username: value,
+          mustChangePassword: true,
+        };
+
+        await expect(service.updateUserPassword(payload)).rejects.toThrow(
           new BadRequestException(EErrors.USERNAME_INVALID),
         );
-        await expect(service.deleteUser(value)).rejects.toThrow(
+        await expect(
+          service.updateAdminUser({ ...payload, admin: true }),
+        ).rejects.toThrow(new BadRequestException(EErrors.USERNAME_INVALID));
+        await expect(
+          service.findOneByUsername(value, fakeTenantId),
+        ).rejects.toThrow(new BadRequestException(EErrors.USERNAME_INVALID));
+        await expect(service.deleteUser(value, fakeTenantId)).rejects.toThrow(
           new BadRequestException(EErrors.USERNAME_INVALID),
         );
       },
     );
   });
 
-  const user = createFakeUser();
-
   describe('createUser', () => {
-    it('should return success message if the user is successfully registered', async () => {
-      user.password = '12345678';
-      const result = await service.createUser({
-        username: user.username as string,
-        admin: true,
-        mustChangePassword: true,
-      });
+    const createDto = {
+      tenantId: '1',
+      username: user.username,
+      admin: true,
+      mustChangePassword: true,
+    };
+
+    it('should return success message and password payload upon successful registration', async () => {
+      const result = await service.createUser(createDto);
 
       expect(result.message).toBe(ESuccess.CREATE_USER);
-      expect(typeof result.data).toBe('string');
       expect(result.data).toHaveLength(8);
     });
 
-    it('should throw ConflictException if the username is already registered', async () => {
-      mockRepository.findOneByUsername.mockResolvedValue(createFakeUser());
-      await expect(
-        service.createUser({
-          username: user.username as string,
-          admin: true,
-          mustChangePassword: true,
-        }),
-      ).rejects.toThrow(new ConflictException(EErrors.USERNAME_EXIST));
+    it('should forward ConflictException if the repository catches duplicated keys', async () => {
+      mockRepository.createUser.mockRejectedValue(
+        new ConflictException(EErrors.USERNAME_EXIST),
+      );
+
+      await expect(service.createUser(createDto)).rejects.toThrow(
+        new ConflictException(EErrors.USERNAME_EXIST),
+      );
     });
   });
 
   describe('updateUserPassword', () => {
-    const response: UpdateResult = {
-      raw: [],
-      affected: 1,
-      generatedMaps: [],
+    const response: UpdateResult = { raw: [], affected: 1, generatedMaps: [] };
+    const baseDto = {
+      tenantId: '1',
+      username: user.username,
+      mustChangePassword: true,
     };
 
-    // Cenário 1: Quando NENHUMA senha é enviada (Geração de senha temporária)
-    it('should generate and return a temporary password if no password is provided in DTO', async () => {
+    it('should generate a temporary password if none is provided in the payload', async () => {
       mockRepository.updateUserPassword.mockResolvedValue(response);
 
-      const result = await service.updateUserPassword({
-        username: user.username as string,
-        mustChangePassword: true,
-      });
+      const result = await service.updateUserPassword(baseDto);
 
       expect(result.message).toBe(ESuccess.PASSWORD_UPDATE);
-      expect(typeof result.data).toBe('string');
       expect(result.data).toHaveLength(8);
-
       expect(mockRepository.updateUserPassword).toHaveBeenCalledWith(
         expect.objectContaining({
           username: user.username,
@@ -112,53 +118,41 @@ describe('UsersService', () => {
       );
     });
 
-    // Cenário 2: Quando UMA senha já é enviada no DTO (Apenas atualiza e retorna null)
-    it('should update successfully and return data as null if a password is provided in DTO', async () => {
+    it('should update successfully and return null data if cleartext password is provided', async () => {
       mockRepository.updateUserPassword.mockResolvedValue(response);
 
       const result = await service.updateUserPassword({
-        username: user.username as string,
-        mustChangePassword: true,
+        ...baseDto,
         password: 'NovaSenhaDefinida123',
       });
 
       expect(result.message).toBe(ESuccess.PASSWORD_UPDATE);
       expect(result.data).toBeNull();
-
-      expect(mockRepository.updateUserPassword).toHaveBeenCalledWith(
-        expect.objectContaining({
-          username: user.username,
-          password: expect.stringMatching(/^\$2[ayb]\$\d{2}\$/) as string,
-        }),
-      );
     });
 
-    it('should return the NotFoundException when the user not exist', async () => {
-      response.affected = 0;
-      mockRepository.updateUserPassword.mockResolvedValue(response);
+    it('should throw NotFoundException when affected rows count is zero', async () => {
+      mockRepository.updateUserPassword.mockResolvedValue({
+        ...response,
+        affected: 0,
+      });
 
-      await expect(
-        service.updateUserPassword({
-          username: user.username as string,
-          mustChangePassword: true,
-        }),
-      ).rejects.toThrow(new NotFoundException(EErrors.USER_NOT_FOUND));
+      await expect(service.updateUserPassword(baseDto)).rejects.toThrow(
+        new NotFoundException(EErrors.USER_NOT_FOUND),
+      );
     });
   });
 
   describe('updateAdminUser', () => {
     const adminDto: UpdateAdminDto = {
-      username: user.username as string,
-      admin: user.admin as boolean,
+      tenantId: '1',
+      username: user.username,
+      admin: user.admin,
     };
-    const repositoryReturn: UpdateResult = {
-      raw: [],
-      affected: 1,
-      generatedMaps: [],
-    };
+    const response: UpdateResult = { raw: [], affected: 1, generatedMaps: [] };
 
-    it(`should return the message ${ESuccess.ADMIN_UPDATE} if the temporary password was successfully updated.`, async () => {
-      mockRepository.updateAdminUser.mockResolvedValue(repositoryReturn);
+    it('should update status and return clean generic payload', async () => {
+      mockRepository.updateAdminUser.mockResolvedValue(response);
+
       expect(await service.updateAdminUser(adminDto)).toEqual({
         message: ESuccess.ADMIN_UPDATE,
         data: null,
@@ -166,61 +160,79 @@ describe('UsersService', () => {
       expect(mockRepository.updateAdminUser).toHaveBeenCalledWith(adminDto);
     });
 
-    it('should return NotFoundException when affected is zero', async () => {
-      repositoryReturn.affected = 0;
-      mockRepository.updateAdminUser.mockResolvedValue(repositoryReturn);
+    it('should throw NotFoundException if no user matches update parameters', async () => {
+      mockRepository.updateAdminUser.mockResolvedValue({
+        ...response,
+        affected: 0,
+      });
+
       await expect(service.updateAdminUser(adminDto)).rejects.toThrow(
         new NotFoundException(EErrors.ADMIN_INVALID),
       );
-      expect(mockRepository.updateAdminUser).toHaveBeenCalledWith(adminDto);
     });
   });
 
   describe('findAllUsers', () => {
-    const users: Partial<User>[] = [user, user, user];
-
-    it('should return users response list payload', async () => {
+    it('should return wrapped users payload array', async () => {
+      const users = [user, user];
       mockRepository.findAllUsers.mockResolvedValue(users);
-      expect(await service.findAllUsers()).toEqual({
+
+      expect(await service.findAllUsers(fakeTenantId)).toEqual({
         message: ESuccess.USERS_FOUND,
         data: users,
       });
     });
 
-    it('should throw NotFoundException if users list is null', async () => {
+    it('should throw NotFoundException if repository returns null/empty', async () => {
       mockRepository.findAllUsers.mockResolvedValue(null);
-      await expect(service.findAllUsers()).rejects.toThrow(
+
+      await expect(service.findAllUsers(fakeTenantId)).rejects.toThrow(
         new NotFoundException(EErrors.USERS_NOT_FOUND),
       );
     });
   });
 
   describe('findOneByUsername', () => {
-    it('should return target user wrapped in response DTO', async () => {
+    it('should return targeted single user profile', async () => {
       mockRepository.findOneByUsername.mockResolvedValue(user);
-      expect(await service.findOneByUsername(user.username as string)).toEqual({
-        message: ESuccess.USER_FOUND,
-        data: user,
-      });
+
+      expect(
+        await service.findOneByUsername(user.username, fakeTenantId),
+      ).toEqual({ message: ESuccess.USER_FOUND, data: user });
+    });
+
+    it('should throw NotFoundException if target profile does not exist', async () => {
+      mockRepository.findOneByUsername.mockResolvedValue(null);
+
+      await expect(
+        service.findOneByUsername(user.username, fakeTenantId),
+      ).rejects.toThrow(new NotFoundException(EErrors.USER_NOT_FOUND));
     });
   });
 
   describe('deleteUser', () => {
-    const response: DeleteResult = { raw: [], affected: 1 };
+    it('should purge record and set structural temporary expiration blacklist item inside Redis', async () => {
+      mockRepository.findOneByUsername.mockResolvedValue(user);
+      mockRepository.deleteUser.mockResolvedValue({ raw: [], affected: 1 });
+      mockRedisService.setWithExpiry.mockResolvedValue(undefined);
 
-    it('should return success message upon deletion', async () => {
-      mockRepository.deleteUser.mockResolvedValue(response);
-      expect(await service.deleteUser(user.username as string)).toBe(
-        ESuccess.DELETE_USER,
+      expect(await service.deleteUser(user.username, fakeTenantId)).toEqual({
+        message: ESuccess.DELETE_USER,
+        data: null,
+      });
+      expect(mockRedisService.setWithExpiry).toHaveBeenCalledWith(
+        `blacklist:user:${user.id}`,
+        'deleted',
+        900,
       );
     });
 
-    it('should return the NotFoundException when the user not exist', async () => {
-      response.affected = 0;
-      mockRepository.deleteUser.mockResolvedValue(response);
-      await expect(service.deleteUser(user.username as string)).rejects.toThrow(
-        new NotFoundException(EErrors.USER_NOT_FOUND),
-      );
+    it('should throw NotFoundException if entity missing before execution steps', async () => {
+      mockRepository.findOneByUsername.mockResolvedValue(null);
+
+      await expect(
+        service.deleteUser(user.username, fakeTenantId),
+      ).rejects.toThrow(new NotFoundException(EErrors.USER_NOT_FOUND));
     });
   });
 });

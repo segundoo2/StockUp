@@ -23,13 +23,14 @@ import {
 import { IUsersController } from './interfaces/users.controller.interface';
 import type { IUsersService } from './interfaces/users.service.interface';
 import { ESuccess } from './enums/success.enum';
-import { UsersResponseDto } from './dtos/users-response.dto';
 import { UserDto } from './dtos/user.dto';
 import { UpdatePasswordDto } from './dtos/update-password.dto';
 import { UpdateAdminDto } from './dtos/update-admin.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { AdminGuard } from '../../guards/admin.guard';
 import { RequiresAdmin } from '../../decorators/admin.decorator';
+import { User } from './entities/user.entity';
+import { IResponse } from '../../interfaces/response.interface';
 
 @ApiTags('Users')
 @Controller('users')
@@ -50,7 +51,6 @@ export class UsersController implements IUsersController {
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: ESuccess.CREATE_USER,
-    type: UsersResponseDto,
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
@@ -64,15 +64,27 @@ export class UsersController implements IUsersController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Token de acesso inválido ou ausente.',
   })
-  async createUser(@Body() userDto: UserDto): Promise<UsersResponseDto> {
-    this.logger.log(
-      `Tentativa de criação de usuário pelo administrador para o username: "${userDto.username}"`,
-    );
+  async createUser(
+    @Body() userDto: UserDto,
+    tenantId: string,
+  ): Promise<IResponse<string>> {
+    try {
+      userDto.tenantId = tenantId;
+      this.logger.log(
+        `Tentativa de criação de usuário pelo administrador para o username: "${userDto.username}"`,
+      );
 
-    const result = await this.usersService.createUser(userDto);
+      const result = await this.usersService.createUser(userDto);
 
-    this.logger.log(`Usuário "${userDto.username}" criado com sucesso.`);
-    return result;
+      this.logger.log(`Usuário "${userDto.username}" criado com sucesso.`);
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao criar usuário "${userDto.username}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 
   @Patch()
@@ -84,7 +96,7 @@ export class UsersController implements IUsersController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: ESuccess.PASSWORD_UPDATE,
-    type: UsersResponseDto,
+    type: Object,
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
@@ -96,15 +108,25 @@ export class UsersController implements IUsersController {
   })
   async updateUserPassword(
     @Body() userDto: UpdatePasswordDto,
-  ): Promise<UsersResponseDto> {
-    this.logger.log(
-      'Requisição recebida para atualização de senha de usuário.',
-    );
+    tenantId: string,
+  ): Promise<IResponse<string | null>> {
+    try {
+      userDto.tenantId = tenantId;
+      this.logger.log(
+        'Requisição recebida para atualização de senha de usuário.',
+      );
 
-    const result = await this.usersService.updateUserPassword(userDto);
+      const result = await this.usersService.updateUserPassword(userDto);
 
-    this.logger.log('Senha do usuário atualizada com sucesso.');
-    return result;
+      this.logger.log('Senha do usuário atualizada com sucesso.');
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao atualizar senha do usuário "${userDto.username}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 
   @Patch('/admin')
@@ -120,7 +142,7 @@ export class UsersController implements IUsersController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Privilégios de administrador atualizados com sucesso.',
-    type: UsersResponseDto,
+    type: Object,
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -136,17 +158,27 @@ export class UsersController implements IUsersController {
   })
   async updateAdminUser(
     @Body() adminDto: UpdateAdminDto,
-  ): Promise<UsersResponseDto> {
-    this.logger.warn(
-      `Alteração de privilégios administrativos solicitada para o usuário: "${adminDto.username}". Novo status Admin: ${adminDto.admin}`,
-    );
+    tenantId: string,
+  ): Promise<IResponse<null>> {
+    try {
+      adminDto.tenantId = tenantId;
+      this.logger.warn(
+        `Alteração de privilégios administrativos solicitada para o usuário: "${adminDto.username}". Novo status Admin: ${adminDto.admin}`,
+      );
 
-    const result = await this.usersService.updateAdminUser(adminDto);
+      const result = await this.usersService.updateAdminUser(adminDto);
 
-    this.logger.log(
-      `Privilégios administrativos modificados com sucesso para o usuário: "${adminDto.username}".`,
-    );
-    return result;
+      this.logger.log(
+        `Privilégios administrativos modificados com sucesso para o usuário: "${adminDto.username}".`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao atualizar privilégios do usuário "${adminDto.username}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 
   @Get()
@@ -158,7 +190,7 @@ export class UsersController implements IUsersController {
     status: HttpStatus.OK,
     description:
       'Retorna uma mensagem de status e os dados parciais de todos os usuários cadastrados.',
-    type: UsersResponseDto,
+    type: Object,
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -168,9 +200,19 @@ export class UsersController implements IUsersController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Não autorizado.',
   })
-  async findAllUsers(): Promise<UsersResponseDto> {
-    this.logger.log('Buscando listagem geral de usuários cadastrados.');
-    return await this.usersService.findAllUsers();
+  async findAllUsers(
+    tenantId: string,
+  ): Promise<IResponse<Omit<User, 'password'>[]>> {
+    try {
+      this.logger.log('Buscando listagem geral de usuários cadastrados.');
+      return await this.usersService.findAllUsers(tenantId);
+    } catch (error) {
+      this.logger.error(
+        `Erro ao buscar listagem de usuários do tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 
   @Get(':username')
@@ -187,7 +229,7 @@ export class UsersController implements IUsersController {
     status: HttpStatus.OK,
     description:
       'Retorna uma mensagem de status e os dados parciais do usuário encontrado.',
-    type: UsersResponseDto,
+    type: Object,
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -199,11 +241,20 @@ export class UsersController implements IUsersController {
   })
   async findOneByUsername(
     @Param('username') username: string,
-  ): Promise<UsersResponseDto> {
-    this.logger.log(
-      `Buscando dados parciais do perfil do username: "${username}".`,
-    );
-    return await this.usersService.findOneByUsername(username);
+    tenantId: string,
+  ): Promise<IResponse<Omit<User, 'password'>>> {
+    try {
+      this.logger.log(
+        `Buscando dados parciais do perfil do username: "${username}".`,
+      );
+      return await this.usersService.findOneByUsername(username, tenantId);
+    } catch (error) {
+      this.logger.error(
+        `Erro ao buscar usuário "${username}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 
   @Delete(':username')
@@ -236,16 +287,27 @@ export class UsersController implements IUsersController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Não autorizado.',
   })
-  async deleteUser(@Param('username') username: string): Promise<string> {
-    this.logger.warn(
-      `COMANDO CRÍTICO: Solicitação de exclusão permanente para o username: "${username}".`,
-    );
+  async deleteUser(
+    @Param('username') username: string,
+    tenantId: string,
+  ): Promise<IResponse<null>> {
+    try {
+      this.logger.warn(
+        `COMANDO CRÍTICO: Solicitação de exclusão permanente para o username: "${username}".`,
+      );
 
-    const result = await this.usersService.deleteUser(username);
+      const result = await this.usersService.deleteUser(username, tenantId);
 
-    this.logger.log(
-      `Usuário "${username}" foi excluído permanentemente do banco de dados.`,
-    );
-    return result;
+      this.logger.log(
+        `Usuário "${username}" foi excluído permanentemente do banco de dados.`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro crítico ao deletar o usuário "${username}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 }

@@ -14,12 +14,22 @@ export class AuthRepository implements IAuthRepository {
 
   async findUserByUsername(
     username: string,
-  ): Promise<Pick<User, 'id' | 'username' | 'admin' | 'password'> | null> {
+    tenantId: string,
+  ): Promise<Pick<
+    User,
+    'id' | 'tenantId' | 'username' | 'admin' | 'password'
+  > | null> {
     try {
       return (
         (await this.repository.findOne({
-          where: { username },
-          select: { id: true, username: true, admin: true, password: true },
+          where: { username, tenantId },
+          select: {
+            id: true,
+            tenantId: true,
+            username: true,
+            admin: true,
+            password: true,
+          },
         })) ?? null
       );
     } catch {

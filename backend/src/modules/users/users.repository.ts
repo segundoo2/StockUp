@@ -1,13 +1,23 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { IUsersRepository } from './interfaces/users.repository.interface';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import { DeleteResult, Repository } from 'typeorm';
+import {
+  DeleteResult,
+  QueryFailedError,
+  Repository,
+  UpdateResult,
+} from 'typeorm';
 import { EErrorsGlobal } from '../../enum/errors-global.enum';
 import { UserDto } from './dtos/user.dto';
-import { UpdateResult } from 'typeorm/browser';
 import { UpdatePasswordDto } from './dtos/update-password.dto';
 import { UpdateAdminDto } from './dtos/update-admin.dto';
+import { IDatabaseDriverError } from './interfaces/database-driver-Error.interface';
+import { EErrors } from './enums/errors.enum';
 
 @Injectable()
 export class UsersRepository implements IUsersRepository {
@@ -19,7 +29,15 @@ export class UsersRepository implements IUsersRepository {
     try {
       const user: User = this.repository.create(userDto);
       await this.repository.save(user);
-    } catch {
+    } catch (error: unknown) {
+      if (error instanceof QueryFailedError) {
+        const driverError = error.driverError as IDatabaseDriverError;
+        const errorCode = driverError.code;
+
+        if (errorCode === '23505') {
+          throw new ConflictException(EErrors.USERNAME_EXIST);
+        }
+      }
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }
   }
@@ -28,10 +46,13 @@ export class UsersRepository implements IUsersRepository {
     passwordDto: UpdatePasswordDto,
   ): Promise<UpdateResult> {
     try {
-      return await this.repository.update(passwordDto.username, {
-        password: passwordDto.password,
-        mustChangePassword: passwordDto.mustChangePassword,
-      });
+      return await this.repository.update(
+        { username: passwordDto.username, tenantId: passwordDto.tenantId },
+        {
+          password: passwordDto.password,
+          mustChangePassword: passwordDto.mustChangePassword,
+        },
+      );
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }
@@ -39,20 +60,30 @@ export class UsersRepository implements IUsersRepository {
 
   async updateAdminUser(adminDto: UpdateAdminDto): Promise<UpdateResult> {
     try {
-      return await this.repository.update(adminDto.username, {
-        admin: adminDto.admin,
-      });
+      return await this.repository.update(
+        { username: adminDto.username, tenantId: adminDto.tenantId },
+        {
+          admin: adminDto.admin,
+        },
+      );
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }
   }
 
-  async findAllUsers(): Promise<Partial<User>[] | null> {
+  async findAllUsers(
+    tenantId: string,
+  ): Promise<Omit<User, 'password'>[] | null> {
     try {
-      const users: Partial<User>[] = await this.repository.find({
+      const users: Omit<User, 'password'>[] = await this.repository.find({
+        where: {
+          tenantId,
+        },
         select: {
           id: true,
           username: true,
+          admin: true,
+          mustChangePassword: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -63,13 +94,18 @@ export class UsersRepository implements IUsersRepository {
     }
   }
 
-  async findOneByUsername(username: string): Promise<User | null> {
+  async findOneByUsername(
+    username: string,
+    tenantId: string,
+  ): Promise<Omit<User, 'password'> | null> {
     try {
       return await this.repository.findOne({
-        where: { username },
+        where: { username, tenantId },
         select: {
           id: true,
           username: true,
+          admin: true,
+          mustChangePassword: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -79,9 +115,9 @@ export class UsersRepository implements IUsersRepository {
     }
   }
 
-  async deleteUser(username: string): Promise<DeleteResult> {
+  async deleteUser(username: string, tenantId: string): Promise<DeleteResult> {
     try {
-      return await this.repository.delete(username);
+      return await this.repository.delete({ username, tenantId });
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }

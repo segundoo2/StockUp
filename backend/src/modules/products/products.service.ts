@@ -7,10 +7,10 @@ import {
 import type { IProductsRepository } from './interfaces/products.repository.interface';
 import { IProductsService } from './interfaces/products.service.interface';
 import { ProductDto } from './dtos/product.dto';
-import { IProductsResponse } from './interfaces/products-response.interface';
 import { EProductsSuccess } from './enums/products-success.enum';
 import { Product } from './entities/product.entity';
 import { EProductsError } from './enums/products-error.enum';
+import { IResponse } from '../../interfaces/response.interface';
 
 @Injectable()
 export class ProductsService implements IProductsService {
@@ -21,7 +21,7 @@ export class ProductsService implements IProductsService {
 
   async createProduct(
     productDto: ProductDto,
-  ): Promise<IProductsResponse<Product | null>> {
+  ): Promise<IResponse<Product | null>> {
     const product: Product =
       await this.productsRepository.createProduct(productDto);
     const existedProd = await this.productsRepository.findOneBySku(
@@ -36,7 +36,7 @@ export class ProductsService implements IProductsService {
     };
   }
 
-  async findOneBySku(sku: string): Promise<IProductsResponse<Product | null>> {
+  async findOneBySku(sku: string): Promise<IResponse<Product | null>> {
     const product = await this.productsRepository.findOneBySku(sku);
     if (!product) {
       throw new NotFoundException(EProductsError.PRODUCT_NOT_FOUND);

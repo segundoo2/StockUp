@@ -14,12 +14,17 @@ describe('AuthRepository', () => {
   let repository: AuthRepository;
   let ormRepositoryMock: MockRepository<User>;
 
-  const userDto: Pick<UserDto, 'username' | 'password'> = {
+  const userDto: Pick<UserDto, 'username' | 'tenantId'> = {
     username: 'segundo',
-    password: '12345678',
+    tenantId: 'tenant-uuid-123',
   };
-  const mockUser: Pick<User, 'id' | 'username' | 'admin' | 'password'> = {
+
+  const mockUser: Pick<
+    User,
+    'id' | 'tenantId' | 'username' | 'admin' | 'password'
+  > = {
     id: 'uuid-user',
+    tenantId: 'tenant-uuid-123',
     username: 'user.name',
     admin: true,
     password: '12345678',
@@ -39,42 +44,49 @@ describe('AuthRepository', () => {
 
   afterEach(() => jest.restoreAllMocks());
 
-  const shouldHandleDatabaseErrors = (
-    operation: () => Promise<unknown>,
-    mockMethod: () => jest.Mock,
-  ) => {
-    it('should return InternalServerException when TypeORM throws an error', async () => {
-      mockMethod().mockRejectedValue(
-        new Error('[TypeOrmModule] Unable to connect to the database'),
-      );
-
-      await expect(operation()).rejects.toThrow(
-        new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR),
-      );
-    });
-  };
-
   describe('findUserByUsername', () => {
-    it('should return the hash password when the user found', async () => {
+    it('should return user selection fields when user is found based on username and tenantId', async () => {
       ormRepositoryMock.findOne.mockResolvedValue(mockUser);
 
-      expect(await repository.findUserByUsername(userDto.username)).toBe(
-        mockUser,
+      const result = await repository.findUserByUsername(
+        userDto.username,
+        userDto.tenantId,
       );
+
+      expect(result).toBe(mockUser);
       expect(ormRepositoryMock.findOne).toHaveBeenCalledWith({
-        where: { username: userDto.username },
-        select: { id: true, username: true, admin: true, password: true },
+        where: { username: userDto.username, tenantId: userDto.tenantId },
+        select: {
+          id: true,
+          tenantId: true,
+          username: true,
+          admin: true,
+          password: true,
+        },
       });
     });
 
-    it('should return null when the user not found', async () => {
+    it('should return null when the user is not found in that specific tenant', async () => {
       ormRepositoryMock.findOne.mockResolvedValue(null);
-      expect(await repository.findUserByUsername(userDto.username)).toBe(null);
+
+      const result = await repository.findUserByUsername(
+        userDto.username,
+        userDto.tenantId,
+      );
+
+      expect(result).toBe(null);
     });
 
-    shouldHandleDatabaseErrors(
-      () => repository.findUserByUsername(userDto.username),
-      () => ormRepositoryMock.findOne,
-    );
+    it('should throw InternalServerErrorException when TypeORM throws a database error', async () => {
+      ormRepositoryMock.findOne.mockRejectedValue(
+        new Error('[TypeOrmModule] Connection context dropped'),
+      );
+
+      await expect(
+        repository.findUserByUsername(userDto.username, userDto.tenantId),
+      ).rejects.toThrow(
+        new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR),
+      );
+    });
   });
 });

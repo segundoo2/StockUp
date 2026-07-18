@@ -1,5 +1,6 @@
 export interface IJwtPayload {
   sub: string;
+  tenantId: string;
   username: string;
   admin: boolean;
   fingerprint: string;
@@ -7,4 +8,5 @@ export interface IJwtPayload {
 
 export interface IJwtPayloadWithExpiry extends IJwtPayload {
   exp: number;
+  iat?: number;
 }

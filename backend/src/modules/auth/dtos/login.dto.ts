@@ -1,6 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export abstract class LoginDto {
+  @ApiProperty({ example: 'uuid' })
+  tenantId!: string;
+
   @ApiProperty({ example: 'segundo' })
   username!: string;
 

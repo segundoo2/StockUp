@@ -1,10 +1,9 @@
 import { User } from '../modules/users/entities/user.entity';
 
-export const createFakeUser = (): Partial<User> => ({
-  id: 'some-uuid-or-id',
-  username: 'segundo',
-  admin: true,
-  mustChangePassword: true,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-});
+export function createFakeUser(): User {
+  const user = new User();
+  user.id = 'user-uuid-123';
+  user.username = 'john.doe';
+  user.admin = false;
+  return user;
+}

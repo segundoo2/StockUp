@@ -2,14 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DeleteResult, ObjectLiteral, Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
-import { ESuccess } from '../enums/success.enum';
 import { UsersRepository } from '../users.repository';
 import { InternalServerErrorException } from '@nestjs/common';
 import { EErrorsGlobal } from '../../../enum/errors-global.enum';
-import { createFakeUser } from '../helpers/create-fake-user.helper';
 import { UserDto } from '../dtos/user.dto';
-import { UpdateResult } from 'typeorm/browser';
+import { UpdateResult } from 'typeorm';
 import { UpdateAdminDto } from '../dtos/update-admin.dto';
+import { createFakeUser } from '../../../helpers/create-fake-user.helper';
 
 type MockRepository<T extends ObjectLiteral> = Partial<
   Record<keyof Repository<T>, jest.Mock>
@@ -18,6 +17,17 @@ type MockRepository<T extends ObjectLiteral> = Partial<
 describe('UsersRepository', () => {
   let repository: UsersRepository;
   let ormRepositoryMock: MockRepository<User>;
+
+  const user = createFakeUser();
+  user.password = '12345678';
+
+  const userDto: UserDto = {
+    tenantId: '1',
+    username: user.username,
+    admin: user.admin,
+    mustChangePassword: user.mustChangePassword,
+    password: user.password,
+  };
 
   beforeEach(async () => {
     const mockFactory = (): MockRepository<User> => ({
@@ -63,17 +73,9 @@ describe('UsersRepository', () => {
   };
 
   describe('createUser', () => {
-    const user = createFakeUser();
-    user.password = '12345678';
-    const userDto: UserDto = {
-      username: user.username as string,
-      admin: user.admin as boolean,
-      mustChangePassword: user.mustChangePassword as boolean,
-      password: user.password,
-    };
-
-    it(`should return the message "${ESuccess.CREATE_USER}", if the user is successfully registered`, async () => {
+    it('should invoke create and save operations successfully', async () => {
       ormRepositoryMock.create?.mockReturnValue(user);
+      ormRepositoryMock.save?.mockResolvedValue(user);
 
       await repository.createUser(userDto);
       expect(ormRepositoryMock.create).toHaveBeenCalledWith(userDto);
@@ -87,28 +89,22 @@ describe('UsersRepository', () => {
   });
 
   describe('updateUserPassword', () => {
-    const user = createFakeUser();
-    user.password = '12345678';
-    const userDto: UserDto = {
-      username: user.username as string,
-      admin: user.admin as boolean,
-      mustChangePassword: user.mustChangePassword as boolean,
-      password: user.password,
-    };
-    const response: UpdateResult = {
-      raw: [],
-      affected: 0,
-      generatedMaps: [],
-    };
+    const response: UpdateResult = { raw: [], affected: 0, generatedMaps: [] };
 
     it('should return property affected === 1 when the password has successfully persisted', async () => {
-      response.affected = 1;
-      ormRepositoryMock.update?.mockResolvedValue(response);
-      expect(await repository.updateUserPassword(userDto)).toEqual(response);
-      expect(ormRepositoryMock.update).toHaveBeenCalledWith(userDto.username, {
-        mustChangePassword: userDto.mustChangePassword,
-        password: userDto.password,
-      });
+      const successResponse = { ...response, affected: 1 };
+      ormRepositoryMock.update?.mockResolvedValue(successResponse);
+
+      expect(await repository.updateUserPassword(userDto)).toEqual(
+        successResponse,
+      );
+      expect(ormRepositoryMock.update).toHaveBeenCalledWith(
+        { username: userDto.username, tenantId: userDto.tenantId },
+        {
+          mustChangePassword: userDto.mustChangePassword,
+          password: userDto.password,
+        },
+      );
     });
 
     it('should return the property affected === 0 when the user not found', async () => {
@@ -124,27 +120,27 @@ describe('UsersRepository', () => {
 
   describe('updateAdminUser', () => {
     const adminDto: UpdateAdminDto = {
+      tenantId: '1',
       username: 'segundo',
       admin: true,
     };
-    const response: UpdateResult = {
-      raw: [],
-      affected: 1,
-      generatedMaps: [],
-    };
+    const response: UpdateResult = { raw: [], affected: 1, generatedMaps: [] };
 
-    it('should return property affected === 1 when the password has successfully persisted', async () => {
+    it('should return property affected === 1 when admin status has successfully persisted', async () => {
       ormRepositoryMock.update?.mockResolvedValue(response);
+
       expect(await repository.updateAdminUser(adminDto)).toEqual(response);
-      expect(ormRepositoryMock.update).toHaveBeenCalledWith(adminDto.username, {
-        admin: adminDto.admin,
-      });
+      expect(ormRepositoryMock.update).toHaveBeenCalledWith(
+        { username: adminDto.username, tenantId: adminDto.tenantId },
+        { admin: adminDto.admin },
+      );
     });
 
     it('should return property affected === 0 when the user not found', async () => {
-      response.affected = 0;
-      ormRepositoryMock.update?.mockResolvedValue(response);
-      expect(await repository.updateAdminUser(adminDto)).toEqual(response);
+      const failResponse = { ...response, affected: 0 };
+      ormRepositoryMock.update?.mockResolvedValue(failResponse);
+
+      expect(await repository.updateAdminUser(adminDto)).toEqual(failResponse);
     });
 
     shouldHandleDatabaseErrors(
@@ -154,48 +150,37 @@ describe('UsersRepository', () => {
   });
 
   describe('findAllUsers', () => {
-    it('should return all registred users', async () => {
+    it('should return all registered users', async () => {
       const usersMock = [createFakeUser(), createFakeUser()];
       ormRepositoryMock.find?.mockResolvedValue(usersMock);
 
-      expect(await repository.findAllUsers()).toEqual(usersMock);
+      expect(await repository.findAllUsers('1')).toEqual(usersMock);
     });
 
-    it('should return an empty array if no user is found', async () => {
+    it('should return null if no user is found', async () => {
       ormRepositoryMock.find?.mockResolvedValue([]);
-
-      expect(await repository.findAllUsers()).toBeNull();
-    });
-
-    it('should return null when there is no registered user', async () => {
-      ormRepositoryMock.find?.mockResolvedValue([]);
-
-      expect(await repository.findAllUsers()).toBeNull();
+      expect(await repository.findAllUsers('1')).toBeNull();
     });
 
     shouldHandleDatabaseErrors(
-      () => repository.findAllUsers(),
+      () => repository.findAllUsers('1'),
       () => ormRepositoryMock.find,
     );
   });
 
   describe('findOneByUsername', () => {
-    const user = createFakeUser();
-
-    it('should return a user when found in the database by TypeORM', async () => {
+    it('should return a user when found in the database', async () => {
       ormRepositoryMock.findOne?.mockResolvedValue(user);
-
-      expect(await repository.findOneByUsername('segundo')).toEqual(user);
+      expect(await repository.findOneByUsername('segundo', '1')).toEqual(user);
     });
 
-    it('should return null if TypeORM does not find the user', async () => {
+    it('should return null if user is not found', async () => {
       ormRepositoryMock.findOne?.mockResolvedValue(null);
-
-      expect(await repository.findOneByUsername('segundo')).toBeNull();
+      expect(await repository.findOneByUsername('segundo', '1')).toBeNull();
     });
 
     shouldHandleDatabaseErrors(
-      () => repository.findOneByUsername('segundo'),
+      () => repository.findOneByUsername('segundo', '1'),
       () => ormRepositoryMock.findOne,
     );
   });
@@ -203,23 +188,20 @@ describe('UsersRepository', () => {
   describe('deleteUser', () => {
     const response: DeleteResult = { raw: [], affected: 1 };
 
-    it('should return the delete result when the user is successfully deleted.', async () => {
+    it('should return the delete result when successfully deleted', async () => {
       ormRepositoryMock.delete?.mockResolvedValue(response);
-
-      expect(await repository.deleteUser('segundo')).toEqual(response);
+      expect(await repository.deleteUser('segundo', '1')).toEqual(response);
     });
 
-    it('should return the delete result with 0 affected rows when the user is not found in the database.', async () => {
-      ormRepositoryMock.delete?.mockResolvedValue({ ...response, affected: 0 });
+    it('should return affected 0 when target user does not exist', async () => {
+      const failResponse = { ...response, affected: 0 };
+      ormRepositoryMock.delete?.mockResolvedValue(failResponse);
 
-      expect(await repository.deleteUser('segundo')).toEqual({
-        ...response,
-        affected: 0,
-      });
+      expect(await repository.deleteUser('segundo', '1')).toEqual(failResponse);
     });
 
     shouldHandleDatabaseErrors(
-      () => repository.deleteUser('segundo'),
+      () => repository.deleteUser('segundo', '1'),
       () => ormRepositoryMock.delete,
     );
   });

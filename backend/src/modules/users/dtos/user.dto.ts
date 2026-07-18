@@ -11,6 +11,12 @@ import { EErrors } from '../enums/errors.enum';
 
 export abstract class UserDto {
   @ApiProperty({
+    description: 'Id da empresa no qual o usuário pertence',
+    example: 'uuid',
+  })
+  tenantId!: string;
+
+  @ApiProperty({
     description: 'Nome do usuário deve está no formato: nome.sobrenome',
     example: 'edilson.segundo',
   })

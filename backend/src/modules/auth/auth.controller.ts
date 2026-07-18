@@ -22,14 +22,12 @@ import {
 import type { Response, Request } from 'express';
 import { IAuthController } from './interfaces/auth.controller.interface';
 import type { IAuthService } from './interfaces/auth.service.interface';
-import { UserDto } from '../users/dtos/user.dto';
 import { IAuthPayload } from './interfaces/auth-payload.interface';
 import { AuthGuard } from '@nestjs/passport';
 import { SetCookiesInterceptor } from './interceptors/auth.interceptor';
 import { IJwtPayloadWithExpiry } from './interfaces/jwt-payload.interface';
 import type { RequestWithCookies } from './interfaces/req-with-cookies.interface';
 import { ESuccess } from './enums/success.enum';
-import { AuthResponseDto, LogoutResponseDto } from './dtos/auth-response.dto';
 import { LoginDto } from './dtos/login.dto';
 
 @ApiTags('Authentication')
@@ -54,7 +52,6 @@ export class AuthController implements IAuthController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Login efetuado com sucesso e tokens gerados.',
-    type: AuthResponseDto,
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -66,7 +63,7 @@ export class AuthController implements IAuthController {
   })
   async login(
     @Req() req: Request,
-    @Body() userDto: Pick<UserDto, 'username' | 'password'>,
+    @Body() loginDto: LoginDto,
   ): Promise<IAuthPayload> {
     const fingerprint =
       (req.headers['x-device-id'] as string) ||
@@ -74,14 +71,14 @@ export class AuthController implements IAuthController {
       'unknown';
 
     try {
-      const response = await this.authService.login(userDto, fingerprint);
+      const response = await this.authService.login(loginDto, fingerprint);
       this.logger.log(
-        `[AUTH] Usuário "${userDto.username}" logado com sucesso.`,
+        `[AUTH] Usuário "${loginDto.username}" do Tenant "${loginDto.tenantId}" logado com sucesso.`,
       );
       return response;
     } catch (error) {
       this.logger.warn(
-        `[AUTH] Tentativa de login falhou para o usuário: "${userDto.username}"`,
+        `[AUTH] Tentativa de login falhou para o usuário: "${loginDto.username}"`,
       );
       throw error;
     }
@@ -104,7 +101,6 @@ export class AuthController implements IAuthController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Tokens renovados com sucesso.',
-    type: AuthResponseDto,
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
@@ -143,7 +139,6 @@ export class AuthController implements IAuthController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Logout realizado com sucesso.',
-    type: LogoutResponseDto,
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
@@ -161,16 +156,15 @@ export class AuthController implements IAuthController {
     const cookieOptions = {
       httpOnly: true,
       secure: isProd,
+      sameSite: 'strict' as const,
     };
 
     res.clearCookie('access_token', {
       ...cookieOptions,
-      sameSite: 'strict',
       path: '/',
     });
     res.clearCookie('refresh_token', {
       ...cookieOptions,
-      sameSite: 'strict',
       path: '/auth',
     });
 

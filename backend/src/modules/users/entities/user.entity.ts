@@ -2,16 +2,23 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   PrimaryGeneratedColumn,
+  Unique,
   UpdateDateColumn,
 } from 'typeorm';
 
 @Entity({ name: 'users' })
+@Unique('uq_user_tenant_username', ['tenantId', 'username'])
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'varchar', unique: true, length: 50 })
+  @Column('uuid')
+  tenantId!: string;
+
+  @Column({ type: 'varchar', length: 50 })
+  @Index()
   username!: string;
 
   @Column({ type: 'boolean' })

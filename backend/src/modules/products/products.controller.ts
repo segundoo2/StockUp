@@ -14,11 +14,16 @@ export class ProductsController implements IProductsController {
 
   async createProduct(
     productDto: ProductDto,
-  ): Promise<IResponse<ProductDto | null>> {
+    tenantId: string,
+  ): Promise<IResponse<null>> {
+    productDto.tenantId = tenantId;
     return await this.productsService.createProduct(productDto);
   }
 
-  async findOneBySku(sku: string): Promise<IResponse<Product | null>> {
-    return await this.productsService.findOneBySku(sku);
+  async findOneBySku(
+    sku: string,
+    tenantId: string,
+  ): Promise<IResponse<Product>> {
+    return await this.productsService.findOneBySku(sku, tenantId);
   }
 }

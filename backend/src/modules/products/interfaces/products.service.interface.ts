@@ -1,10 +1,8 @@
+import { IResponse } from '../../../interfaces/response.interface';
 import { ProductDto } from '../dtos/product.dto';
 import { Product } from '../entities/product.entity';
-import { IProductsResponse } from './products-response.interface';
 
 export interface IProductsService {
-  createProduct(
-    productDto: ProductDto,
-  ): Promise<IProductsResponse<ProductDto | null>>;
-  findOneBySku(sku: string): Promise<IProductsResponse<Product | null>>;
+  createProduct(productDto: ProductDto): Promise<IResponse<Product>>;
+  findOneBySku(sku: string, tenantId: string): Promise<IResponse<Product>>;
 }

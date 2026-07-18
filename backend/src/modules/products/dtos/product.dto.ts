@@ -22,6 +22,8 @@ type CreateProductInput = Omit<
 >;
 
 export class ProductDto implements CreateProductInput {
+  tenantId!: string;
+
   @IsString()
   @IsNotEmpty()
   @Length(3, 50)

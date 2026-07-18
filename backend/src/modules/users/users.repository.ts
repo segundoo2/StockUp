@@ -16,7 +16,7 @@ import { EErrorsGlobal } from '../../enum/errors-global.enum';
 import { UserDto } from './dtos/user.dto';
 import { UpdatePasswordDto } from './dtos/update-password.dto';
 import { UpdateAdminDto } from './dtos/update-admin.dto';
-import { IDatabaseDriverError } from './interfaces/database-driver-Error.interface';
+import { IDatabaseDriverError } from '../../interfaces/database-driver-Error.interface';
 import { EErrors } from './enums/errors.enum';
 
 @Injectable()

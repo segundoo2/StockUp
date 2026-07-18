@@ -9,8 +9,8 @@ import { IProductsService } from './interfaces/products.service.interface';
 import { ProductDto } from './dtos/product.dto';
 import { EProductsSuccess } from './enums/products-success.enum';
 import { Product } from './entities/product.entity';
-import { EProductsError } from './enums/products-error.enum';
 import { IResponse } from '../../interfaces/response.interface';
+import { EProductsErrors } from './enums/products-errors.enum';
 
 @Injectable()
 export class ProductsService implements IProductsService {
@@ -19,28 +19,34 @@ export class ProductsService implements IProductsService {
     private readonly productsRepository: IProductsRepository,
   ) {}
 
-  async createProduct(
-    productDto: ProductDto,
-  ): Promise<IResponse<Product | null>> {
-    const product: Product =
-      await this.productsRepository.createProduct(productDto);
-    const existedProd = await this.productsRepository.findOneBySku(
+  async createProduct(productDto: ProductDto): Promise<IResponse<Product>> {
+    const existedProduct = await this.productsRepository.findOneBySku(
       productDto.sku,
+      productDto.tenantId,
     );
-    if (existedProd) {
-      throw new ConflictException(EProductsError.CONFLICT_PRODUCT);
+
+    if (existedProduct) {
+      throw new ConflictException(EProductsErrors.PRODUCT_EXIST);
     }
+
     return {
       message: EProductsSuccess.CREATE,
-      data: product,
+      data: await this.productsRepository.createProduct(productDto),
     };
   }
 
-  async findOneBySku(sku: string): Promise<IResponse<Product | null>> {
-    const product = await this.productsRepository.findOneBySku(sku);
+  async findOneBySku(
+    sku: string,
+    tenantId: string,
+  ): Promise<IResponse<Product>> {
+    const product = await this.productsRepository.findOneBySku(sku, tenantId);
+
     if (!product) {
-      throw new NotFoundException(EProductsError.PRODUCT_NOT_FOUND);
+      throw new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND);
     }
-    return { message: EProductsSuccess.FIND_ONE, data: product };
+    return {
+      message: EProductsSuccess.FIND_ONE,
+      data: product,
+    };
   }
 }

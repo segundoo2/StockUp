@@ -8,4 +8,5 @@ export interface IProductsController {
     tenantId: string,
   ): Promise<IResponse<null>>;
   findOneBySku(sku: string, tenantId: string): Promise<IResponse<Product>>;
+  findAllProducts(tenantId: string): Promise<IResponse<Product[]>>;
 }

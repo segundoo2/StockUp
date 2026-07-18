@@ -2,8 +2,8 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ProductDto } from '../dtos/product.dto';
 import { Product } from '../entities/product.entity';
-import { EProductsSuccess } from '../enums/products-success.enum';
-import { EProductsErrors } from '../enums/products-errors.enum'; // Ajustado conforme nomenclatura padrão de erros
+import { EProductsSuccess } from '../../../enum/products-success.enum';
+import { EProductsErrors } from '../../../enum/products-errors.enum'; // Ajustado conforme nomenclatura padrão de erros
 import { IProductsRepository } from '../interfaces/products.repository.interface';
 import { IProductsService } from '../interfaces/products.service.interface';
 import { IResponse } from '../../../interfaces/response.interface';
@@ -52,6 +52,7 @@ describe('ProductsService', () => {
     mockRepository = {
       createProduct: jest.fn(),
       findOneBySku: jest.fn(),
+      findAllProducts: jest.fn(),
     };
 
     service = new ProductsService(mockRepository);
@@ -62,9 +63,9 @@ describe('ProductsService', () => {
   });
 
   describe('createProduct', () => {
-    const response: IResponse<Product> = {
+    const response: IResponse<null> = {
       message: EProductsSuccess.CREATE,
-      data: mockProduct,
+      data: null,
     };
 
     it('should return product when it is create', async () => {
@@ -74,6 +75,7 @@ describe('ProductsService', () => {
       expect(await service.createProduct(mockProductDto)).toEqual(response);
       expect(mockRepository.findOneBySku).toHaveBeenCalledWith(
         mockProductDto.sku,
+        mockProductDto.tenantId,
       );
       expect(mockRepository.createProduct).toHaveBeenCalledWith(mockProductDto);
     });
@@ -99,7 +101,10 @@ describe('ProductsService', () => {
         message: EProductsSuccess.FIND_ONE,
         data: mockProduct,
       });
-      expect(mockRepository.findOneBySku).toHaveBeenCalledWith(mockProduct.sku);
+      expect(mockRepository.findOneBySku).toHaveBeenCalledWith(
+        mockProduct.sku,
+        mockProduct.tenantId,
+      );
     });
 
     it('should throw NotFoundException when product not found', async () => {
@@ -112,6 +117,32 @@ describe('ProductsService', () => {
       );
       expect(mockRepository.findOneBySku).toHaveBeenCalledWith(
         mockProductDto.sku,
+        mockProductDto.tenantId,
+      );
+    });
+  });
+
+  describe('findAllProduct', () => {
+    it("should return list product when it's is found", async () => {
+      const response: IResponse<Product[]> = {
+        message: EProductsSuccess.FIND_ALL,
+        data: [mockProduct, mockProduct, mockProduct],
+      };
+      mockRepository.findAllProducts.mockResolvedValue(response.data);
+      expect(await service.findAllProducts(mockProductDto.tenantId)).toEqual(
+        response,
+      );
+      expect(mockRepository.findAllProducts).toHaveBeenCalledWith(
+        mockProductDto.tenantId,
+      );
+    });
+
+    it('should return NotFoundException when the products not found', async () => {
+      mockRepository.findAllProducts.mockResolvedValue([]);
+      await expect(
+        service.findAllProducts(mockProductDto.tenantId),
+      ).rejects.toThrow(
+        new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND),
       );
     });
   });

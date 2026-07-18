@@ -159,4 +159,22 @@ describe('ProductsRepository', () => {
       () => ormRepositoryMock.save,
     );
   });
+
+  describe('findAllProducts', () => {
+    it("should return product list when it's is found", async () => {
+      const productsList = [productMock, productMock, productMock];
+      ormRepositoryMock.find?.mockResolvedValue(productsList);
+      expect(
+        await productsRepository.findAllProducts(productMock.tenantId),
+      ).toEqual(productsList);
+      expect(ormRepositoryMock.find).toHaveBeenCalledWith({
+        where: { tenantId: productMock.tenantId },
+      });
+    });
+
+    shouldHandleDatabaseErrors(
+      () => productsRepository.findAllProducts(productMock.tenantId),
+      () => ormRepositoryMock.find,
+    );
+  });
 });

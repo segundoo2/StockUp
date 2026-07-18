@@ -26,4 +26,8 @@ export class ProductsController implements IProductsController {
   ): Promise<IResponse<Product>> {
     return await this.productsService.findOneBySku(sku, tenantId);
   }
+
+  async findAllProducts(tenantId: string): Promise<IResponse<Product[]>> {
+    return await this.productsService.findAllProducts(tenantId);
+  }
 }

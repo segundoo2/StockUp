@@ -2,7 +2,7 @@
 import { IResponse } from '../../../interfaces/response.interface';
 import { ProductDto } from '../dtos/product.dto';
 import { Product } from '../entities/product.entity';
-import { EProductsSuccess } from '../enums/products-success.enum';
+import { EProductsSuccess } from '../../../enum/products-success.enum';
 import { IProductsController } from '../interfaces/products.controller.interface';
 import { IProductsService } from '../interfaces/products.service.interface';
 import { ProductsController } from '../products.controller';
@@ -15,6 +15,7 @@ describe('ProductsController', () => {
     mockService = {
       createProduct: jest.fn(),
       findOneBySku: jest.fn(),
+      findAllProducts: jest.fn(),
     };
     controller = new ProductsController(mockService);
   });
@@ -53,6 +54,7 @@ describe('ProductsController', () => {
     createdAt: new Date('2026-07-15T19:00:00Z'),
     updatedAt: new Date('2026-07-15T19:00:00Z'),
   };
+
   describe('createProduct', () => {
     const response: IResponse<null> = {
       message: EProductsSuccess.CREATE,
@@ -82,6 +84,22 @@ describe('ProductsController', () => {
       ).toEqual(response);
       expect(mockService.findOneBySku).toHaveBeenCalledWith(
         mockProductDto.sku,
+        mockProductDto.tenantId,
+      );
+    });
+  });
+
+  describe('findAllProducts', () => {
+    it("should return all products when it's is found", async () => {
+      const response: IResponse<Product[]> = {
+        message: EProductsSuccess.FIND_ALL,
+        data: [mockProduct, mockProduct, mockProduct],
+      };
+      mockService.findAllProducts.mockResolvedValue(response);
+      expect(await controller.findAllProducts(mockProductDto.tenantId)).toEqual(
+        response,
+      );
+      expect(mockService.findAllProducts).toHaveBeenCalledWith(
         mockProductDto.tenantId,
       );
     });

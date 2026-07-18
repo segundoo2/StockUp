@@ -7,10 +7,10 @@ import {
 import type { IProductsRepository } from './interfaces/products.repository.interface';
 import { IProductsService } from './interfaces/products.service.interface';
 import { ProductDto } from './dtos/product.dto';
-import { EProductsSuccess } from './enums/products-success.enum';
+import { EProductsSuccess } from '../../enum/products-success.enum';
 import { Product } from './entities/product.entity';
 import { IResponse } from '../../interfaces/response.interface';
-import { EProductsErrors } from './enums/products-errors.enum';
+import { EProductsErrors } from '../../enum/products-errors.enum';
 
 @Injectable()
 export class ProductsService implements IProductsService {
@@ -19,7 +19,7 @@ export class ProductsService implements IProductsService {
     private readonly productsRepository: IProductsRepository,
   ) {}
 
-  async createProduct(productDto: ProductDto): Promise<IResponse<Product>> {
+  async createProduct(productDto: ProductDto): Promise<IResponse<null>> {
     const existedProduct = await this.productsRepository.findOneBySku(
       productDto.sku,
       productDto.tenantId,
@@ -29,9 +29,10 @@ export class ProductsService implements IProductsService {
       throw new ConflictException(EProductsErrors.PRODUCT_EXIST);
     }
 
+    await this.productsRepository.createProduct(productDto);
     return {
       message: EProductsSuccess.CREATE,
-      data: await this.productsRepository.createProduct(productDto),
+      data: null,
     };
   }
 
@@ -47,6 +48,17 @@ export class ProductsService implements IProductsService {
     return {
       message: EProductsSuccess.FIND_ONE,
       data: product,
+    };
+  }
+
+  async findAllProducts(tenantId: string): Promise<IResponse<Product[]>> {
+    const productList = await this.productsRepository.findAllProducts(tenantId);
+    if (productList?.length === 0) {
+      throw new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND);
+    }
+    return {
+      message: EProductsSuccess.FIND_ALL,
+      data: productList as Product[],
     };
   }
 }

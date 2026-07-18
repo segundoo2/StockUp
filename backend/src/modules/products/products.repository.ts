@@ -30,4 +30,12 @@ export class ProductsRepository implements IProductsRepository {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }
   }
+
+  async findAllProducts(tenantId: string): Promise<Product[] | []> {
+    try {
+      return await this.repository.find({ where: { tenantId } });
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
 }

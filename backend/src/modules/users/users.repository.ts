@@ -17,7 +17,7 @@ import { UserDto } from './dtos/user.dto';
 import { UpdatePasswordDto } from './dtos/update-password.dto';
 import { UpdateAdminDto } from './dtos/update-admin.dto';
 import { IDatabaseDriverError } from '../../interfaces/database-driver-Error.interface';
-import { EErrors } from './enums/errors.enum';
+import { EUsersErrors } from '../../enum/users-errors.enum';
 
 @Injectable()
 export class UsersRepository implements IUsersRepository {
@@ -35,7 +35,7 @@ export class UsersRepository implements IUsersRepository {
         const errorCode = driverError.code;
 
         if (errorCode === '23505') {
-          throw new ConflictException(EErrors.USERNAME_EXIST);
+          throw new ConflictException(EUsersErrors.USERNAME_EXIST);
         }
       }
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);

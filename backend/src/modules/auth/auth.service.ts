@@ -9,12 +9,12 @@ import type {
 } from './interfaces/jwt-service.interface';
 import type { IAuthRepository } from './interfaces/auth.repository.interface';
 import type { IAuthService } from './interfaces/auth.service.interface';
-import { ESuccess } from './enums/success.enum';
+import { EAuthSuccess } from '../../enum/auth-success.enum';
 import { RedisService } from '../../common/redis/redis.service';
 import { UserDto } from '../users/dtos/user.dto';
 import { IAuthPayload } from './interfaces/auth-payload.interface';
 import * as bcrypt from 'bcrypt';
-import { EErrors } from './enums/errors.enum';
+import { EAuthErrors } from '../../enum/auth-errors.enum';
 
 @Injectable()
 export class AuthService implements IAuthService {
@@ -50,7 +50,7 @@ export class AuthService implements IAuthService {
     const tokens = await this.generateTokenPair(payload);
 
     return {
-      message: ESuccess.LOGIN,
+      message: EAuthSuccess.LOGIN,
       data: tokens,
     };
   }
@@ -65,7 +65,7 @@ export class AuthService implements IAuthService {
     );
 
     if (!user) {
-      throw new UnauthorizedException(EErrors.FAILED_RETRIEVE_SESSION);
+      throw new UnauthorizedException(EAuthErrors.FAILED_RETRIEVE_SESSION);
     }
 
     const ttlSeconds = this.calculateTtlSeconds(payload.exp);
@@ -89,12 +89,14 @@ export class AuthService implements IAuthService {
     const tokens = await this.generateTokenPair(newPayload);
 
     return {
-      message: ESuccess.REFRESH,
+      message: EAuthSuccess.REFRESH,
       data: tokens,
     };
   }
 
-  async logout(payload: IJwtPayloadWithExpiry): Promise<{ message: ESuccess }> {
+  async logout(
+    payload: IJwtPayloadWithExpiry,
+  ): Promise<{ message: EAuthSuccess }> {
     const ttlSeconds = this.calculateTtlSeconds(payload.exp);
 
     if (ttlSeconds > 0) {
@@ -106,7 +108,7 @@ export class AuthService implements IAuthService {
       );
     }
 
-    return { message: ESuccess.LOGOUT };
+    return { message: EAuthSuccess.LOGOUT };
   }
 
   // ==========================================

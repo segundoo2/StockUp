@@ -1,7 +1,7 @@
 import { UserDto } from '../../users/dtos/user.dto';
 import { IJwtPayloadWithExpiry } from './jwt-payload.interface';
 import { IAuthPayload } from './auth-payload.interface';
-import { ESuccess } from '../enums/success.enum';
+import { ESuccess } from '../../../enum/auth-success.enum';
 
 export interface IAuthService {
   login(

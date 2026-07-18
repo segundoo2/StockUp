@@ -3,7 +3,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { UserDto } from '../../users/dtos/user.dto';
 import { AuthService } from '../auth.service';
 import { IAuthRepository } from '../interfaces/auth.repository.interface';
-import { ESuccess } from '../enums/success.enum';
+import { ESuccess } from '../../../enum/auth-success.enum';
 import * as bcrypt from 'bcrypt';
 import { User } from '../../users/entities/user.entity';
 import { ITokenService } from '../interfaces/jwt-service.interface';
@@ -12,7 +12,7 @@ import {
   IJwtPayloadWithExpiry,
 } from '../interfaces/jwt-payload.interface';
 import { RedisService } from '../../../common/redis/redis.service';
-import { EErrors } from '../enums/errors.enum';
+import { EErrors } from '../../../enum/auth-errors.enum';
 
 describe('AuthService', () => {
   let service: AuthService;

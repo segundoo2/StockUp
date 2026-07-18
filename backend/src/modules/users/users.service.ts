@@ -7,8 +7,6 @@ import {
 import { IUsersService } from './interfaces/users.service.interface';
 import type { IUsersRepository } from './interfaces/users.repository.interface';
 import { User } from './entities/user.entity';
-import { EErrors } from './enums/errors.enum';
-import { ESuccess } from './enums/success.enum';
 import * as generatePassword from 'generate-password';
 import * as bcrypt from 'bcrypt';
 import { UserDto } from './dtos/user.dto';
@@ -17,6 +15,8 @@ import { UpdateAdminDto } from './dtos/update-admin.dto';
 import { UpdateResult } from 'typeorm';
 import type { ICacheStorageService } from '../../common/redis/interface/cache-storage.interface';
 import { IResponse } from '../../interfaces/response.interface';
+import { EUsersSuccess } from '../../enum/users-sucess.enum';
+import { EUsersErrors } from '../../enum/users-errors.enum';
 
 @Injectable()
 export class UsersService implements IUsersService {
@@ -38,7 +38,7 @@ export class UsersService implements IUsersService {
       password: await bcrypt.hash(userDto.password, this.SALT_ROUNDS),
     });
 
-    return { message: ESuccess.CREATE_USER, data: userDto.password };
+    return { message: EUsersSuccess.CREATE_USER, data: userDto.password };
   }
 
   async updateUserPassword(
@@ -57,13 +57,13 @@ export class UsersService implements IUsersService {
       });
 
     if (passwordUpdated.affected === 0) {
-      throw new NotFoundException(EErrors.USER_NOT_FOUND);
+      throw new NotFoundException(EUsersErrors.USER_NOT_FOUND);
     }
 
     // Retorna a senha em texto claro apenas se ela foi gerada pelo sistema
     const returnData = passwordDto.password ? null : plainPassword;
 
-    return { message: ESuccess.PASSWORD_UPDATE, data: returnData };
+    return { message: EUsersSuccess.PASSWORD_UPDATE, data: returnData };
   }
 
   async updateAdminUser(adminDto: UpdateAdminDto): Promise<IResponse<null>> {
@@ -72,17 +72,17 @@ export class UsersService implements IUsersService {
     const result: UpdateResult =
       await this.usersRepository.updateAdminUser(adminDto);
     if (result.affected === 0) {
-      throw new NotFoundException(EErrors.ADMIN_INVALID);
+      throw new NotFoundException(EUsersErrors.ADMIN_INVALID);
     }
 
-    return { message: ESuccess.ADMIN_UPDATE, data: null };
+    return { message: EUsersSuccess.ADMIN_UPDATE, data: null };
   }
 
   async findAllUsers(
     tenantId: string,
   ): Promise<IResponse<Omit<User, 'password'>[]>> {
     return {
-      message: ESuccess.USERS_FOUND,
+      message: EUsersSuccess.USERS_FOUND,
       data: await this.getExistingUsersList(tenantId),
     };
   }
@@ -98,11 +98,11 @@ export class UsersService implements IUsersService {
       tenantId,
     );
     if (!user) {
-      throw new NotFoundException(EErrors.USER_NOT_FOUND);
+      throw new NotFoundException(EUsersErrors.USER_NOT_FOUND);
     }
 
     return {
-      message: ESuccess.USER_FOUND,
+      message: EUsersSuccess.USER_FOUND,
       data: user,
     };
   }
@@ -116,7 +116,7 @@ export class UsersService implements IUsersService {
     const user: Partial<User> | null =
       await this.usersRepository.findOneByUsername(username, tenantId);
     if (!user || !user.id) {
-      throw new NotFoundException(EErrors.USER_NOT_FOUND);
+      throw new NotFoundException(EUsersErrors.USER_NOT_FOUND);
     }
 
     await this.usersRepository.deleteUser(username, tenantId);
@@ -128,7 +128,7 @@ export class UsersService implements IUsersService {
       this.BLACKLIST_EXPIRATION_SECONDS,
     );
 
-    return { message: ESuccess.DELETE_USER, data: null };
+    return { message: EUsersSuccess.DELETE_USER, data: null };
   }
 
   // auxiliary methods
@@ -139,7 +139,7 @@ export class UsersService implements IUsersService {
     const usersList: Omit<User, 'password'>[] | null =
       await this.usersRepository.findAllUsers(tenantId);
     if (!usersList) {
-      throw new NotFoundException(EErrors.USERS_NOT_FOUND);
+      throw new NotFoundException(EUsersErrors.USERS_NOT_FOUND);
     }
     return usersList;
   }
@@ -157,7 +157,7 @@ export class UsersService implements IUsersService {
 
   private verifyInvalidUsername(username: string): void {
     if (!username || username.trim() === '') {
-      throw new BadRequestException(EErrors.USERNAME_INVALID);
+      throw new BadRequestException(EUsersErrors.USERNAME_INVALID);
     }
   }
 }

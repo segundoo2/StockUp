@@ -1,4 +1,4 @@
-export enum ESuccess {
+export enum EUsersSuccess {
   CREATE_USER = 'Usuário cadastrado com sucesso!',
   USER_FOUND = 'Usuário encontrado com sucesso!',
   USERS_FOUND = 'Usuários encontrado com sucesso!',

@@ -3,7 +3,7 @@ import { createFakeUser } from '../../../helpers/create-fake-user.helper';
 import { IResponse } from '../../../interfaces/response.interface';
 import { UserDto } from '../dtos/user.dto';
 import { User } from '../entities/user.entity';
-import { ESuccess } from '../enums/success.enum';
+import { ESuccess } from '../../../enum/users-sucess.enum';
 import { IUsersService } from '../interfaces/users.service.interface';
 import { UsersController } from '../users.controller';
 

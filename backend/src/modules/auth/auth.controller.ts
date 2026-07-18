@@ -27,7 +27,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { SetCookiesInterceptor } from './interceptors/auth.interceptor';
 import { IJwtPayloadWithExpiry } from './interfaces/jwt-payload.interface';
 import type { RequestWithCookies } from './interfaces/req-with-cookies.interface';
-import { ESuccess } from './enums/success.enum';
+import { ESuccess } from '../../enum/auth-success.enum';
 import { LoginDto } from './dtos/login.dto';
 
 @ApiTags('Authentication')

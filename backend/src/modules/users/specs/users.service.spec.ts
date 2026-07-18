@@ -4,10 +4,10 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { ESuccess } from '../enums/success.enum';
+import { ESuccess } from '../../../enum/users-sucess.enum';
 import { IUsersRepository } from '../interfaces/users.repository.interface';
 import { UsersService } from '../users.service';
-import { EErrors } from '../enums/errors.enum';
+import { EErrors } from '../../../enum/users-errors.enum';
 import { UpdateResult } from 'typeorm';
 import { UpdateAdminDto } from '../dtos/update-admin.dto';
 import { ICacheStorageService } from '../../../common/redis/interface/cache-storage.interface';

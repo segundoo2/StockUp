@@ -22,7 +22,7 @@ import {
 } from '@nestjs/swagger';
 import { IUsersController } from './interfaces/users.controller.interface';
 import type { IUsersService } from './interfaces/users.service.interface';
-import { ESuccess } from './enums/success.enum';
+import { ESuccess } from '../../enum/users-sucess.enum';
 import { UserDto } from './dtos/user.dto';
 import { UpdatePasswordDto } from './dtos/update-password.dto';
 import { UpdateAdminDto } from './dtos/update-admin.dto';

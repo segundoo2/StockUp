@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { AuthController } from '../auth.controller';
 import { IAuthService } from '../interfaces/auth.service.interface';
-import { ESuccess } from '../enums/success.enum';
+import { ESuccess } from '../../../enum/auth-success.enum';
 import { IJwtPayloadWithExpiry } from '../interfaces/jwt-payload.interface';
 import { RequestWithCookies } from '../interfaces/req-with-cookies.interface';
 import { LoginDto } from '../dtos/login.dto';

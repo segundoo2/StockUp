@@ -22,7 +22,7 @@ import {
 } from '@nestjs/swagger';
 import { IUsersController } from './interfaces/users.controller.interface';
 import type { IUsersService } from './interfaces/users.service.interface';
-import { ESuccess } from '../../enum/users-sucess.enum';
+import { EUsersSuccess } from '../../enum/users-sucess.enum';
 import { UserDto } from './dtos/user.dto';
 import { UpdatePasswordDto } from './dtos/update-password.dto';
 import { UpdateAdminDto } from './dtos/update-admin.dto';
@@ -31,6 +31,7 @@ import { AdminGuard } from '../../guards/admin.guard';
 import { RequiresAdmin } from '../../decorators/admin.decorator';
 import { User } from './entities/user.entity';
 import { IResponse } from '../../interfaces/response.interface';
+import { TenantId } from '../../decorators/tenant-id.decorator';
 
 @ApiTags('Users')
 @Controller('users')
@@ -50,7 +51,7 @@ export class UsersController implements IUsersController {
   @ApiBody({ type: UserDto })
   @ApiResponse({
     status: HttpStatus.CREATED,
-    description: ESuccess.CREATE_USER,
+    description: EUsersSuccess.CREATE_USER,
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
@@ -66,7 +67,7 @@ export class UsersController implements IUsersController {
   })
   async createUser(
     @Body() userDto: UserDto,
-    tenantId: string,
+    @TenantId() tenantId: string,
   ): Promise<IResponse<string>> {
     try {
       userDto.tenantId = tenantId;
@@ -89,13 +90,14 @@ export class UsersController implements IUsersController {
 
   @Patch()
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), AdminGuard)
+  @RequiresAdmin()
   @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Atualizar a senha de um usuário autenticado' })
   @ApiBody({ type: UpdatePasswordDto })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: ESuccess.PASSWORD_UPDATE,
+    description: EUsersSuccess.PASSWORD_UPDATE,
     type: Object,
   })
   @ApiResponse({
@@ -108,7 +110,7 @@ export class UsersController implements IUsersController {
   })
   async updateUserPassword(
     @Body() userDto: UpdatePasswordDto,
-    tenantId: string,
+    @TenantId() tenantId: string,
   ): Promise<IResponse<string | null>> {
     try {
       userDto.tenantId = tenantId;
@@ -158,7 +160,7 @@ export class UsersController implements IUsersController {
   })
   async updateAdminUser(
     @Body() adminDto: UpdateAdminDto,
-    tenantId: string,
+    @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
     try {
       adminDto.tenantId = tenantId;
@@ -183,7 +185,8 @@ export class UsersController implements IUsersController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), AdminGuard)
+  @RequiresAdmin()
   @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Buscar lista de todos os usuários' })
   @ApiResponse({
@@ -201,7 +204,7 @@ export class UsersController implements IUsersController {
     description: 'Não autorizado.',
   })
   async findAllUsers(
-    tenantId: string,
+    @TenantId() tenantId: string,
   ): Promise<IResponse<Omit<User, 'password'>[]>> {
     try {
       this.logger.log('Buscando listagem geral de usuários cadastrados.');
@@ -217,7 +220,8 @@ export class UsersController implements IUsersController {
 
   @Get(':username')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), AdminGuard)
+  @RequiresAdmin()
   @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Buscar usuário através do username' })
   @ApiParam({
@@ -241,7 +245,7 @@ export class UsersController implements IUsersController {
   })
   async findOneByUsername(
     @Param('username') username: string,
-    tenantId: string,
+    @TenantId() tenantId: string,
   ): Promise<IResponse<Omit<User, 'password'>>> {
     try {
       this.logger.log(
@@ -289,7 +293,7 @@ export class UsersController implements IUsersController {
   })
   async deleteUser(
     @Param('username') username: string,
-    tenantId: string,
+    @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
     try {
       this.logger.warn(

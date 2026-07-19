@@ -28,7 +28,7 @@ export class Category {
   @Column({ type: 'boolean', name: 'is_active', default: true })
   isActive!: boolean;
 
-  @OneToMany(() => Product, (product) => product.categoryId)
+  @OneToMany(() => Product, (product) => product.category)
   products!: Product[];
 
   @CreateDateColumn({ type: 'timestamp with time zone', name: 'created_at' })

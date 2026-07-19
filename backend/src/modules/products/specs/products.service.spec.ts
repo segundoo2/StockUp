@@ -8,6 +8,7 @@ import { IProductsRepository } from '../interfaces/products.repository.interface
 import { IProductsService } from '../interfaces/products.service.interface';
 import { IResponse } from '../../../interfaces/response.interface';
 import { ProductsService } from '../products.service';
+import { DeleteResult } from 'typeorm';
 
 describe('ProductsService', () => {
   let service: IProductsService;
@@ -53,6 +54,7 @@ describe('ProductsService', () => {
       createProduct: jest.fn(),
       findOneBySku: jest.fn(),
       findAllProducts: jest.fn(),
+      deleteProduct: jest.fn(),
     };
 
     service = new ProductsService(mockRepository);
@@ -141,6 +143,38 @@ describe('ProductsService', () => {
       mockRepository.findAllProducts.mockResolvedValue([]);
       await expect(
         service.findAllProducts(mockProductDto.tenantId),
+      ).rejects.toThrow(
+        new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND),
+      );
+    });
+  });
+
+  describe('deleteProduct', () => {
+    const response: IResponse<null> = {
+      message: EProductsSuccess.DELETE,
+      data: null,
+    };
+    const responseRepository: DeleteResult = {
+      raw: [],
+      affected: 1,
+    };
+
+    it('should return a success message when the product is delete success', async () => {
+      mockRepository.deleteProduct.mockResolvedValue(responseRepository);
+      expect(
+        await service.deleteProduct(mockProduct.sku, mockProduct.tenantId),
+      ).toEqual(response);
+      expect(mockRepository.deleteProduct).toHaveBeenCalledWith(
+        mockProduct.sku,
+        mockProduct.tenantId,
+      );
+    });
+
+    it('should return NotFoundException when the product not found', async () => {
+      responseRepository.affected = 0;
+      mockRepository.deleteProduct.mockResolvedValue(responseRepository);
+      await expect(
+        service.deleteProduct(mockProduct.sku, mockProduct.tenantId),
       ).rejects.toThrow(
         new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND),
       );

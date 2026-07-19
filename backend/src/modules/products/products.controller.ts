@@ -30,4 +30,8 @@ export class ProductsController implements IProductsController {
   async findAllProducts(tenantId: string): Promise<IResponse<Product[]>> {
     return await this.productsService.findAllProducts(tenantId);
   }
+
+  async deleteProduct(sku: string, tenantId: string): Promise<IResponse<null>> {
+    return await this.productsService.deleteProduct(sku, tenantId);
+  }
 }

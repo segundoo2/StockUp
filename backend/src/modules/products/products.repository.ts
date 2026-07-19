@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Product } from './entities/product.entity';
 import { ProductDto } from './dtos/product.dto';
 import { EErrorsGlobal } from '../../enum/errors-global.enum';
-import { Repository } from 'typeorm';
+import { DeleteResult, Repository } from 'typeorm';
 
 @Injectable()
 export class ProductsRepository implements IProductsRepository {
@@ -34,6 +34,14 @@ export class ProductsRepository implements IProductsRepository {
   async findAllProducts(tenantId: string): Promise<Product[] | []> {
     try {
       return await this.repository.find({ where: { tenantId } });
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
+
+  async deleteProduct(sku: string, tenantId: string): Promise<DeleteResult> {
+    try {
+      return await this.repository.delete({ sku, tenantId });
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }

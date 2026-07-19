@@ -11,6 +11,7 @@ import { EProductsSuccess } from '../../enum/products-success.enum';
 import { Product } from './entities/product.entity';
 import { IResponse } from '../../interfaces/response.interface';
 import { EProductsErrors } from '../../enum/products-errors.enum';
+import { DeleteResult } from 'typeorm';
 
 @Injectable()
 export class ProductsService implements IProductsService {
@@ -60,5 +61,16 @@ export class ProductsService implements IProductsService {
       message: EProductsSuccess.FIND_ALL,
       data: productList as Product[],
     };
+  }
+
+  async deleteProduct(sku: string, tenantId: string): Promise<IResponse<null>> {
+    const deletedProduct: DeleteResult =
+      await this.productsRepository.deleteProduct(sku, tenantId);
+
+    if (deletedProduct.affected === 0) {
+      throw new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND);
+    }
+
+    return { message: EProductsSuccess.DELETE, data: null };
   }
 }

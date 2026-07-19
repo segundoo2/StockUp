@@ -9,4 +9,5 @@ export interface IProductsController {
   ): Promise<IResponse<null>>;
   findOneBySku(sku: string, tenantId: string): Promise<IResponse<Product>>;
   findAllProducts(tenantId: string): Promise<IResponse<Product[]>>;
+  deleteProduct(sku: string, tenantId: string): Promise<IResponse<null>>;
 }

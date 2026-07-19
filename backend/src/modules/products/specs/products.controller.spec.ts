@@ -16,6 +16,7 @@ describe('ProductsController', () => {
       createProduct: jest.fn(),
       findOneBySku: jest.fn(),
       findAllProducts: jest.fn(),
+      deleteProduct: jest.fn(),
     };
     controller = new ProductsController(mockService);
   });
@@ -101,6 +102,24 @@ describe('ProductsController', () => {
       );
       expect(mockService.findAllProducts).toHaveBeenCalledWith(
         mockProductDto.tenantId,
+      );
+    });
+  });
+
+  describe('deleteProduct', () => {
+    const response: IResponse<null> = {
+      message: EProductsSuccess.DELETE,
+      data: null,
+    };
+
+    it('should return a success message when the product is delete success', async () => {
+      mockService.deleteProduct.mockResolvedValue(response);
+      expect(
+        await controller.deleteProduct(mockProduct.sku, mockProduct.tenantId),
+      ).toEqual(response);
+      expect(mockService.deleteProduct).toHaveBeenCalledWith(
+        mockProduct.sku,
+        mockProduct.tenantId,
       );
     });
   });

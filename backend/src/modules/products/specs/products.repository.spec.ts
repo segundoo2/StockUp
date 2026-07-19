@@ -1,4 +1,4 @@
-import { ObjectLiteral, Repository } from 'typeorm';
+import { DeleteResult, ObjectLiteral, Repository } from 'typeorm';
 import { UsersRepository } from '../../users/users.repository';
 import { Product } from '../entities/product.entity';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -175,6 +175,28 @@ describe('ProductsRepository', () => {
     shouldHandleDatabaseErrors(
       () => productsRepository.findAllProducts(productMock.tenantId),
       () => ormRepositoryMock.find,
+    );
+  });
+
+  describe('deleteProduct', () => {
+    const response: DeleteResult = {
+      raw: [],
+      affected: 1,
+    };
+    it('should return the object: { raw: [], affected: number } when .delete is resolved', async () => {
+      ormRepositoryMock.delete?.mockResolvedValue(response);
+      expect(
+        await productsRepository.deleteProduct(
+          productMock.sku,
+          productMock.tenantId,
+        ),
+      ).toEqual(response);
+    });
+
+    shouldHandleDatabaseErrors(
+      () =>
+        productsRepository.deleteProduct(productMock.sku, productMock.tenantId),
+      () => ormRepositoryMock.delete,
     );
   });
 });

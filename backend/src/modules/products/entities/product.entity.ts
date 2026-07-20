@@ -5,13 +5,16 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { Category } from './category.entity';
+import { ProductLocation } from './product-location.entity';
 
 @Entity({ name: 'products' })
 @Index(['tenantId', 'sku'], { unique: true })
+@Index(['tenantId', 'ean'], { unique: true })
 export class Product {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -82,14 +85,23 @@ export class Product {
 
   // --- RELACIONAMENTOS ---
   @Column({ type: 'uuid', name: 'category_id' })
-  categoryId!: string;
+  categoryId?: string;
 
   @ManyToOne(() => Category, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'category_id' })
-  category!: Category;
+  category?: Category;
+
+  @OneToMany(
+    () => ProductLocation,
+    (productLocation) => productLocation.product,
+    {
+      cascade: true,
+    },
+  )
+  locations!: ProductLocation[];
 
   // --- DADOS FISCAIS ---
-  @Column({ type: 'varchar', length: 14, unique: true, nullable: true })
+  @Column({ type: 'varchar', length: 14, nullable: true })
   ean?: string | null;
 
   @Column({ type: 'varchar', length: 8, nullable: true })

@@ -20,7 +20,9 @@ export class ProductsService implements IProductsService {
     private readonly productsRepository: IProductsRepository,
   ) {}
 
-  async createProduct(productDto: ProductDto): Promise<IResponse<null>> {
+  async createProduct(
+    productDto: ProductDto & { tenantId: string },
+  ): Promise<IResponse<null>> {
     const existedProduct = await this.productsRepository.findOneBySku(
       productDto.sku,
       productDto.tenantId,

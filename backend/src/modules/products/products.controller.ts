@@ -34,8 +34,10 @@ export class ProductsController implements IProductsController {
     @TenantId()
     tenantId: string,
   ): Promise<IResponse<null>> {
-    productDto.tenantId = tenantId;
-    return await this.productsService.createProduct(productDto);
+    return await this.productsService.createProduct({
+      ...productDto,
+      tenantId,
+    });
   }
 
   @Get(':sku')

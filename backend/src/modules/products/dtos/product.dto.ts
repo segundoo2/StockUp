@@ -3,7 +3,6 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  IsUUID,
   Length,
   Min,
 } from 'class-validator';
@@ -13,17 +12,17 @@ type CreateProductInput = Omit<
   Product,
   | 'id'
   | 'currentStock'
+  | 'locations'
+  | 'categoryId'
+  | 'category'
+  | 'tenantId'
   | 'createdAt'
   | 'updatedAt'
   | 'createdBy'
   | 'updatedBy'
-  | 'category'
-  | 'tenantId'
 >;
 
 export class ProductDto implements CreateProductInput {
-  tenantId!: string;
-
   @IsString()
   @IsNotEmpty()
   @Length(3, 50)
@@ -34,15 +33,6 @@ export class ProductDto implements CreateProductInput {
   @Length(3, 150)
   name!: string;
 
-  @IsString()
-  @IsOptional()
-  @Length(1, 10)
-  uom!: string;
-
-  @IsNumber({ maxDecimalPlaces: 4 })
-  @Min(0)
-  minimumStock!: number;
-
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   price!: number;
@@ -51,13 +41,19 @@ export class ProductDto implements CreateProductInput {
   @Min(0)
   costPrice!: number;
 
-  @IsUUID()
-  @IsNotEmpty()
-  categoryId!: string;
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
+  minimumStock!: number;
 
   @IsString()
   @IsOptional()
-  @Length(14, 14)
+  @Length(1, 10)
+  uom!: string;
+
+  // --- DADOS FISCAIS (Todos opcionais no cadastro rápido) ---
+  @IsString()
+  @IsOptional()
+  @Length(8, 14)
   ean?: string | null;
 
   @IsString()

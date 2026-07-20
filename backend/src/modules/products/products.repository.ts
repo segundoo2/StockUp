@@ -12,7 +12,7 @@ export class ProductsRepository implements IProductsRepository {
     @InjectRepository(Product) private readonly repository: Repository<Product>,
   ) {}
 
-  async createProduct(productDto: ProductDto): Promise<Product> {
+  async createProduct(productDto: ProductDto & { tenantId }): Promise<Product> {
     try {
       const product = this.repository.create(productDto);
       return await this.repository.save(product);

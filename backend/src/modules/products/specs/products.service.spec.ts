@@ -65,6 +65,8 @@ describe('ProductsService', () => {
     mockRepository = {
       createProduct: jest.fn(),
       updateProduct: jest.fn(),
+      updateCurrentStockById: jest.fn(),
+      findOneCurrentStockById: jest.fn(),
       findOneBySku: jest.fn(),
       findAllProducts: jest.fn(),
       deleteProduct: jest.fn(),
@@ -146,6 +148,62 @@ describe('ProductsService', () => {
           mockProduct.id,
           mockProduct.tenantId,
         ),
+      ).rejects.toThrow(
+        new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND),
+      );
+    });
+  });
+
+  describe('applyStockDelta', () => {
+    let delta: number = 3;
+    const currentStock: number = 10;
+    const responseIncrement: IResponse<{ newCurrentStock }> = {
+      message: EProductsSuccess.INPUT_MOVIMENT,
+      data: { newCurrentStock: currentStock + delta },
+    };
+    const responsedecrement: IResponse<{ newCurrentStock }> = {
+      message: EProductsSuccess.OUTPUT_MOVIMENT,
+      data: { newCurrentStock: currentStock - delta },
+    };
+    const responseUpdated: UpdateResult = {
+      raw: [],
+      affected: 1,
+      generatedMaps: [],
+    };
+
+    it('should return the object { message: string, data: { newCurrentStock: number } } when currentStock is increment success', async () => {
+      mockRepository.findOneCurrentStockById.mockResolvedValue({
+        currentStock: currentStock,
+      });
+      mockRepository.updateCurrentStockById.mockResolvedValue(responseUpdated);
+      expect(
+        await service.applyStockDelta(
+          mockProduct.id,
+          mockProduct.tenantId,
+          delta,
+        ),
+      ).toEqual(responseIncrement);
+    });
+
+    it('should return the object { message: string, data: { newCurrentStock: number } } when currentStock is decrement success', async () => {
+      delta = -3;
+      mockRepository.findOneCurrentStockById.mockResolvedValue({
+        currentStock: currentStock,
+      });
+      mockRepository.updateCurrentStockById.mockResolvedValue(responseUpdated);
+      expect(
+        await service.applyStockDelta(
+          mockProduct.id,
+          mockProduct.tenantId,
+          delta,
+        ),
+      ).toEqual(responsedecrement);
+    });
+
+    it('should return NotFoundException when the findOneById not found product', async () => {
+      mockRepository.findOneCurrentStockById.mockResolvedValue(null);
+      await expect(
+        service.applyStockDelta(mockProduct.id, mockProduct.tenantId, delta),
       ).rejects.toThrow(
         new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND),
       );

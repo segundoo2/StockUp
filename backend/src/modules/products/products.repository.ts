@@ -40,6 +40,40 @@ export class ProductsRepository implements IProductsRepository {
     }
   }
 
+  async updateCurrentStockById(
+    productId: string,
+    tenantId: string,
+    newCurrentStock: number,
+  ): Promise<UpdateResult> {
+    try {
+      return await this.repository.update(
+        {
+          id: productId,
+          tenantId,
+        },
+        {
+          currentStock: newCurrentStock,
+        },
+      );
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
+
+  async findOneCurrentStockById(
+    id: string,
+    tenantId: string,
+  ): Promise<Pick<Product, 'currentStock'> | null> {
+    try {
+      return await this.repository.findOne({
+        where: { id, tenantId },
+        select: { currentStock: true },
+      });
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
+
   async findOneBySku(sku: string, tenantId: string): Promise<Product | null> {
     try {
       return await this.repository.findOne({

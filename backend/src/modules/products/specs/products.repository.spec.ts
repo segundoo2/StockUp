@@ -168,6 +168,71 @@ describe('ProductsRepository', () => {
     );
   });
 
+  describe('updateCurrentStockById', () => {
+    const newCurrentStock: number = 12;
+    const response: UpdateResult = {
+      raw: [],
+      generatedMaps: [],
+      affected: 1,
+    };
+
+    it('should return the object { raw: [], generatedMaps: [], affected: 1 } when the update success', async () => {
+      ormRepositoryMock.update?.mockResolvedValue(response);
+      expect(
+        await productsRepository.updateCurrentStockById(
+          mockProduct.id,
+          mockProduct.tenantId,
+          newCurrentStock,
+        ),
+      ).toEqual(response);
+    });
+
+    shouldHandleDatabaseErrors(
+      () =>
+        productsRepository.updateCurrentStockById(
+          mockProduct.id,
+          mockProduct.tenantId,
+          newCurrentStock,
+        ),
+      () => ormRepositoryMock.update,
+    );
+  });
+
+  describe('findCurrentStockById', () => {
+    const response: Pick<Product, 'currentStock'> | null = {
+      currentStock: 12,
+    };
+
+    it('should return the currentStock when the product found', async () => {
+      ormRepositoryMock.findOne?.mockResolvedValue(response);
+      expect(
+        await productsRepository.findOneCurrentStockById(
+          mockProduct.id,
+          mockProduct.tenantId,
+        ),
+      ).toEqual(response);
+    });
+
+    it('should return null when the product not found', async () => {
+      ormRepositoryMock.findOne?.mockResolvedValue(null);
+      expect(
+        await productsRepository.findOneCurrentStockById(
+          mockProduct.id,
+          mockProduct.tenantId,
+        ),
+      ).toBeNull();
+    });
+
+    shouldHandleDatabaseErrors(
+      () =>
+        productsRepository.findOneCurrentStockById(
+          mockProduct.id,
+          mockProduct.tenantId,
+        ),
+      () => ormRepositoryMock.findOne,
+    );
+  });
+
   describe('findOneBySku', () => {
     it('should return product when it is found', async () => {
       ormRepositoryMock.findOne?.mockResolvedValue(mockProduct);

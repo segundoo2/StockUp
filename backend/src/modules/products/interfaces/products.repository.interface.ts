@@ -12,6 +12,17 @@ export interface IProductsRepository {
     tenantId: string,
   ): Promise<UpdateResult>;
 
+  updateCurrentStockById(
+    productId: string,
+    tenantId: string,
+    newCurrentStock: number,
+  ): Promise<UpdateResult>;
+
+  findOneCurrentStockById(
+    id: string,
+    tenantId: string,
+  ): Promise<Pick<Product, 'currentStock'> | null>;
+
   findOneBySku(sku: string, tenantId: string): Promise<Product | null>;
 
   findAllProducts(tenantId: string): Promise<Product[] | []>;

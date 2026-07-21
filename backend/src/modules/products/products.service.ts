@@ -61,11 +61,33 @@ export class ProductsService implements IProductsService {
     };
   }
 
-  applyStockDelta(
-    ProductId: string,
+  async applyStockDelta(
+    productId: string,
     tenantId: string,
     delta: number,
-  ): Promise<IResponse<null>> {}
+  ): Promise<IResponse<{ newCurrentStock: number }>> {
+    const findCurrentStock =
+      await this.productsRepository.findOneCurrentStockById(
+        productId,
+        tenantId,
+      );
+    if (!findCurrentStock) {
+      throw new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND);
+    }
+    const newCurrentStock: number = findCurrentStock.currentStock + delta;
+    await this.productsRepository.updateCurrentStockById(
+      productId,
+      tenantId,
+      newCurrentStock,
+    );
+    return {
+      message:
+        delta > 0
+          ? EProductsSuccess.INPUT_MOVIMENT
+          : EProductsSuccess.OUTPUT_MOVIMENT,
+      data: { newCurrentStock: newCurrentStock },
+    };
+  }
 
   async findOneBySku(
     sku: string,

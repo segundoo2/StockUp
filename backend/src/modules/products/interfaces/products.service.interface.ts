@@ -18,7 +18,7 @@ export interface IProductsService {
     ProductId: string,
     tenantId: string,
     delta: number,
-  ): Promise<IResponse<null>>;
+  ): Promise<IResponse<{ newCurrentStock: number }>>;
 
   findOneBySku(sku: string, tenantId: string): Promise<IResponse<Product>>;
 

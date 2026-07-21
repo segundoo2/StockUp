@@ -199,8 +199,9 @@ describe('ProductsRepository', () => {
   });
 
   describe('findCurrentStockById', () => {
-    const response: Pick<Product, 'currentStock'> | null = {
-      currentStock: 12,
+    const response: Pick<Product, 'currentStock' | 'uom'> | null = {
+      currentStock: mockProduct.currentStock,
+      uom: mockProduct.uom,
     };
 
     it('should return the currentStock when the product found', async () => {
@@ -253,7 +254,7 @@ describe('ProductsRepository', () => {
     shouldHandleDatabaseErrors(
       () =>
         productsRepository.findOneBySku(mockProduct.sku, mockProduct.tenantId),
-      () => ormRepositoryMock.save,
+      () => ormRepositoryMock.findOne,
     );
   });
 

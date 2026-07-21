@@ -80,10 +80,10 @@ describe('ProductsController', () => {
       expect(
         await controller.createProduct(mockProductDto, mockProduct.tenantId),
       ).toEqual(response);
-      expect(mockService.createProduct).toHaveBeenCalledWith(
-        mockProductDto,
-        mockProduct.tenantId,
-      );
+      expect(mockService.createProduct).toHaveBeenCalledWith({
+        ...mockProductDto,
+        tenantId: mockProduct.tenantId,
+      });
     });
   });
 

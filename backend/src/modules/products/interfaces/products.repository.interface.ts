@@ -21,7 +21,7 @@ export interface IProductsRepository {
   findOneCurrentStockById(
     id: string,
     tenantId: string,
-  ): Promise<Pick<Product, 'currentStock'> | null>;
+  ): Promise<Pick<Product, 'currentStock' | 'uom'> | null>;
 
   findOneBySku(sku: string, tenantId: string): Promise<Product | null>;
 

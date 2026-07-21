@@ -1,5 +1,9 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ProductDto } from '../dtos/product.dto';
 import { Product } from '../entities/product.entity';
 import { EProductsSuccess } from '../../../enum/products-success.enum';
@@ -108,7 +112,7 @@ describe('ProductsService', () => {
       await expect(service.createProduct(productDto)).rejects.toThrow(
         new ConflictException(EProductsErrors.PRODUCT_EXIST),
       );
-      expect(mockRepository.createProduct).toHaveBeenCalledWith(mockProductDto);
+      expect(mockRepository.createProduct).toHaveBeenCalledWith(productDto);
     });
   });
 
@@ -156,14 +160,14 @@ describe('ProductsService', () => {
 
   describe('applyStockDelta', () => {
     let delta: number = 3;
-    const currentStock: number = 10;
+    mockProduct.currentStock = 10;
     const responseIncrement: IResponse<{ newCurrentStock }> = {
       message: EProductsSuccess.INPUT_MOVIMENT,
-      data: { newCurrentStock: currentStock + delta },
+      data: { newCurrentStock: mockProduct.currentStock + delta },
     };
     const responsedecrement: IResponse<{ newCurrentStock }> = {
       message: EProductsSuccess.OUTPUT_MOVIMENT,
-      data: { newCurrentStock: currentStock - delta },
+      data: { newCurrentStock: mockProduct.currentStock - delta },
     };
     const responseUpdated: UpdateResult = {
       raw: [],
@@ -173,7 +177,8 @@ describe('ProductsService', () => {
 
     it('should return the object { message: string, data: { newCurrentStock: number } } when currentStock is increment success', async () => {
       mockRepository.findOneCurrentStockById.mockResolvedValue({
-        currentStock: currentStock,
+        currentStock: mockProduct.currentStock,
+        uom: mockProduct.uom,
       });
       mockRepository.updateCurrentStockById.mockResolvedValue(responseUpdated);
       expect(
@@ -188,7 +193,8 @@ describe('ProductsService', () => {
     it('should return the object { message: string, data: { newCurrentStock: number } } when currentStock is decrement success', async () => {
       delta = -3;
       mockRepository.findOneCurrentStockById.mockResolvedValue({
-        currentStock: currentStock,
+        currentStock: mockProduct.currentStock,
+        uom: mockProduct.uom,
       });
       mockRepository.updateCurrentStockById.mockResolvedValue(responseUpdated);
       expect(
@@ -198,6 +204,21 @@ describe('ProductsService', () => {
           delta,
         ),
       ).toEqual(responsedecrement);
+    });
+
+    it('should return BadRequestException when newCurrentStock is negative', async () => {
+      delta = -11;
+      mockRepository.findOneCurrentStockById.mockResolvedValue({
+        currentStock: mockProduct.currentStock,
+        uom: mockProduct.uom,
+      });
+      await expect(
+        service.applyStockDelta(mockProduct.id, mockProduct.tenantId, delta),
+      ).rejects.toThrow(
+        new BadRequestException(
+          `${EProductsErrors.PRODUCT_QUANTITY_INVALID} ${mockProduct.currentStock} ${mockProduct.uom}`,
+        ),
+      );
     });
 
     it('should return NotFoundException when the findOneById not found product', async () => {

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
@@ -75,6 +76,11 @@ export class ProductsService implements IProductsService {
       throw new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND);
     }
     const newCurrentStock: number = findCurrentStock.currentStock + delta;
+    if (newCurrentStock < 0) {
+      throw new BadRequestException(
+        `${EProductsErrors.PRODUCT_QUANTITY_INVALID} ${findCurrentStock.currentStock} ${findCurrentStock.uom}`,
+      );
+    }
     await this.productsRepository.updateCurrentStockById(
       productId,
       tenantId,

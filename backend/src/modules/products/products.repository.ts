@@ -63,11 +63,11 @@ export class ProductsRepository implements IProductsRepository {
   async findOneCurrentStockById(
     id: string,
     tenantId: string,
-  ): Promise<Pick<Product, 'currentStock'> | null> {
+  ): Promise<Pick<Product, 'currentStock' | 'uom'> | null> {
     try {
       return await this.repository.findOne({
         where: { id, tenantId },
-        select: { currentStock: true },
+        select: { currentStock: true, uom: true },
       });
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);

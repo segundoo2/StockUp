@@ -12,5 +12,6 @@ import { ProductsRepository } from './products.repository';
     { provide: 'IProductsService', useClass: ProductsService },
     { provide: 'IProductsRepository', useClass: ProductsRepository },
   ],
+  exports: ['IProductsService'],
 })
 export class ProductsModule {}

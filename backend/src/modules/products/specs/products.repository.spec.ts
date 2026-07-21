@@ -1,13 +1,13 @@
-import { DeleteResult, ObjectLiteral, Repository } from 'typeorm';
+import { DeleteResult, ObjectLiteral, Repository, UpdateResult } from 'typeorm';
 import { UsersRepository } from '../../users/users.repository';
 import { Product } from '../entities/product.entity';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ProductsRepository } from '../products.repository';
-import { Category } from '../entities/category.entity';
 import { ProductDto } from '../dtos/product.dto';
 import { InternalServerErrorException } from '@nestjs/common';
 import { EErrorsGlobal } from '../../../enum/errors-global.enum';
+import { UpdateProductDto } from '../dtos/update-product.dto';
 
 type MockRepository<T extends ObjectLiteral> = Partial<
   Record<keyof Repository<T>, jest.Mock>
@@ -17,56 +17,50 @@ describe('ProductsRepository', () => {
   let productsRepository: ProductsRepository;
   let ormRepositoryMock: MockRepository<Product>;
 
-  const categoryMock: Category = {
-    id: 'b3b3b3b3-b3b3-4b3b-b3b3-b3b3b3b3b3b3',
-    tenantId: 'tenant-123',
-    name: 'Eletrônicos',
-    description: 'Dispositivos eletrônicos e acessórios',
-    isActive: true,
-    products: [],
-    createdAt: new Date('2026-01-01T12:00:00Z'),
-    updatedAt: new Date('2026-01-01T12:00:00Z'),
-  };
-
-  const productMock: Product = {
-    id: 'a1a1a1a1-a1a1-4a1a-a1a1-a1a1a1a1a1a1',
-    tenantId: 'tenant-123',
-    sku: 'PROD-CEL-001',
-    name: 'Smartphone X Pro',
+  const mockProductDto: ProductDto = {
+    sku: 'PROD-ALFA-001',
+    name: 'Refrigerante Cola 350ml',
     uom: 'UN',
-    currentStock: 15.0,
-    minimumStock: 5.0,
-    price: 2499.9,
-    costPrice: 1800.0,
-    categoryId: categoryMock.id,
-    category: categoryMock,
+    minimumStock: 10.0,
+    price: 5.5,
+    costPrice: 2.8,
     ean: '7891234567890',
-    ncm: '85171300',
-    cest: '2105300',
+    ncm: '22021000',
+    cest: '0300700',
     origin: '0',
     csosn: '102',
     cst: null,
-    createdBy: 'admin-user',
-    createdAt: new Date('2026-07-18T12:00:00Z'),
-    updatedAt: new Date('2026-07-18T12:00:00Z'),
-    updatedBy: 'admin-user',
   };
 
-  const productDtoMock: ProductDto = {
-    tenantId: '1',
-    sku: 'PROD-CEL-001',
-    name: 'Smartphone X Pro',
-    uom: 'UN',
-    minimumStock: 5.0,
-    price: 2499.9,
-    costPrice: 1800.0,
-    categoryId: 'b3b3b3b3-b3b3-4b3b-b3b3-b3b3b3b3b3b3',
-    ean: '78912345678901',
-    ncm: '85171300',
-    cest: '2105300',
-    origin: '0',
-    csosn: '102',
-    cst: '00',
+  const mockProduct: Product = {
+    id: 'a1b2c3d4-e5f6-7890-a1b2-c3d4e5f67890',
+    tenantId: 'tenant-123-xyz',
+    sku: mockProductDto.sku,
+    name: mockProductDto.name,
+    uom: mockProductDto.uom,
+    currentStock: 0.0,
+    minimumStock: mockProductDto.minimumStock,
+    price: mockProductDto.price,
+    costPrice: mockProductDto.costPrice,
+
+    // --- RELACIONAMENTOS ---
+    categoryId: null,
+    category: null,
+    locations: [],
+
+    // --- DADOS FISCAIS ---
+    ean: mockProductDto.ean,
+    ncm: mockProductDto.ncm,
+    cest: mockProductDto.cest,
+    origin: mockProductDto.origin,
+    csosn: mockProductDto.csosn,
+    cst: mockProductDto.cst,
+
+    // --- TIMESTAMPS & AUDITORIA ---
+    createdBy: 'user-admin-123',
+    updatedBy: 'user-admin-123',
+    createdAt: new Date('2026-07-15T19:00:00Z'),
+    updatedAt: new Date('2026-07-15T19:00:00Z'),
   };
 
   beforeEach(async () => {
@@ -81,9 +75,8 @@ describe('ProductsRepository', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        ProductsRepository, // Adicionado aqui para o NestJS poder instanciá-lo
+        ProductsRepository,
         {
-          // Fornece um mock isolado para o UsersRepository evitando quebra de dependências
           provide: UsersRepository,
           useValue: {
             findOne: jest.fn(),
@@ -120,60 +113,99 @@ describe('ProductsRepository', () => {
   };
 
   describe('create', () => {
+    const productDto = {
+      ...mockProductDto,
+      tenantId: mockProduct.tenantId,
+    };
+
     it('should return the created product when it is persist success', async () => {
-      ormRepositoryMock.create?.mockReturnValue(productMock);
-      ormRepositoryMock.save?.mockResolvedValue(productMock);
+      ormRepositoryMock.create?.mockReturnValue(mockProduct);
+      ormRepositoryMock.save?.mockResolvedValue(mockProduct);
 
-      const result = await productsRepository.createProduct(productDtoMock);
+      const result = await productsRepository.createProduct(productDto);
 
-      expect(result).toEqual(productMock);
-      expect(ormRepositoryMock.create).toHaveBeenCalledWith(productDtoMock);
-      expect(ormRepositoryMock.save).toHaveBeenCalledWith(productMock);
+      expect(result).toEqual(mockProduct);
+      expect(ormRepositoryMock.create).toHaveBeenCalledWith(productDto);
+      expect(ormRepositoryMock.save).toHaveBeenCalledWith(mockProduct);
     });
 
     shouldHandleDatabaseErrors(
-      () => productsRepository.createProduct(productDtoMock),
+      () => productsRepository.createProduct(productDto),
       () => ormRepositoryMock.save,
+    );
+  });
+
+  describe('updateProduct', () => {
+    const mockUpdateProductDto: UpdateProductDto = {
+      ...mockProductDto,
+      categoryId: 'uuid-1',
+    };
+    const response: UpdateResult = {
+      raw: [],
+      affected: 1,
+      generatedMaps: [],
+    };
+
+    it('should return the object { raw: [], affected: 1, generatedMaps: [] } when the product is update success', async () => {
+      ormRepositoryMock.update?.mockResolvedValue(response);
+      expect(
+        await productsRepository.updateProduct(
+          mockUpdateProductDto,
+          mockProduct.id,
+          mockProduct.tenantId,
+        ),
+      ).toEqual(response);
+    });
+
+    shouldHandleDatabaseErrors(
+      () =>
+        productsRepository.updateProduct(
+          mockUpdateProductDto,
+          mockProduct.id,
+          mockProduct.tenantId,
+        ),
+      () => ormRepositoryMock.update,
     );
   });
 
   describe('findOneBySku', () => {
     it('should return product when it is found', async () => {
-      ormRepositoryMock.findOne?.mockResolvedValue(productMock);
+      ormRepositoryMock.findOne?.mockResolvedValue(mockProduct);
       expect(
         await productsRepository.findOneBySku(
-          productMock.sku,
-          productMock.tenantId,
+          mockProduct.sku,
+          mockProduct.tenantId,
         ),
       );
       expect(ormRepositoryMock.findOne).toHaveBeenCalledWith({
         where: {
-          sku: productMock.sku,
-          tenantId: productMock.tenantId,
+          sku: mockProduct.sku,
+          tenantId: mockProduct.tenantId,
         },
       });
     });
 
     shouldHandleDatabaseErrors(
-      () => productsRepository.createProduct(productDtoMock),
+      () =>
+        productsRepository.findOneBySku(mockProduct.sku, mockProduct.tenantId),
       () => ormRepositoryMock.save,
     );
   });
 
   describe('findAllProducts', () => {
     it("should return product list when it's is found", async () => {
-      const productsList = [productMock, productMock, productMock];
+      const productsList = [mockProduct, mockProduct, mockProduct];
       ormRepositoryMock.find?.mockResolvedValue(productsList);
       expect(
-        await productsRepository.findAllProducts(productMock.tenantId),
+        await productsRepository.findAllProducts(mockProduct.tenantId),
       ).toEqual(productsList);
       expect(ormRepositoryMock.find).toHaveBeenCalledWith({
-        where: { tenantId: productMock.tenantId },
+        where: { tenantId: mockProduct.tenantId },
       });
     });
 
     shouldHandleDatabaseErrors(
-      () => productsRepository.findAllProducts(productMock.tenantId),
+      () => productsRepository.findAllProducts(mockProduct.tenantId),
       () => ormRepositoryMock.find,
     );
   });
@@ -187,15 +219,15 @@ describe('ProductsRepository', () => {
       ormRepositoryMock.delete?.mockResolvedValue(response);
       expect(
         await productsRepository.deleteProduct(
-          productMock.sku,
-          productMock.tenantId,
+          mockProduct.sku,
+          mockProduct.tenantId,
         ),
       ).toEqual(response);
     });
 
     shouldHandleDatabaseErrors(
       () =>
-        productsRepository.deleteProduct(productMock.sku, productMock.tenantId),
+        productsRepository.deleteProduct(mockProduct.sku, mockProduct.tenantId),
       () => ormRepositoryMock.delete,
     );
   });

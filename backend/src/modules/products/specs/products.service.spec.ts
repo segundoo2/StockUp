@@ -3,26 +3,25 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ProductDto } from '../dtos/product.dto';
 import { Product } from '../entities/product.entity';
 import { EProductsSuccess } from '../../../enum/products-success.enum';
-import { EProductsErrors } from '../../../enum/products-errors.enum'; // Ajustado conforme nomenclatura padrão de erros
+import { EProductsErrors } from '../../../enum/products-errors.enum';
 import { IProductsRepository } from '../interfaces/products.repository.interface';
 import { IProductsService } from '../interfaces/products.service.interface';
 import { IResponse } from '../../../interfaces/response.interface';
 import { ProductsService } from '../products.service';
-import { DeleteResult } from 'typeorm';
+import { DeleteResult, UpdateResult } from 'typeorm';
+import { UpdateProductDto } from '../dtos/update-product.dto';
 
 describe('ProductsService', () => {
   let service: IProductsService;
   let mockRepository: jest.Mocked<IProductsRepository>;
 
   const mockProductDto: ProductDto = {
-    tenantId: '1',
     sku: 'PROD-ALFA-001',
     name: 'Refrigerante Cola 350ml',
     uom: 'UN',
     minimumStock: 10.0,
     price: 5.5,
     costPrice: 2.8,
-    categoryId: 'd3b07384-d113-4ec6-a5d6-c1c234567890',
     ean: '7891234567890',
     ncm: '22021000',
     cest: '0300700',
@@ -32,19 +31,32 @@ describe('ProductsService', () => {
   };
 
   const mockProduct: Product = {
-    ...mockProductDto,
     id: 'a1b2c3d4-e5f6-7890-a1b2-c3d4e5f67890',
     tenantId: 'tenant-123-xyz',
+    sku: mockProductDto.sku,
+    name: mockProductDto.name,
+    uom: mockProductDto.uom,
     currentStock: 0.0,
-    category: {
-      id: mockProductDto.categoryId,
-      tenantId: 'tenant-123-xyz',
-      name: 'Bebidas',
-      isActive: true,
-      createdAt: new Date('2026-07-01T10:00:00Z'),
-      updatedAt: new Date('2026-07-01T10:00:00Z'),
-      products: [],
-    },
+    minimumStock: mockProductDto.minimumStock,
+    price: mockProductDto.price,
+    costPrice: mockProductDto.costPrice,
+
+    // --- RELACIONAMENTOS ---
+    categoryId: null,
+    category: null,
+    locations: [],
+
+    // --- DADOS FISCAIS ---
+    ean: mockProductDto.ean,
+    ncm: mockProductDto.ncm,
+    cest: mockProductDto.cest,
+    origin: mockProductDto.origin,
+    csosn: mockProductDto.csosn,
+    cst: mockProductDto.cst,
+
+    // --- TIMESTAMPS & AUDITORIA ---
+    createdBy: 'user-admin-123',
+    updatedBy: 'user-admin-123',
     createdAt: new Date('2026-07-15T19:00:00Z'),
     updatedAt: new Date('2026-07-15T19:00:00Z'),
   };
@@ -52,6 +64,7 @@ describe('ProductsService', () => {
   beforeEach(() => {
     mockRepository = {
       createProduct: jest.fn(),
+      updateProduct: jest.fn(),
       findOneBySku: jest.fn(),
       findAllProducts: jest.fn(),
       deleteProduct: jest.fn(),
@@ -65,6 +78,10 @@ describe('ProductsService', () => {
   });
 
   describe('createProduct', () => {
+    const productDto = {
+      ...mockProductDto,
+      tenantId: mockProduct.tenantId,
+    };
     const response: IResponse<null> = {
       message: EProductsSuccess.CREATE,
       data: null,
@@ -74,22 +91,64 @@ describe('ProductsService', () => {
       mockRepository.findOneBySku.mockResolvedValue(null);
       mockRepository.createProduct.mockResolvedValue(mockProduct);
 
-      expect(await service.createProduct(mockProductDto)).toEqual(response);
+      expect(await service.createProduct(productDto)).toEqual(response);
       expect(mockRepository.findOneBySku).toHaveBeenCalledWith(
         mockProductDto.sku,
-        mockProductDto.tenantId,
+        mockProduct.tenantId,
       );
-      expect(mockRepository.createProduct).toHaveBeenCalledWith(mockProductDto);
+      expect(mockRepository.createProduct).toHaveBeenCalledWith(productDto);
     });
 
     it('should throw ConflictException when the product SKU already exists', async () => {
       mockRepository.createProduct.mockRejectedValue(
         new ConflictException(EProductsErrors.PRODUCT_EXIST),
       );
-      await expect(service.createProduct(mockProductDto)).rejects.toThrow(
+      await expect(service.createProduct(productDto)).rejects.toThrow(
         new ConflictException(EProductsErrors.PRODUCT_EXIST),
       );
       expect(mockRepository.createProduct).toHaveBeenCalledWith(mockProductDto);
+    });
+  });
+
+  describe('updateProduct', () => {
+    const mockUpdateProductDto: UpdateProductDto = {
+      ...mockProductDto,
+      categoryId: 'uuid-1',
+    };
+
+    const responseRepository: UpdateResult = {
+      raw: [],
+      affected: 1,
+      generatedMaps: [],
+    };
+    const response: IResponse<null> = {
+      message: EProductsSuccess.UPDATE,
+      data: null,
+    };
+
+    it(`should return the message ${EProductsSuccess.UPDATE} when product is update success`, async () => {
+      mockRepository.updateProduct.mockResolvedValue(responseRepository);
+      expect(
+        await service.updateProduct(
+          mockUpdateProductDto,
+          mockProduct.id,
+          mockProduct.tenantId,
+        ),
+      ).toEqual(response);
+    });
+
+    it('should return NotFoundException when the property affected === 0', async () => {
+      responseRepository.affected = 0;
+      mockRepository.updateProduct.mockResolvedValue(responseRepository);
+      await expect(
+        service.updateProduct(
+          mockUpdateProductDto,
+          mockProduct.id,
+          mockProduct.tenantId,
+        ),
+      ).rejects.toThrow(
+        new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND),
+      );
     });
   });
 
@@ -113,13 +172,13 @@ describe('ProductsService', () => {
       mockRepository.findOneBySku.mockResolvedValue(null);
 
       await expect(
-        service.findOneBySku(mockProductDto.sku, mockProductDto.tenantId),
+        service.findOneBySku(mockProductDto.sku, mockProduct.tenantId),
       ).rejects.toThrow(
         new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND),
       );
       expect(mockRepository.findOneBySku).toHaveBeenCalledWith(
         mockProductDto.sku,
-        mockProductDto.tenantId,
+        mockProduct.tenantId,
       );
     });
   });
@@ -131,20 +190,23 @@ describe('ProductsService', () => {
         data: [mockProduct, mockProduct, mockProduct],
       };
       mockRepository.findAllProducts.mockResolvedValue(response.data);
-      expect(await service.findAllProducts(mockProductDto.tenantId)).toEqual(
+      expect(await service.findAllProducts(mockProduct.tenantId)).toEqual(
         response,
       );
       expect(mockRepository.findAllProducts).toHaveBeenCalledWith(
-        mockProductDto.tenantId,
+        mockProduct.tenantId,
       );
     });
 
     it('should return NotFoundException when the products not found', async () => {
       mockRepository.findAllProducts.mockResolvedValue([]);
       await expect(
-        service.findAllProducts(mockProductDto.tenantId),
+        service.findAllProducts(mockProduct.tenantId),
       ).rejects.toThrow(
         new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND),
+      );
+      expect(mockRepository.findAllProducts).toHaveBeenCalledWith(
+        mockProduct.tenantId,
       );
     });
   });

@@ -12,6 +12,7 @@ import { Product } from './entities/product.entity';
 import { IResponse } from '../../interfaces/response.interface';
 import { EProductsErrors } from '../../enum/products-errors.enum';
 import { DeleteResult } from 'typeorm';
+import { UpdateProductDto } from './dtos/update-product.dto';
 
 @Injectable()
 export class ProductsService implements IProductsService {
@@ -38,6 +39,33 @@ export class ProductsService implements IProductsService {
       data: null,
     };
   }
+
+  async updateProduct(
+    updateProductDto: UpdateProductDto,
+    id: string,
+    tenantId: string,
+  ): Promise<IResponse<null>> {
+    const productUpdated = await this.productsRepository.updateProduct(
+      updateProductDto,
+      id,
+      tenantId,
+    );
+
+    if (productUpdated.affected === 0) {
+      throw new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND);
+    }
+
+    return {
+      message: EProductsSuccess.UPDATE,
+      data: null,
+    };
+  }
+
+  applyStockDelta(
+    ProductId: string,
+    tenantId: string,
+    delta: number,
+  ): Promise<IResponse<null>> {}
 
   async findOneBySku(
     sku: string,

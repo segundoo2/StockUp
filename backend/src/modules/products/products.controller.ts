@@ -5,6 +5,7 @@ import {
   Get,
   Inject,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -17,6 +18,7 @@ import { TenantId } from '../../decorators/tenant-id.decorator';
 import { AuthGuard } from '@nestjs/passport';
 import { AdminGuard } from '../../guards/admin.guard';
 import { RequiresAdmin } from '../../decorators/admin.decorator';
+import { UpdateProductDto } from './dtos/update-product.dto';
 
 @Controller('products')
 export class ProductsController implements IProductsController {
@@ -38,6 +40,21 @@ export class ProductsController implements IProductsController {
       ...productDto,
       tenantId,
     });
+  }
+
+  @Patch(':id')
+  @UseGuards(AuthGuard('jwt'), AdminGuard)
+  @RequiresAdmin()
+  async updateProduct(
+    @Body() updateProductDto: UpdateProductDto,
+    @Param() id: string,
+    @TenantId() tenantId: string,
+  ): Promise<IResponse<null>> {
+    return await this.productsService.updateProduct(
+      updateProductDto,
+      id,
+      tenantId,
+    );
   }
 
   @Get(':sku')

@@ -6,6 +6,7 @@ import { EProductsSuccess } from '../../../enum/products-success.enum';
 import { IProductsController } from '../interfaces/products.controller.interface';
 import { IProductsService } from '../interfaces/products.service.interface';
 import { ProductsController } from '../products.controller';
+import { UpdateProductDto } from '../dtos/update-product.dto';
 
 describe('ProductsController', () => {
   let controller: IProductsController;
@@ -14,6 +15,8 @@ describe('ProductsController', () => {
   beforeEach(() => {
     mockService = {
       createProduct: jest.fn(),
+      updateProduct: jest.fn(),
+      applyStockDelta: jest.fn(), //só para o ts não reclamar, mas não é usado no controller
       findOneBySku: jest.fn(),
       findAllProducts: jest.fn(),
       deleteProduct: jest.fn(),
@@ -22,14 +25,12 @@ describe('ProductsController', () => {
   });
 
   const mockProductDto: ProductDto = {
-    tenantId: '1',
     sku: 'PROD-ALFA-001',
     name: 'Refrigerante Cola 350ml',
     uom: 'UN',
     minimumStock: 10.0,
     price: 5.5,
     costPrice: 2.8,
-    categoryId: 'd3b07384-d113-4ec6-a5d6-c1c234567890',
     ean: '7891234567890',
     ncm: '22021000',
     cest: '0300700',
@@ -37,21 +38,34 @@ describe('ProductsController', () => {
     csosn: '102',
     cst: null,
   };
+
   const mockProduct: Product = {
-    ...mockProductDto,
     id: 'a1b2c3d4-e5f6-7890-a1b2-c3d4e5f67890',
     tenantId: 'tenant-123-xyz',
+    sku: mockProductDto.sku,
+    name: mockProductDto.name,
+    uom: mockProductDto.uom,
     currentStock: 0.0,
-    category: {
-      id: mockProductDto.categoryId,
-      tenantId: 'tenant-123-xyz',
-      name: 'Bebidas',
-      isActive: true,
-      createdAt: new Date('2026-07-01T10:00:00Z'),
-      updatedAt: new Date('2026-07-01T10:00:00Z'),
-      products: [],
-    },
+    minimumStock: mockProductDto.minimumStock,
+    price: mockProductDto.price,
+    costPrice: mockProductDto.costPrice,
 
+    // --- RELACIONAMENTOS ---
+    categoryId: null,
+    category: null,
+    locations: [],
+
+    // --- DADOS FISCAIS ---
+    ean: mockProductDto.ean,
+    ncm: mockProductDto.ncm,
+    cest: mockProductDto.cest,
+    origin: mockProductDto.origin,
+    csosn: mockProductDto.csosn,
+    cst: mockProductDto.cst,
+
+    // --- TIMESTAMPS & AUDITORIA ---
+    createdBy: 'user-admin-123',
+    updatedBy: 'user-admin-123',
     createdAt: new Date('2026-07-15T19:00:00Z'),
     updatedAt: new Date('2026-07-15T19:00:00Z'),
   };
@@ -64,9 +78,35 @@ describe('ProductsController', () => {
     it('should return product when it is create', async () => {
       mockService.createProduct.mockResolvedValue(response);
       expect(
-        await controller.createProduct(mockProductDto, mockProductDto.tenantId),
+        await controller.createProduct(mockProductDto, mockProduct.tenantId),
       ).toEqual(response);
-      expect(mockService.createProduct).toHaveBeenCalledWith(mockProductDto);
+      expect(mockService.createProduct).toHaveBeenCalledWith(
+        mockProductDto,
+        mockProduct.tenantId,
+      );
+    });
+  });
+
+  describe('updateProduct', () => {
+    const mockUpdateProductDto: UpdateProductDto = {
+      ...mockProductDto,
+      categoryId: 'uuid-1',
+    };
+
+    const response: IResponse<null> = {
+      message: EProductsSuccess.UPDATE,
+      data: null,
+    };
+
+    it(`should return the message ${EProductsSuccess.UPDATE} when product is update success`, async () => {
+      mockService.updateProduct.mockResolvedValue(response);
+      expect(
+        await controller.updateProduct(
+          mockUpdateProductDto,
+          mockProduct.id,
+          mockProduct.tenantId,
+        ),
+      ).toEqual(response);
     });
   });
 
@@ -78,14 +118,11 @@ describe('ProductsController', () => {
     it('should return a product when it is found', async () => {
       mockService.findOneBySku.mockResolvedValue(response);
       expect(
-        await controller.findOneBySku(
-          mockProductDto.sku,
-          mockProductDto.tenantId,
-        ),
+        await controller.findOneBySku(mockProduct.sku, mockProduct.tenantId),
       ).toEqual(response);
       expect(mockService.findOneBySku).toHaveBeenCalledWith(
-        mockProductDto.sku,
-        mockProductDto.tenantId,
+        mockProduct.sku,
+        mockProduct.tenantId,
       );
     });
   });
@@ -97,11 +134,11 @@ describe('ProductsController', () => {
         data: [mockProduct, mockProduct, mockProduct],
       };
       mockService.findAllProducts.mockResolvedValue(response);
-      expect(await controller.findAllProducts(mockProductDto.tenantId)).toEqual(
+      expect(await controller.findAllProducts(mockProduct.tenantId)).toEqual(
         response,
       );
       expect(mockService.findAllProducts).toHaveBeenCalledWith(
-        mockProductDto.tenantId,
+        mockProduct.tenantId,
       );
     });
   });

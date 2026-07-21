@@ -11,7 +11,7 @@ import {
 import { Product } from './product.entity';
 
 @Entity({ name: 'product_locations' })
-@Index(['tenantId', 'productId', 'locationCode'], { unique: true })
+@Index(['tenantId', 'locationCode'], { unique: true }) // 👈 Unicidade da posição no tenant
 export class ProductLocation {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -20,17 +20,18 @@ export class ProductLocation {
   @Index()
   tenantId!: string;
 
-  @Column({ type: 'uuid', name: 'product_id' })
-  productId!: string;
-
-  @ManyToOne(() => Product, (product) => product.locations, {
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn({ name: 'product_id' })
-  product!: Product;
-
   @Column({ type: 'varchar', name: 'location_code', length: 50 })
   locationCode!: string;
+
+  @Column({ type: 'uuid', name: 'product_id', nullable: true })
+  productId?: string | null;
+
+  @ManyToOne(() => Product, (product) => product.locations, {
+    onDelete: 'SET NULL',
+    nullable: true,
+  })
+  @JoinColumn({ name: 'product_id' })
+  product?: Product | null;
 
   @Column({
     type: 'decimal',
@@ -42,7 +43,7 @@ export class ProductLocation {
       from: (value: string): number => parseFloat(value),
     },
   })
-  quantity!: number; // Ex: 5.0
+  quantity!: number;
 
   @CreateDateColumn({ type: 'timestamp with time zone', name: 'created_at' })
   createdAt!: Date;

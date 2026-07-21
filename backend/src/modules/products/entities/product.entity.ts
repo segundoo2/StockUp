@@ -84,12 +84,12 @@ export class Product {
   costPrice!: number;
 
   // --- RELACIONAMENTOS ---
-  @Column({ type: 'uuid', name: 'category_id' })
-  categoryId?: string;
+  @Column({ type: 'uuid', name: 'category_id', nullable: true })
+  categoryId?: string | null;
 
-  @ManyToOne(() => Category, { onDelete: 'RESTRICT' })
+  @ManyToOne(() => Category, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'category_id' })
-  category?: Category;
+  category?: Category | null;
 
   @OneToMany(
     () => ProductLocation,
@@ -98,7 +98,7 @@ export class Product {
       cascade: true,
     },
   )
-  locations!: ProductLocation[];
+  locations?: ProductLocation[];
 
   // --- DADOS FISCAIS ---
   @Column({ type: 'varchar', length: 14, nullable: true })
@@ -111,15 +111,15 @@ export class Product {
   cest?: string | null;
 
   @Column({ type: 'varchar', length: 1, default: '0' })
-  origin!: string; // Origem da mercadoria (ex: '0' para Nacional)
+  origin!: string;
 
   @Column({ type: 'varchar', length: 3, nullable: true })
-  csosn?: string | null; // Usado se o tenant for do Simples Nacional
+  csosn?: string | null;
 
   @Column({ type: 'varchar', length: 2, nullable: true })
-  cst?: string | null; // Usado se o tenant for Regime Normal (Lucro Presumido/Real)
+  cst?: string | null;
 
-  // ---------------------
+  // --- AUDITORIA ---
   @Column({ type: 'varchar', name: 'created_by', length: 100, nullable: true })
   createdBy?: string;
 

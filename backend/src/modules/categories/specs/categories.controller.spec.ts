@@ -26,7 +26,6 @@ describe('CategoriesController', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
   };
-  const tenantId = 'tenant-uuid';
   let response: IResponse<Category | null> = {
     message: ECategorySuccess.CREATE,
     data: null,
@@ -35,6 +34,7 @@ describe('CategoriesController', () => {
   beforeEach(() => {
     service = {
       createCategory: jest.fn(),
+      updateCategory: jest.fn(),
       findByCategoryName: jest.fn(),
     };
 
@@ -44,13 +44,23 @@ describe('CategoriesController', () => {
   describe('createCategory', () => {
     it(`should return the object { message: ${ECategorySuccess.CREATE}, data: null } when category is created success`, async () => {
       service.createCategory.mockResolvedValue(response as IResponse<null>);
-      expect(await controller.createCategory(categoryDto, tenantId)).toEqual(
-        response,
-      );
+      expect(
+        await controller.createCategory(categoryDto, category.tenantId),
+      ).toEqual(response);
       expect(service.createCategory).toHaveBeenCalledWith({
         ...categoryDto,
-        tenantId,
+        tenantId: category.tenantId,
       });
+    });
+  });
+
+  describe('updateCategory', () => {
+    it(`should return { message: ${ECategorySuccess.UPDATE}, data: null when the category is update success`, async () => {
+      response = { message: ECategorySuccess.UPDATE, data: null };
+      service.updateCategory.mockResolvedValue(response as IResponse<null>);
+      expect(
+        await controller.updateCategory(categoryDto, category.tenantId),
+      ).toEqual(response);
     });
   });
 

@@ -2,9 +2,10 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ICategoriesRepository } from './interfaces/repository.interface';
 import { CategoryDto } from './dtos/category.dto';
 import { Category } from './entities/category.entity';
-import { Repository } from 'typeorm';
+import { Repository, UpdateResult } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EErrorsGlobal } from '../../enum/errors-global.enum';
+import { UpdateCategoryDto } from './dtos/update-category.dto';
 
 @Injectable()
 export class CategoriesRepository implements ICategoriesRepository {
@@ -19,6 +20,18 @@ export class CategoriesRepository implements ICategoriesRepository {
     try {
       const category: Category = this.repository.create(categoryDto);
       return await this.repository.save(category);
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
+
+  async updateCategory(
+    id: string,
+    tenantId: string,
+    updateCategoryDto: UpdateCategoryDto,
+  ): Promise<UpdateResult> {
+    try {
+      return await this.repository.update({ id, tenantId }, updateCategoryDto);
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }

@@ -11,6 +11,7 @@ import type { ICategoriesRepository } from './interfaces/repository.interface';
 import { ECategorySuccess } from '../../enum/category-success.enum';
 import { Category } from './entities/category.entity';
 import { ECategoryErrors } from '../../enum/category-errors.enum';
+import { UpdateCategoryDto } from './dtos/update-category.dto';
 
 @Injectable()
 export class CategoriesService implements ICategoriesService {
@@ -23,8 +24,8 @@ export class CategoriesService implements ICategoriesService {
     categoryDto: CategoryDto & { tenantId: string },
   ): Promise<IResponse<null>> {
     const categoryExisted = await this.repository.findByCategoryName(
-      categoryDto.name,
       categoryDto.tenantId,
+      categoryDto.name,
     );
 
     if (categoryExisted) {
@@ -33,6 +34,27 @@ export class CategoriesService implements ICategoriesService {
 
     await this.repository.createCategory(categoryDto);
     return { message: ECategorySuccess.CREATE, data: null };
+  }
+
+  async updateCategory(
+    id: string,
+    tenantId: string,
+    updateCategoryDto: UpdateCategoryDto,
+  ): Promise<IResponse<null>> {
+    const response = await this.repository.updateCategory(
+      id,
+      tenantId,
+      updateCategoryDto,
+    );
+
+    if (response.affected === 0) {
+      throw new NotFoundException(ECategoryErrors.CATEGORY_NOT_FOUND);
+    }
+
+    return {
+      message: ECategorySuccess.UPDATE,
+      data: null,
+    };
   }
 
   async findByCategoryName(

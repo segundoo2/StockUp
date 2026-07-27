@@ -8,6 +8,7 @@ import { ICategoriesRepository } from '../interfaces/repository.interface';
 import { ICategoriesService } from '../interfaces/service.interface';
 import { ECategoryErrors } from '../../../enum/category-errors.enum';
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { UpdateResult } from 'typeorm';
 
 describe('CategoriesService', () => {
   let service: ICategoriesService;
@@ -28,7 +29,6 @@ describe('CategoriesService', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
   };
-  const tenantId = 'tenant-uuid';
   let response: IResponse<Category | null> = {
     message: ECategorySuccess.CREATE,
     data: null,
@@ -37,6 +37,7 @@ describe('CategoriesService', () => {
   beforeEach(() => {
     repository = {
       createCategory: jest.fn(),
+      updateCategory: jest.fn(),
       findByCategoryName: jest.fn(),
     };
 
@@ -47,20 +48,58 @@ describe('CategoriesService', () => {
     it(`should return the object { message: ${ECategorySuccess.CREATE}, data: null } when category is created success`, async () => {
       repository.createCategory.mockResolvedValue(category);
       expect(
-        await service.createCategory({ ...categoryDto, tenantId }),
+        await service.createCategory({
+          ...categoryDto,
+          tenantId: category.tenantId,
+        }),
       ).toEqual(response);
       expect(repository.createCategory).toHaveBeenCalledWith({
         ...categoryDto,
-        tenantId,
+        tenantId: category.tenantId,
       });
     });
 
     it('should return ConflictException when category is existed', async () => {
       repository.findByCategoryName.mockResolvedValue(category);
       await expect(
-        service.createCategory({ ...categoryDto, tenantId }),
+        service.createCategory({ ...categoryDto, tenantId: category.tenantId }),
       ).rejects.toThrow(
         new ConflictException(ECategoryErrors.CONFLICT_CATEGORY),
+      );
+    });
+  });
+
+  describe('updateCategory', () => {
+    response = { message: ECategorySuccess.UPDATE, data: null };
+    const responseRepository: UpdateResult = {
+      raw: [],
+      generatedMaps: [],
+      affected: 1,
+    };
+
+    it(`should return { message: ${ECategorySuccess.UPDATE}, data: null when the category is update success`, async () => {
+      repository.updateCategory.mockResolvedValue(responseRepository);
+      expect(
+        await service.updateCategory(
+          category.id,
+          category.tenantId,
+          categoryDto,
+        ),
+      ).toEqual(response);
+      expect(repository.updateCategory).toHaveBeenCalledWith(
+        category.id,
+        category.tenantId,
+        categoryDto,
+      );
+    });
+
+    it('should return NotFoundException when property affected is equal 0', async () => {
+      responseRepository.affected = 0;
+      repository.updateCategory.mockResolvedValue(responseRepository);
+      await expect(
+        service.updateCategory(category.id, category.tenantId, categoryDto),
+      ).rejects.toThrow(
+        new NotFoundException(ECategoryErrors.CATEGORY_NOT_FOUND),
       );
     });
   });
@@ -75,12 +114,16 @@ describe('CategoriesService', () => {
       expect(
         await service.findByCategoryName(category.name, category.tenantId),
       ).toEqual(response);
+      expect(repository.findByCategoryName).toHaveBeenCalledWith(
+        category.name,
+        category.tenantId,
+      );
     });
 
     it('should return NotFoundException when Category not found', async () => {
       repository.findByCategoryName.mockResolvedValue(null);
       await expect(
-        service.findByCategoryName(category.name, tenantId),
+        service.findByCategoryName(category.name, category.tenantId),
       ).rejects.toThrow(
         new NotFoundException(ECategoryErrors.CATEGORY_NOT_FOUND),
       );

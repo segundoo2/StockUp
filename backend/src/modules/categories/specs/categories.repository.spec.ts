@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { Repository } from 'typeorm';
+import { Repository, UpdateResult } from 'typeorm';
 import { Category } from '../entities/category.entity';
 import { ICategoriesRepository } from '../interfaces/repository.interface';
 import { CategoriesRepository } from '../categories.repository';
@@ -26,11 +26,12 @@ describe('CategoriesRepository', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
   };
-  const tenantId = 'tenant-uuid';
+
   beforeEach(() => {
     ormRepository = {
       create: jest.fn(),
       save: jest.fn(),
+      update: jest.fn(),
       findOne: jest.fn(),
     } as unknown as jest.Mocked<Repository<Category>>;
 
@@ -57,18 +58,58 @@ describe('CategoriesRepository', () => {
       ormRepository.create.mockReturnValue(category);
       ormRepository.save.mockResolvedValue(category);
       expect(
-        await categoriesRepository.createCategory({ ...categoryDto, tenantId }),
+        await categoriesRepository.createCategory({
+          ...categoryDto,
+          tenantId: category.tenantId,
+        }),
       ).toEqual(category);
       expect(ormRepository.create).toHaveBeenCalledWith({
         ...categoryDto,
-        tenantId,
+        tenantId: category.tenantId,
       });
       expect(ormRepository.save).toHaveBeenCalledWith(category);
     });
 
     shouldHandleDatabaseErrors(
-      () => categoriesRepository.createCategory({ ...categoryDto, tenantId }),
+      () =>
+        categoriesRepository.createCategory({
+          ...categoryDto,
+          tenantId: category.tenantId,
+        }),
       () => ormRepository.save as unknown as jest.Mock,
+    );
+  });
+
+  describe('updateCategory', () => {
+    const responseRepository: UpdateResult = {
+      raw: [],
+      generatedMaps: [],
+      affected: 1,
+    };
+
+    it('should return the object { raw: [], generatedMaps: [], affected: 1 } when the category is updated success', async () => {
+      ormRepository.update.mockResolvedValue(responseRepository);
+      expect(
+        await categoriesRepository.updateCategory(
+          category.id,
+          category.tenantId,
+          categoryDto,
+        ),
+      ).toEqual(responseRepository);
+      expect(ormRepository.update).toHaveBeenCalledWith(
+        { id: category.id, tenantId: category.tenantId },
+        categoryDto,
+      );
+    });
+
+    shouldHandleDatabaseErrors(
+      () =>
+        categoriesRepository.updateCategory(
+          category.id,
+          category.tenantId,
+          categoryDto,
+        ),
+      () => ormRepository.update as unknown as jest.Mock,
     );
   });
 
@@ -76,12 +117,22 @@ describe('CategoriesRepository', () => {
     it('should return Category when it is found success', async () => {
       ormRepository.findOne.mockResolvedValue(category);
       expect(
-        await categoriesRepository.findByCategoryName(category.name, tenantId),
+        await categoriesRepository.findByCategoryName(
+          category.name,
+          category.tenantId,
+        ),
       ).toEqual(category);
+      expect(ormRepository.findOne).toHaveBeenCalledWith({
+        where: { category: category.name, tenantId: category.tenantId },
+      });
     });
 
     shouldHandleDatabaseErrors(
-      () => categoriesRepository.findByCategoryName(category.name, tenantId),
+      () =>
+        categoriesRepository.findByCategoryName(
+          category.name,
+          category.tenantId,
+        ),
       () => ormRepository.findOne as unknown as jest.Mock,
     );
   });

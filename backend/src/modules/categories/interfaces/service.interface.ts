@@ -1,13 +1,21 @@
 import { IResponse } from '../../../interfaces/response.interface';
 import { CategoryDto } from '../dtos/category.dto';
+import { UpdateCategoryDto } from '../dtos/update-category.dto';
 import { Category } from '../entities/category.entity';
 
 export interface ICategoriesService {
   createCategory(
-    CategoryDto: CategoryDto & { tenantId: string },
+    categoryDto: CategoryDto & { tenantId: string },
   ): Promise<IResponse<null>>;
-  findByCategoryName(
-    nameCategory: string,
+
+  updateCategory(
+    id: string,
     tenantId: string,
+    updateCategoryDto: UpdateCategoryDto,
+  ): Promise<IResponse<null>>;
+
+  findByCategoryName(
+    tenantId: string,
+    nameCategory: string,
   ): Promise<IResponse<Category>>;
 }

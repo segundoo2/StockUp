@@ -19,4 +19,8 @@ export interface ICategoriesController {
     tenantId: string,
     nameCategory: string,
   ): Promise<IResponse<Category>>;
+
+  findAllCategories(tenantId: string): Promise<IResponse<Category[]>>;
+
+  deleteCategory(id: string, tenantId: string): Promise<IResponse<null>>;
 }

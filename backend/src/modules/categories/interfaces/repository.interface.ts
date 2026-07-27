@@ -1,4 +1,4 @@
-import { UpdateResult } from 'typeorm';
+import { DeleteResult, UpdateResult } from 'typeorm';
 import { CategoryDto } from '../dtos/category.dto';
 import { UpdateCategoryDto } from '../dtos/update-category.dto';
 import { Category } from '../entities/category.entity';
@@ -18,4 +18,8 @@ export interface ICategoriesRepository {
     tenantId: string,
     nameCategory: string,
   ): Promise<Category | null>;
+
+  findAllCategories(tenantId: string): Promise<Category[] | []>;
+
+  deleteCategory(id: string, tenantId: string): Promise<DeleteResult>;
 }

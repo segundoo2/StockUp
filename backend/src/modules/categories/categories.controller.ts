@@ -34,4 +34,12 @@ export class CategoriesController implements ICategoriesController {
   ): Promise<IResponse<Category>> {
     return await this.service.findByCategoryName(tenantId, nameCategory);
   }
+
+  async findAllCategories(tenantId: string): Promise<IResponse<Category[]>> {
+    return await this.service.findAllCategories(tenantId);
+  }
+
+  async deleteCategory(id: string, tenantId: string): Promise<IResponse<null>> {
+    return await this.service.deleteCategory(id, tenantId);
+  }
 }

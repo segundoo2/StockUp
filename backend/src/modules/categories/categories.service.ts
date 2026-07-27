@@ -75,4 +75,30 @@ export class CategoriesService implements ICategoriesService {
       data: category,
     };
   }
+
+  async findAllCategories(tenantId: string): Promise<IResponse<Category[]>> {
+    const categoriesList = await this.repository.findAllCategories(tenantId);
+
+    if (categoriesList.length === 0) {
+      throw new NotFoundException(ECategoryErrors.CATEGORY_NOT_FOUND);
+    }
+
+    return {
+      message: ECategorySuccess.FOUND_CATEGORIES_LIST,
+      data: categoriesList,
+    };
+  }
+
+  async deleteCategory(id: string, tenantId: string): Promise<IResponse<null>> {
+    const deletedCategory = await this.repository.deleteCategory(id, tenantId);
+
+    if (deletedCategory.affected === 0) {
+      throw new NotFoundException(ECategoryErrors.CATEGORY_NOT_FOUND);
+    }
+
+    return {
+      message: ECategorySuccess.DELETE,
+      data: null,
+    };
+  }
 }

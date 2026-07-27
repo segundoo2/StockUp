@@ -26,7 +26,7 @@ describe('CategoriesController', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
   };
-  let response: IResponse<Category | null> = {
+  let response: IResponse<Category | Category[] | null> = {
     message: ECategorySuccess.CREATE,
     data: null,
   };
@@ -36,6 +36,8 @@ describe('CategoriesController', () => {
       createCategory: jest.fn(),
       updateCategory: jest.fn(),
       findByCategoryName: jest.fn(),
+      findAllCategories: jest.fn(),
+      deleteCategory: jest.fn(),
     };
 
     controller = new CategoriesController(service);
@@ -45,7 +47,7 @@ describe('CategoriesController', () => {
     it(`should return the object { message: ${ECategorySuccess.CREATE}, data: null } when category is created success`, async () => {
       service.createCategory.mockResolvedValue(response as IResponse<null>);
       expect(
-        await controller.createCategory(categoryDto, category.tenantId),
+        await controller.createCategory(category.tenantId, categoryDto),
       ).toEqual(response);
       expect(service.createCategory).toHaveBeenCalledWith({
         ...categoryDto,
@@ -59,7 +61,11 @@ describe('CategoriesController', () => {
       response = { message: ECategorySuccess.UPDATE, data: null };
       service.updateCategory.mockResolvedValue(response as IResponse<null>);
       expect(
-        await controller.updateCategory(categoryDto, category.tenantId),
+        await controller.updateCategory(
+          category.id,
+          category.tenantId,
+          categoryDto,
+        ),
       ).toEqual(response);
     });
   });
@@ -76,6 +82,39 @@ describe('CategoriesController', () => {
       expect(
         await controller.findByCategoryName(category.name, category.tenantId),
       ).toEqual(response);
+    });
+  });
+
+  describe('findAllCategories', () => {
+    const categoriesList: Category[] = [category, category, category];
+    response = {
+      message: ECategorySuccess.FOUND_CATEGORIES_LIST,
+      data: categoriesList,
+    };
+
+    it('should return category list when the categories is found', async () => {
+      service.findAllCategories.mockResolvedValue(
+        response as IResponse<Category[]>,
+      );
+      expect(await controller.findAllCategories(category.tenantId)).toEqual(
+        response,
+      );
+      expect(service.findAllCategories).toHaveBeenCalledWith(category.tenantId);
+    });
+  });
+
+  describe('deleteCategory', () => {
+    response.message = ECategorySuccess.DELETE;
+
+    it(`should return the objects { message: ${ECategorySuccess.DELETE}, data: null }`, async () => {
+      service.deleteCategory.mockResolvedValue(response as IResponse<null>);
+      expect(
+        await controller.deleteCategory(category.id, category.tenantId),
+      ).toEqual(response);
+      expect(service.deleteCategory).toHaveBeenCalledWith(
+        category.id,
+        category.tenantId,
+      );
     });
   });
 });

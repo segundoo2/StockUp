@@ -2,7 +2,7 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ICategoriesRepository } from './interfaces/repository.interface';
 import { CategoryDto } from './dtos/category.dto';
 import { Category } from './entities/category.entity';
-import { Repository, UpdateResult } from 'typeorm';
+import { DeleteResult, Repository, UpdateResult } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EErrorsGlobal } from '../../enum/errors-global.enum';
 import { UpdateCategoryDto } from './dtos/update-category.dto';
@@ -45,6 +45,22 @@ export class CategoriesRepository implements ICategoriesRepository {
       return await this.repository.findOne({
         where: { name: nameCategory, tenantId },
       });
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
+
+  async findAllCategories(tenantId: string): Promise<Category[]> {
+    try {
+      return await this.repository.find({ where: { tenantId } });
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
+
+  async deleteCategory(id: string, tenantId: string): Promise<DeleteResult> {
+    try {
+      return await this.repository.delete({ id, tenantId });
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { Repository, UpdateResult } from 'typeorm';
+import { DeleteResult, Repository, UpdateResult } from 'typeorm';
 import { Category } from '../entities/category.entity';
 import { ICategoriesRepository } from '../interfaces/repository.interface';
 import { CategoriesRepository } from '../categories.repository';
@@ -32,7 +32,9 @@ describe('CategoriesRepository', () => {
       create: jest.fn(),
       save: jest.fn(),
       update: jest.fn(),
+      find: jest.fn(),
       findOne: jest.fn(),
+      delete: jest.fn(),
     } as unknown as jest.Mocked<Repository<Category>>;
 
     categoriesRepository = new CategoriesRepository(ormRepository);
@@ -134,6 +136,47 @@ describe('CategoriesRepository', () => {
           category.tenantId,
         ),
       () => ormRepository.findOne as unknown as jest.Mock,
+    );
+  });
+
+  describe('findAllCategories', () => {
+    const categoriesList: Category[] = [category, category, category];
+
+    it('should return category list when the categories is found', async () => {
+      ormRepository.find.mockResolvedValue(categoriesList);
+      expect(
+        await categoriesRepository.findAllCategories(category.tenantId),
+      ).toBe(categoriesList);
+      expect(ormRepository.find).toHaveBeenCalledWith({
+        where: { tenantId: category.tenantId },
+      });
+    });
+
+    shouldHandleDatabaseErrors(
+      () => categoriesRepository.findAllCategories(category.tenantId),
+      () => ormRepository.find as unknown as jest.Mock,
+    );
+  });
+
+  describe('deleteCategory', () => {
+    const deleteResult: DeleteResult = {
+      raw: [],
+      affected: 1,
+    };
+
+    it('should return { raw: [], affected: 1 } when the category is deleted success', async () => {
+      ormRepository.delete.mockResolvedValue(deleteResult);
+      expect(
+        await categoriesRepository.deleteCategory(
+          category.id,
+          category.tenantId,
+        ),
+      ).toEqual(deleteResult);
+    });
+
+    shouldHandleDatabaseErrors(
+      () => categoriesRepository.deleteCategory(category.id, category.tenantId),
+      () => ormRepository.delete as unknown as jest.Mock,
     );
   });
 });

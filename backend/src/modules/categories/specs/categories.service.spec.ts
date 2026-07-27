@@ -8,7 +8,7 @@ import { ICategoriesRepository } from '../interfaces/repository.interface';
 import { ICategoriesService } from '../interfaces/service.interface';
 import { ECategoryErrors } from '../../../enum/category-errors.enum';
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { UpdateResult } from 'typeorm';
+import { DeleteResult, UpdateResult } from 'typeorm';
 
 describe('CategoriesService', () => {
   let service: ICategoriesService;
@@ -29,7 +29,7 @@ describe('CategoriesService', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
   };
-  let response: IResponse<Category | null> = {
+  let response: IResponse<Category | Category[] | null> = {
     message: ECategorySuccess.CREATE,
     data: null,
   };
@@ -39,6 +39,8 @@ describe('CategoriesService', () => {
       createCategory: jest.fn(),
       updateCategory: jest.fn(),
       findByCategoryName: jest.fn(),
+      findAllCategories: jest.fn(),
+      deleteCategory: jest.fn(),
     };
 
     service = new CategoriesService(repository);
@@ -124,6 +126,65 @@ describe('CategoriesService', () => {
       repository.findByCategoryName.mockResolvedValue(null);
       await expect(
         service.findByCategoryName(category.name, category.tenantId),
+      ).rejects.toThrow(
+        new NotFoundException(ECategoryErrors.CATEGORY_NOT_FOUND),
+      );
+    });
+  });
+
+  describe('findAllCategories', () => {
+    const categoriesList: Category[] = [category, category, category];
+    response = {
+      message: ECategorySuccess.FOUND_CATEGORIES_LIST,
+      data: categoriesList,
+    };
+
+    it('should return category list when the categories is found', async () => {
+      repository.findAllCategories.mockResolvedValue(categoriesList);
+      expect(await service.findAllCategories(category.tenantId)).toEqual(
+        response,
+      );
+      expect(repository.findAllCategories).toHaveBeenCalledWith(
+        category.tenantId,
+      );
+    });
+
+    it('should return NotFoundException when category list === []', async () => {
+      repository.findAllCategories.mockResolvedValue([]);
+      await expect(
+        service.findAllCategories(category.tenantId),
+      ).rejects.toThrow(
+        new NotFoundException(ECategoryErrors.CATEGORY_NOT_FOUND),
+      );
+    });
+  });
+
+  describe('deleteCategory', () => {
+    response = {
+      message: ECategorySuccess.DELETE,
+      data: null,
+    };
+    const deleteResult: DeleteResult = {
+      raw: [],
+      affected: 1,
+    };
+
+    it(`should return the objects { message: ${ECategorySuccess.DELETE}, data: null }`, async () => {
+      repository.deleteCategory.mockResolvedValue(deleteResult);
+      expect(
+        await service.deleteCategory(category.id, category.tenantId),
+      ).toEqual(response);
+      expect(repository.deleteCategory).toHaveBeenCalledWith(
+        category.id,
+        category.tenantId,
+      );
+    });
+
+    it('should return NotFoundException when the property affected === 0', async () => {
+      deleteResult.affected = 0;
+      repository.deleteCategory.mockResolvedValue(deleteResult);
+      await expect(
+        service.deleteCategory(category.id, category.tenantId),
       ).rejects.toThrow(
         new NotFoundException(ECategoryErrors.CATEGORY_NOT_FOUND),
       );

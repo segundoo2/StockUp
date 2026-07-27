@@ -7,7 +7,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Product } from './product.entity';
+import { Product } from '../../products/entities/product.entity';
 
 @Entity({ name: 'categories' })
 @Index(['tenantId', 'name'], { unique: true })
@@ -19,7 +19,7 @@ export class Category {
   @Index()
   tenantId!: string;
 
-  @Column({ type: 'varchar', length: 100 })
+  @Column({ type: 'varchar', length: 100, unique: true })
   name!: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })

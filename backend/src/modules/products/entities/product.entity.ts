@@ -9,8 +9,8 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Category } from './category.entity';
 import { ProductLocation } from './product-location.entity';
+import { Category } from '../../categories/entities/category.entity';
 
 @Entity({ name: 'products' })
 @Index(['tenantId', 'sku'], { unique: true })

@@ -10,8 +10,18 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ProductLocation } from './product-location.entity';
 import { Category } from '../../categories/entities/category.entity';
+import { ProductLocation } from '../../locations/entities/product-location.entity';
+
+interface ValueTransformer {
+  to(value: number): number;
+  from(value: string): number;
+}
+
+const decimalTransformer: ValueTransformer = {
+  to: (value: number): number => value,
+  from: (value: string): number => parseFloat(value),
+};
 
 @Entity({ name: 'products' })
 @Index(['tenantId', 'sku'], { unique: true })
@@ -55,7 +65,8 @@ export class Product {
   uom!: string;
 
   @ApiProperty({
-    description: 'Quantidade em estoque atual do produto',
+    description:
+      'Quantidade em estoque total do produto (soma de todas as localizações)',
     example: 150.0,
     default: 0.0,
     type: Number,
@@ -66,10 +77,7 @@ export class Product {
     precision: 12,
     scale: 4,
     default: 0.0,
-    transformer: {
-      to: (value: number): number => value,
-      from: (value: string): number => parseFloat(value),
-    },
+    transformer: decimalTransformer,
   })
   currentStock!: number;
 
@@ -85,10 +93,7 @@ export class Product {
     precision: 12,
     scale: 4,
     default: 0.0,
-    transformer: {
-      to: (value: number): number => value,
-      from: (value: string): number => parseFloat(value),
-    },
+    transformer: decimalTransformer,
   })
   minimumStock!: number;
 
@@ -103,10 +108,7 @@ export class Product {
     precision: 12,
     scale: 2,
     default: 0.0,
-    transformer: {
-      to: (value: number): number => value,
-      from: (value: string): number => parseFloat(value),
-    },
+    transformer: decimalTransformer,
   })
   price!: number;
 
@@ -122,10 +124,7 @@ export class Product {
     precision: 12,
     scale: 2,
     default: 0.0,
-    transformer: {
-      to: (value: number): number => value,
-      from: (value: string): number => parseFloat(value),
-    },
+    transformer: decimalTransformer,
   })
   costPrice!: number;
 
@@ -149,8 +148,7 @@ export class Product {
 
   @ApiPropertyOptional({
     type: () => [ProductLocation],
-    description:
-      'Localizações/Endereçamentos onde este produto está armazenado',
+    description: 'Distribuição do produto nas localizações do estoque',
   })
   @OneToMany(
     () => ProductLocation,

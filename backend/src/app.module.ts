@@ -9,6 +9,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ProductsModule } from './modules/products/products.module';
 import { CategorysModule } from './modules/categorys/categorys.module';
 import { CategoriesModule } from './modules/categories/categories.module';
+import { LocationsModule } from './modules/locations/locations.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { CategoriesModule } from './modules/categories/categories.module';
     ProductsModule,
     CategorysModule,
     CategoriesModule,
+    LocationsModule,
   ],
   controllers: [AppController],
   providers: [AppService, ThrottlerGuard],

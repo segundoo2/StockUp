@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { DeleteResult, Repository, UpdateResult } from 'typeorm';
 import { Category } from '../entities/category.entity';
-import { ICategoriesRepository } from '../interfaces/repository.interface';
+import { ICategoriesRepository } from '../interfaces/categories.repository.interface';
 import { CategoriesRepository } from '../categories.repository';
 import { CategoryDto } from '../dtos/category.dto';
 import { InternalServerErrorException } from '@nestjs/common';

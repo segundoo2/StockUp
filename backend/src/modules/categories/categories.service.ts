@@ -4,10 +4,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ICategoriesService } from './interfaces/service.interface';
+import { ICategoriesService } from './interfaces/categories.service.interface';
 import { IResponse } from '../../interfaces/response.interface';
 import { CategoryDto } from './dtos/category.dto';
-import type { ICategoriesRepository } from './interfaces/repository.interface';
+import type { ICategoriesRepository } from './interfaces/categories.repository.interface';
 import { ECategorySuccess } from '../../enum/category-success.enum';
 import { Category } from './entities/category.entity';
 import { ECategoryErrors } from '../../enum/category-errors.enum';

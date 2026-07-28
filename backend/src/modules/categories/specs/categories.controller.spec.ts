@@ -4,8 +4,8 @@ import { IResponse } from '../../../interfaces/response.interface';
 import { CategoriesController } from '../categories.controller';
 import { CategoryDto } from '../dtos/category.dto';
 import { Category } from '../entities/category.entity';
-import { ICategoriesController } from '../interfaces/controller.interface';
-import { ICategoriesService } from '../interfaces/service.interface';
+import { ICategoriesController } from '../interfaces/categories.controller.interface';
+import { ICategoriesService } from '../interfaces/categories.service.interface';
 
 describe('CategoriesController', () => {
   let controller: ICategoriesController;

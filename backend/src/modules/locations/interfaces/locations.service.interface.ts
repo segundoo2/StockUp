@@ -1,9 +1,8 @@
 import { IResponse } from '../../../interfaces/response.interface';
 import { LocationDto } from '../dtos/location.dto';
 
-export interface IProductsController {
+export interface ILocationsService {
   createLocation(
-    tenantId: string,
-    productDto: LocationDto,
+    locationDto: LocationDto & { tenantId: string },
   ): Promise<IResponse<null>>;
 }

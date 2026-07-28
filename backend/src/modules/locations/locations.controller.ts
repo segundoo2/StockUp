@@ -1,7 +1,18 @@
-import { Controller } from '@nestjs/common';
-import { LocationsService } from './locations.service';
+import { Controller, Inject } from '@nestjs/common';
+import { ILocationsController } from './interfaces/locations.controller.interface';
+import type { ILocationsService } from './interfaces/locations.service.interface';
+import { IResponse } from '../../interfaces/response.interface';
+import { LocationDto } from './dtos/location.dto';
 
 @Controller('locations')
-export class LocationsController {
-  constructor(private readonly locationsService: LocationsService) {}
+export class LocationsController implements ILocationsController {
+  constructor(
+    @Inject('ILocationsService')
+    private readonly locationsService: ILocationsService,
+  ) {}
+
+  createLocation(
+    tenantId: string,
+    locationDto: LocationDto,
+  ): Promise<IResponse<null>> {}
 }

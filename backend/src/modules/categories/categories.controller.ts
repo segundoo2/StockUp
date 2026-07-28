@@ -16,10 +16,10 @@ import {
   ApiBearerAuth,
   ApiParam,
 } from '@nestjs/swagger';
-import { ICategoriesController } from './interfaces/controller.interface';
+import { ICategoriesController } from './interfaces/categories.controller.interface';
 import { IResponse } from '../../interfaces/response.interface';
 import { CategoryDto } from './dtos/category.dto';
-import type { ICategoriesService } from './interfaces/service.interface';
+import type { ICategoriesService } from './interfaces/categories.service.interface';
 import { Category } from './entities/category.entity';
 import { UpdateCategoryDto } from './dtos/update-category.dto';
 import { AuthGuard } from '@nestjs/passport';

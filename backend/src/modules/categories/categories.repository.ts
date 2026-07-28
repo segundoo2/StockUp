@@ -1,5 +1,5 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { ICategoriesRepository } from './interfaces/repository.interface';
+import { ICategoriesRepository } from './interfaces/categories.repository.interface';
 import { CategoryDto } from './dtos/category.dto';
 import { Category } from './entities/category.entity';
 import { DeleteResult, Repository, UpdateResult } from 'typeorm';

@@ -11,10 +11,10 @@ import type { IAuthRepository } from './interfaces/auth.repository.interface';
 import type { IAuthService } from './interfaces/auth.service.interface';
 import { EAuthSuccess } from '../../enum/auth-success.enum';
 import { RedisService } from '../../common/redis/redis.service';
-import { UserDto } from '../users/dtos/user.dto';
 import { IAuthPayload } from './interfaces/auth-payload.interface';
 import * as bcrypt from 'bcrypt';
 import { EAuthErrors } from '../../enum/auth-errors.enum';
+import { LoginDto } from './dtos/login.dto';
 
 @Injectable()
 export class AuthService implements IAuthService {
@@ -24,21 +24,16 @@ export class AuthService implements IAuthService {
     private readonly redisService: RedisService,
   ) {}
 
-  async login(
-    userDto: Pick<UserDto, 'username' | 'password' | 'tenantId'>,
-    fingerprint: string,
-  ): Promise<IAuthPayload> {
+  async login(loginDto: LoginDto, fingerprint: string): Promise<IAuthPayload> {
     const user = await this.authRepository.findUserByUsername(
-      userDto.username,
-      userDto.tenantId,
+      loginDto.username,
+      loginDto.tenantId,
     );
     if (!user) {
-      throw new UnauthorizedException(
-        'Usuário não encontrado ou credenciais inválidas.',
-      );
+      throw new UnauthorizedException(EAuthErrors.USER_NOT_FOUND);
     }
 
-    await this.validatePassword(userDto.password as string, user.password);
+    await this.validatePassword(loginDto.password, user.password);
 
     const payload: IJwtPayload = {
       sub: user.id,

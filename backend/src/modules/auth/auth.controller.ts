@@ -27,7 +27,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { SetCookiesInterceptor } from './interceptors/auth.interceptor';
 import { IJwtPayloadWithExpiry } from './interfaces/jwt-payload.interface';
 import type { RequestWithCookies } from './interfaces/req-with-cookies.interface';
-import { ESuccess } from '../../enum/auth-success.enum';
+import { EAuthSuccess } from '../../enum/auth-success.enum';
 import { LoginDto } from './dtos/login.dto';
 
 @ApiTags('Authentication')
@@ -172,6 +172,6 @@ export class AuthController implements IAuthController {
       `[AUTH] O usuário "${userPayload.username}" encerrou a sessão (Logout concluído).`,
     );
 
-    return res.json({ message: ESuccess.LOGOUT });
+    return res.json({ message: EAuthSuccess.LOGOUT });
   }
 }

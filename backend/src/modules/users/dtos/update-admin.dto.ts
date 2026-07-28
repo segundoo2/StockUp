@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, Matches, IsBoolean } from 'class-validator';
-import { EErrors } from '../../../enum/users-errors.enum';
+import { EUsersErrors } from '../../../enum/users-errors.enum';
 
 export abstract class UpdateAdminDto {
   @ApiProperty({
@@ -13,10 +13,12 @@ export abstract class UpdateAdminDto {
     description: 'Nome do usuário deve está no formato: nome.sobrenome',
     example: 'edilson.segundo',
   })
-  @IsString({ message: `${EErrors.USERNAME} ${EErrors.CARACTERS_INVALID}` })
-  @IsNotEmpty({ message: EErrors.USERNAME_INVALID })
+  @IsString({
+    message: `${EUsersErrors.USERNAME} ${EUsersErrors.CARACTERS_INVALID}`,
+  })
+  @IsNotEmpty({ message: EUsersErrors.USERNAME_INVALID })
   @Matches(/^[a-z0-9]+(?:\.[a-z0-9]+)+$/, {
-    message: EErrors.USERNAME_INVALID,
+    message: EUsersErrors.USERNAME_INVALID,
   })
   username!: string;
 
@@ -24,7 +26,7 @@ export abstract class UpdateAdminDto {
     description: 'O admin deve ser booleano.',
     example: 'true = usuário administrador',
   })
-  @IsBoolean({ message: EErrors.ADMIN_INVALID })
-  @IsNotEmpty({ message: EErrors.ADMIN_INVALID })
+  @IsBoolean({ message: EUsersErrors.ADMIN_INVALID })
+  @IsNotEmpty({ message: EUsersErrors.ADMIN_INVALID })
   admin!: boolean;
 }

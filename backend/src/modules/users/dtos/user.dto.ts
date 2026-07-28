@@ -7,7 +7,7 @@ import {
   Length,
   IsBoolean,
 } from 'class-validator';
-import { EErrors } from '../../../enum/users-errors.enum';
+import { EUsersErrors } from '../../../enum/users-errors.enum';
 
 export abstract class UserDto {
   @ApiProperty({
@@ -20,25 +20,27 @@ export abstract class UserDto {
     description: 'Nome do usuário deve está no formato: nome.sobrenome',
     example: 'edilson.segundo',
   })
-  @IsString({ message: `${EErrors.USERNAME} ${EErrors.CARACTERS_INVALID}` })
-  @IsNotEmpty({ message: EErrors.USERNAME_INVALID })
+  @IsString({
+    message: `${EUsersErrors.USERNAME} ${EUsersErrors.CARACTERS_INVALID}`,
+  })
+  @IsNotEmpty({ message: EUsersErrors.USERNAME_INVALID })
   @Matches(/^[a-z0-9]+(?:\.[a-z0-9]+)+$/, {
-    message: EErrors.USERNAME_INVALID,
+    message: EUsersErrors.USERNAME_INVALID,
   })
   username!: string;
 
   @ApiProperty({
     description: 'O admin deve ser booleano.',
   })
-  @IsBoolean({ message: EErrors.ADMIN_INVALID })
-  @IsNotEmpty({ message: EErrors.ADMIN_INVALID })
+  @IsBoolean({ message: EUsersErrors.ADMIN_INVALID })
+  @IsNotEmpty({ message: EUsersErrors.ADMIN_INVALID })
   admin!: boolean;
 
   @ApiProperty({
     description: 'Deve está true quando a senha temporária for gerada',
   })
-  @IsBoolean({ message: EErrors.MUST_CHANGE_PASSWORD_INVALID })
-  @IsNotEmpty({ message: EErrors.MUST_CHANGE_PASSWORD_INVALID })
+  @IsBoolean({ message: EUsersErrors.MUST_CHANGE_PASSWORD_INVALID })
+  @IsNotEmpty({ message: EUsersErrors.MUST_CHANGE_PASSWORD_INVALID })
   mustChangePassword!: boolean;
 
   @ApiProperty({
@@ -48,7 +50,9 @@ export abstract class UserDto {
     minLength: 8,
     maxLength: 12,
   })
-  @IsString({ message: `${EErrors.USERNAME} ${EErrors.CARACTERS_INVALID}` })
+  @IsString({
+    message: `${EUsersErrors.USERNAME} ${EUsersErrors.CARACTERS_INVALID}`,
+  })
   @IsOptional()
   @Length(8, 12, {
     message: 'A senha deve ter no mínimo 8 e no máximo 12 caracteres',

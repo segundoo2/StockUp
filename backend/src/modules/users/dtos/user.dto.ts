@@ -30,11 +30,11 @@ export abstract class UserDto {
   username!: string;
 
   @ApiProperty({
-    description: 'O admin deve ser booleano.',
+    description: 'A role deve ser string.',
   })
-  @IsBoolean({ message: EUsersErrors.ADMIN_INVALID })
-  @IsNotEmpty({ message: EUsersErrors.ADMIN_INVALID })
-  admin!: boolean;
+  @IsString({ message: EUsersErrors.ROLE_INVALID })
+  @IsNotEmpty({ message: EUsersErrors.ROLE_INVALID })
+  role!: string;
 
   @ApiProperty({
     description: 'Deve está true quando a senha temporária for gerada',

@@ -8,11 +8,13 @@ import { LocationDto } from './dtos/location.dto';
 export class LocationsController implements ILocationsController {
   constructor(
     @Inject('ILocationsService')
-    private readonly locationsService: ILocationsService,
+    private readonly service: ILocationsService,
   ) {}
 
-  createLocation(
+  async createLocation(
     tenantId: string,
     locationDto: LocationDto,
-  ): Promise<IResponse<null>> {}
+  ): Promise<IResponse<null>> {
+    return await this.service.createLocation({ ...locationDto, tenantId });
+  }
 }

@@ -35,11 +35,11 @@ export class User {
   username!: string;
 
   @ApiProperty({
-    description: 'Indica se o usuário é um administrador',
-    example: true,
+    description: 'Indica a função do usuário no sistema',
+    example: 'admin',
   })
-  @Column({ type: 'boolean' })
-  admin!: boolean;
+  @Column({ type: 'string' })
+  role!: string;
 
   @ApiProperty({
     description: 'Flag para forçar a troca de senha no próximo login',

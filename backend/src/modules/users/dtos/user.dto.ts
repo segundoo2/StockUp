@@ -6,6 +6,7 @@ import {
   IsOptional,
   Length,
   IsBoolean,
+  IsUUID,
 } from 'class-validator';
 import { EUsersErrors } from '../../../enum/users-errors.enum';
 
@@ -30,11 +31,12 @@ export abstract class UserDto {
   username!: string;
 
   @ApiProperty({
-    description: 'A role deve ser string.',
+    description: 'Identificador da role atribuída ao usuário',
+    example: 'c22e5a7d-b2b2-4d76-8809-51a81231f24d',
   })
-  @IsString({ message: EUsersErrors.ROLE_INVALID })
+  @IsUUID('4', { message: EUsersErrors.ROLE_INVALID })
   @IsNotEmpty({ message: EUsersErrors.ROLE_INVALID })
-  role!: string;
+  roleId!: string;
 
   @ApiProperty({
     description: 'Deve está true quando a senha temporária for gerada',

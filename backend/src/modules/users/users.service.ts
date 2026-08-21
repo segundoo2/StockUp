@@ -11,9 +11,10 @@ import * as generatePassword from 'generate-password';
 import * as bcrypt from 'bcrypt';
 import { UserDto } from './dtos/user.dto';
 import { UpdatePasswordDto } from './dtos/update-password.dto';
-import { UpdateAdminDto } from './dtos/update-admin.dto';
+import { UpdateUserRoleDto } from './dtos/update-user-role.dto';
 import { UpdateResult } from 'typeorm';
 import type { ICacheStorageService } from '../../common/redis/interface/cache-storage.interface';
+import type { IRolesService } from '../roles/interfaces/roles.service.interface';
 import { IResponse } from '../../interfaces/response.interface';
 import { EUsersSuccess } from '../../enum/users-sucess.enum';
 import { EUsersErrors } from '../../enum/users-errors.enum';
@@ -28,9 +29,14 @@ export class UsersService implements IUsersService {
     private readonly usersRepository: IUsersRepository,
     @Inject('ICacheStorageService')
     private readonly cacheStorage: ICacheStorageService,
+    @Inject('IRolesService')
+    private readonly rolesService: IRolesService,
   ) {}
 
   async createUser(userDto: UserDto): Promise<IResponse<string>> {
+    await this.rolesService.ensureDefaultAdminRole(userDto.tenantId);
+    await this.rolesService.getRoleForTenant(userDto.roleId, userDto.tenantId);
+
     userDto.password = this.generateTemporaryPassword();
 
     await this.usersRepository.createUser({
@@ -46,7 +52,6 @@ export class UsersService implements IUsersService {
   ): Promise<IResponse<string | null>> {
     this.verifyInvalidUsername(passwordDto.username);
 
-    // Se não houver senha, gera uma temporária, senão usa a informada
     const plainPassword =
       passwordDto.password || this.generateTemporaryPassword();
 
@@ -60,22 +65,22 @@ export class UsersService implements IUsersService {
       throw new NotFoundException(EUsersErrors.USER_NOT_FOUND);
     }
 
-    // Retorna a senha em texto claro apenas se ela foi gerada pelo sistema
     const returnData = passwordDto.password ? null : plainPassword;
 
     return { message: EUsersSuccess.PASSWORD_UPDATE, data: returnData };
   }
 
-  async updateAdminUser(adminDto: UpdateAdminDto): Promise<IResponse<null>> {
-    this.verifyInvalidUsername(adminDto.username);
+  async updateUserRole(roleDto: UpdateUserRoleDto): Promise<IResponse<null>> {
+    this.verifyInvalidUsername(roleDto.username);
+    await this.rolesService.getRoleForTenant(roleDto.roleId, roleDto.tenantId);
 
     const result: UpdateResult =
-      await this.usersRepository.updateAdminUser(adminDto);
+      await this.usersRepository.updateUserRole(roleDto);
     if (result.affected === 0) {
-      throw new NotFoundException(EUsersErrors.ADMIN_INVALID);
+      throw new NotFoundException(EUsersErrors.USER_NOT_FOUND);
     }
 
-    return { message: EUsersSuccess.ADMIN_UPDATE, data: null };
+    return { message: EUsersSuccess.ROLE_UPDATE, data: null };
   }
 
   async findAllUsers(
@@ -130,8 +135,6 @@ export class UsersService implements IUsersService {
 
     return { message: EUsersSuccess.DELETE_USER, data: null };
   }
-
-  // auxiliary methods
 
   private async getExistingUsersList(
     tenantId: string,

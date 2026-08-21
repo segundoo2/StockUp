@@ -3,11 +3,14 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   Unique,
   UpdateDateColumn,
 } from 'typeorm';
 import { ApiProperty, ApiHideProperty } from '@nestjs/swagger';
+import { Role } from '../../roles/entities/role.entity';
 
 @Entity({ name: 'users' })
 @Unique('uq_user_tenant_username', ['tenantId', 'username'])
@@ -35,11 +38,15 @@ export class User {
   username!: string;
 
   @ApiProperty({
-    description: 'Indica a função do usuário no sistema',
-    example: 'admin',
+    description: 'Identificador da role atribuída ao usuário',
+    example: 'c22e5a7d-b2b2-4d76-8809-51a81231f24d',
   })
-  @Column({ type: 'string' })
-  role!: string;
+  @Column({ type: 'uuid', name: 'role_id' })
+  roleId!: string;
+
+  @ManyToOne(() => Role, (role) => role.users, { nullable: false })
+  @JoinColumn({ name: 'role_id' })
+  role!: Role;
 
   @ApiProperty({
     description: 'Flag para forçar a troca de senha no próximo login',
@@ -48,7 +55,6 @@ export class User {
   @Column({ type: 'boolean' })
   mustChangePassword!: boolean;
 
-  // Oculta a senha nos Schemas gerados pelo Swagger
   @ApiHideProperty()
   @Column({ type: 'varchar', length: 12 })
   password!: string;

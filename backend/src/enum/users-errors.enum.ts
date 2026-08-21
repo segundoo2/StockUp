@@ -7,7 +7,8 @@ export enum EUsersErrors {
 
   CARACTERS_INVALID = 'contém caracteres inválidos',
 
-  ADMIN_INVALID = 'Nível de acesso invalido.',
+  ROLE_INVALID = 'Role inválida.',
+  ROLE_NOT_FOUND = 'Role não encontrada para este tenant.',
 
   PASSWORD_INCORRECT = 'Nome de usuário ou senha inválido.',
   MUST_CHANGE_PASSWORD_INVALID = 'Must change password inválido.',

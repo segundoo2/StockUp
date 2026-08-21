@@ -15,7 +15,7 @@ import {
 import { EErrorsGlobal } from '../../enum/errors-global.enum';
 import { UserDto } from './dtos/user.dto';
 import { UpdatePasswordDto } from './dtos/update-password.dto';
-import { UpdateAdminDto } from './dtos/update-admin.dto';
+import { UpdateUserRoleDto } from './dtos/update-user-role.dto';
 import { IDatabaseDriverError } from '../../interfaces/database-driver-Error.interface';
 import { EUsersErrors } from '../../enum/users-errors.enum';
 
@@ -58,13 +58,11 @@ export class UsersRepository implements IUsersRepository {
     }
   }
 
-  async updateAdminUser(adminDto: UpdateAdminDto): Promise<UpdateResult> {
+  async updateUserRole(roleDto: UpdateUserRoleDto): Promise<UpdateResult> {
     try {
       return await this.repository.update(
-        { username: adminDto.username, tenantId: adminDto.tenantId },
-        {
-          admin: adminDto.admin,
-        },
+        { username: roleDto.username, tenantId: roleDto.tenantId },
+        { roleId: roleDto.roleId },
       );
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
@@ -79,13 +77,19 @@ export class UsersRepository implements IUsersRepository {
         where: {
           tenantId,
         },
+        relations: ['role'],
         select: {
           id: true,
           username: true,
-          admin: true,
+          roleId: true,
           mustChangePassword: true,
           createdAt: true,
           updatedAt: true,
+          role: {
+            id: true,
+            name: true,
+            permissions: true,
+          },
         },
       });
       return users.length === 0 ? null : users;
@@ -101,13 +105,19 @@ export class UsersRepository implements IUsersRepository {
     try {
       return await this.repository.findOne({
         where: { username, tenantId },
+        relations: ['role'],
         select: {
           id: true,
           username: true,
-          admin: true,
+          roleId: true,
           mustChangePassword: true,
           createdAt: true,
           updatedAt: true,
+          role: {
+            id: true,
+            name: true,
+            permissions: true,
+          },
         },
       });
     } catch {

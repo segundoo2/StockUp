@@ -25,13 +25,14 @@ import type { IUsersService } from './interfaces/users.service.interface';
 import { EUsersSuccess } from '../../enum/users-sucess.enum';
 import { UserDto } from './dtos/user.dto';
 import { UpdatePasswordDto } from './dtos/update-password.dto';
-import { UpdateAdminDto } from './dtos/update-admin.dto';
+import { UpdateUserRoleDto } from './dtos/update-user-role.dto';
 import { AuthGuard } from '@nestjs/passport';
-import { AdminGuard } from '../../guards/admin.guard';
-import { RequiresAdmin } from '../../decorators/admin.decorator';
+import { PermissionGuard } from '../../guards/permission.guard';
+import { RequiresPermission } from '../../decorators/permission.decorator';
 import { User } from './entities/user.entity';
 import { IResponse } from '../../interfaces/response.interface';
 import { TenantId } from '../../decorators/tenant-id.decorator';
+import { EPermission } from '../../enum/permissions.enum';
 
 @ApiTags('Users')
 @Controller('users')
@@ -44,10 +45,10 @@ export class UsersController implements IUsersController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @UseGuards(AuthGuard('jwt'), AdminGuard)
-  @RequiresAdmin()
+  @UseGuards(AuthGuard('jwt'), PermissionGuard)
+  @RequiresPermission(EPermission.USERS_CREATE)
   @ApiCookieAuth('access_token')
-  @ApiOperation({ summary: 'Criar um novo usuário (Apenas Admin)' })
+  @ApiOperation({ summary: 'Criar um novo usuário' })
   @ApiBody({ type: UserDto })
   @ApiResponse({
     status: HttpStatus.CREATED,
@@ -59,7 +60,7 @@ export class UsersController implements IUsersController {
   })
   @ApiResponse({
     status: HttpStatus.FORBIDDEN,
-    description: 'Acesso restrito a administradores.',
+    description: 'Acesso negado: permissão insuficiente.',
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
@@ -72,7 +73,7 @@ export class UsersController implements IUsersController {
     try {
       userDto.tenantId = tenantId;
       this.logger.log(
-        `Tentativa de criação de usuário pelo administrador para o username: "${userDto.username}"`,
+        `Tentativa de criação de usuário para o username: "${userDto.username}"`,
       );
 
       const result = await this.usersService.createUser(userDto);
@@ -90,8 +91,8 @@ export class UsersController implements IUsersController {
 
   @Patch()
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'), AdminGuard)
-  @RequiresAdmin()
+  @UseGuards(AuthGuard('jwt'), PermissionGuard)
+  @RequiresPermission(EPermission.USERS_UPDATE_PASSWORD)
   @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Atualizar a senha de um usuário autenticado' })
   @ApiBody({ type: UpdatePasswordDto })
@@ -131,52 +132,51 @@ export class UsersController implements IUsersController {
     }
   }
 
-  @Patch('/admin')
+  @Patch('/role')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'), AdminGuard)
-  @RequiresAdmin()
+  @UseGuards(AuthGuard('jwt'), PermissionGuard)
+  @RequiresPermission(EPermission.USERS_UPDATE_ROLE)
   @ApiCookieAuth('access_token')
   @ApiOperation({
-    summary:
-      'Atualizar o nível de privilégio admin de um usuário (Apenas Admin)',
+    summary: 'Atualizar a role de um usuário',
   })
-  @ApiBody({ type: UpdateAdminDto })
+  @ApiBody({ type: UpdateUserRoleDto })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Privilégios de administrador atualizados com sucesso.',
+    description: EUsersSuccess.ROLE_UPDATE,
     type: Object,
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
-    description: 'Usuário não encontrado.',
+    description: 'Usuário ou role não encontrados.',
   })
   @ApiResponse({
     status: HttpStatus.FORBIDDEN,
-    description: 'Acesso restrito a administradores.',
+    description: 'Acesso negado: permissão insuficiente.',
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
     description: 'Não autorizado.',
   })
-  async updateAdminUser(
-    @Body() adminDto: UpdateAdminDto,
+  async updateUserRole(
+    @Body() roleDto: UpdateUserRoleDto,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
     try {
-      adminDto.tenantId = tenantId;
+      roleDto.tenantId = tenantId;
       this.logger.warn(
-        `Alteração de privilégios administrativos solicitada para o usuário: "${adminDto.username}". Novo status Admin: ${adminDto.admin}`,
+        `Alteração de role solicitada para o usuário: "${roleDto.username}". Nova role: ${roleDto.roleId}`,
       );
 
-      const result = await this.usersService.updateAdminUser(adminDto);
+      const result = await this.usersService.updateUserRole(roleDto);
 
       this.logger.log(
-        `Privilégios administrativos modificados com sucesso para o usuário: "${adminDto.username}".`,
+        `Role modificada com sucesso para o usuário: "${roleDto.username}".`,
       );
       return result;
     } catch (error) {
       this.logger.error(
-        `Erro ao atualizar privilégios do usuário "${adminDto.username}": ${(error as Error).message}`,
+        `Erro ao atualizar role do usuário "${roleDto.username}": ${(error as Error).message}`,
         (error as Error).stack,
       );
       throw error;
@@ -185,8 +185,8 @@ export class UsersController implements IUsersController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'), AdminGuard)
-  @RequiresAdmin()
+  @UseGuards(AuthGuard('jwt'), PermissionGuard)
+  @RequiresPermission(EPermission.USERS_READ)
   @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Buscar lista de todos os usuários' })
   @ApiResponse({
@@ -220,8 +220,8 @@ export class UsersController implements IUsersController {
 
   @Get(':username')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'), AdminGuard)
-  @RequiresAdmin()
+  @UseGuards(AuthGuard('jwt'), PermissionGuard)
+  @RequiresPermission(EPermission.USERS_READ)
   @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Buscar usuário através do username' })
   @ApiParam({
@@ -263,11 +263,11 @@ export class UsersController implements IUsersController {
 
   @Delete(':username')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(AuthGuard('jwt'), AdminGuard)
-  @RequiresAdmin()
+  @UseGuards(AuthGuard('jwt'), PermissionGuard)
+  @RequiresPermission(EPermission.USERS_DELETE)
   @ApiCookieAuth('access_token')
   @ApiOperation({
-    summary: 'Deleta um usuário cadastrado permanentemente (Apenas Admin)',
+    summary: 'Deleta um usuário cadastrado permanentemente',
   })
   @ApiParam({
     name: 'username',
@@ -285,7 +285,7 @@ export class UsersController implements IUsersController {
   })
   @ApiResponse({
     status: HttpStatus.FORBIDDEN,
-    description: 'Acesso restrito a administradores.',
+    description: 'Acesso negado: permissão insuficiente.',
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,

@@ -1,5 +1,5 @@
 import { IResponse } from '../../../interfaces/response.interface';
-import { UpdateAdminDto } from '../dtos/update-admin.dto';
+import { UpdateUserRoleDto } from '../dtos/update-user-role.dto';
 import { UpdatePasswordDto } from '../dtos/update-password.dto';
 import { UserDto } from '../dtos/user.dto';
 import { User } from '../entities/user.entity';
@@ -11,12 +11,11 @@ export interface IUsersController {
     tenantId: string,
   ): Promise<IResponse<string | null>>;
 
-  updateAdminUser(
-    adminDto: UpdateAdminDto,
+  updateUserRole(
+    roleDto: UpdateUserRoleDto,
     tenantId: string,
   ): Promise<IResponse<null>>;
 
-  //Implementar paginação depois...
   findAllUsers(tenantId: string): Promise<IResponse<Omit<User, 'password'>[]>>;
 
   findOneByUsername(

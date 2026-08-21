@@ -1,8 +1,11 @@
+import { EPermission } from '../../../enum/permissions.enum';
+
 export interface IJwtPayload {
   sub: string;
   tenantId: string;
   username: string;
-  admin: boolean;
+  roleId: string;
+  permissions: EPermission[];
   fingerprint: string;
 }
 

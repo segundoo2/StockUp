@@ -5,4 +5,6 @@ export interface ILocationsRepository {
   createLocation(
     locationDto: LocationDto & { tenantId: string },
   ): Promise<Location>;
+
+  findByCode(code: string, tenantId: string): Promise<Location | null>;
 }

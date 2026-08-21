@@ -85,4 +85,18 @@ describe('LocationsRepository', () => {
       () => repositoryOrm.save,
     );
   });
+
+  describe('findByCode', () => {
+    it('It should return a location object when it is found', async () => {
+      repositoryOrm.findOne?.mockResolvedValue(response);
+      expect(
+        await repository.findByCode(locationDto.code, locationDto.tenantId),
+      ).toEqual(response);
+    });
+
+    shouldHandleDatabaseErrors(
+      () => repository.findByCode(locationDto.code, locationDto.tenantId),
+      () => repositoryOrm.findOne,
+    );
+  });
 });

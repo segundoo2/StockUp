@@ -32,7 +32,7 @@ export class Location {
     description: 'Código/Endereço físico da localização no estoque',
     example: 'CORREDOR-A-PRATELEIRA-02',
   })
-  @Column({ type: 'varchar', length: 50 })
+  @Column({ type: 'varchar', length: 50, unique: true })
   code!: string;
 
   @ApiPropertyOptional({

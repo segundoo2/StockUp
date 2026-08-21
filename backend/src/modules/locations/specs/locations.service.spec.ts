@@ -1,9 +1,11 @@
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ELocationSuccessMessage } from '../../../enum/location-success.enum';
 import { IResponse } from '../../../interfaces/response.interface';
 import { LocationDto } from '../dtos/location.dto';
 import { Location } from '../entities/location.entity';
 import { ILocationsRepository } from '../interfaces/locations.repository.interface';
 import { LocationsService } from '../locations.service';
+import { ELocationErrorsMessage } from '../../../enum/location-errors.enum';
 
 describe('LocationsService', () => {
   let service: LocationsService;
@@ -12,6 +14,7 @@ describe('LocationsService', () => {
   beforeEach(() => {
     repository = {
       createLocation: jest.fn(),
+      findByCode: jest.fn(),
     };
     service = new LocationsService(repository);
   });
@@ -21,7 +24,7 @@ describe('LocationsService', () => {
     code: 'B1AP001',
     description: 'descrição',
   };
-  const response: IResponse<null> = {
+  const response: IResponse<Location | null> = {
     message: ELocationSuccessMessage.CREATE,
     data: null,
   };
@@ -38,6 +41,39 @@ describe('LocationsService', () => {
     it(`should return the object {message: ${ELocationSuccessMessage.CREATE}, data: null}`, async () => {
       repository.createLocation.mockResolvedValue(responseRepository);
       expect(await service.createLocation(locationDto)).toEqual(response);
+    });
+
+    it('should return ConflictException when location exist', async () => {
+      repository.findByCode.mockResolvedValue(responseRepository);
+      await expect(service.createLocation(locationDto)).rejects.toThrow(
+        new ConflictException(ELocationErrorsMessage.CONFLICT),
+      );
+    });
+  });
+
+  describe('findByCode', () => {
+    it(`should return { message: ${ELocationSuccessMessage.FINDONE}, data: Location } when the location is found`, async () => {
+      response.message = ELocationSuccessMessage.FINDONE;
+      response.data = responseRepository;
+      repository.findByCode.mockResolvedValue(responseRepository);
+      expect(
+        await service.findByCode(
+          responseRepository.code,
+          responseRepository.tenantId,
+        ),
+      ).toEqual(response);
+    });
+
+    it('should return NotFoundException when location not found', async () => {
+      repository.findByCode.mockResolvedValue(null);
+      await expect(
+        service.findByCode(
+          responseRepository.code,
+          responseRepository.tenantId,
+        ),
+      ).rejects.toThrow(
+        new NotFoundException(ELocationErrorsMessage.NOT_FOUND),
+      );
     });
   });
 });

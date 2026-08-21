@@ -21,4 +21,12 @@ export class LocationsRepository implements ILocationsRepository {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }
   }
+
+  async findByCode(code: string, tenantId: string): Promise<Location | null> {
+    try {
+      return await this.repository.findOne({ where: { code, tenantId } });
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
 }

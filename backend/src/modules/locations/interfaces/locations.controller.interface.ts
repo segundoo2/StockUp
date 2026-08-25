@@ -8,5 +8,7 @@ export interface ILocationsController {
     locationDto: LocationDto,
   ): Promise<IResponse<null>>;
 
+  updateLocation(id: string, tenantId: string): Promise<IResponse<null>>;
+
   findByCode(code: string, tenantId: string): Promise<IResponse<Location>>;
 }

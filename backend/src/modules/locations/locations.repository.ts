@@ -5,6 +5,7 @@ import { Location } from './entities/location.entity';
 import { Repository, UpdateResult } from 'typeorm';
 import { LocationDto } from './dtos/location.dto';
 import { EErrorsGlobal } from '../../enum/errors-global.enum';
+import { UpdateDescriptionLocationDto } from './dtos/update-description-location.dto';
 
 @Injectable()
 export class LocationsRepository implements ILocationsRepository {
@@ -36,6 +37,20 @@ export class LocationsRepository implements ILocationsRepository {
   ): Promise<UpdateResult> {
     try {
       return await this.repository.update({ code, tenantId }, { code });
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
+
+  async updateDescriptionLocation(
+    updateDescriptionLocation: UpdateDescriptionLocationDto,
+    tenantId: string,
+  ): Promise<UpdateResult> {
+    try {
+      return await this.repository.update(
+        { code: updateDescriptionLocation.code, tenantId },
+        { description: updateDescriptionLocation.description },
+      );
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }

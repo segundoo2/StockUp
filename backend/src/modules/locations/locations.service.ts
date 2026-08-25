@@ -11,6 +11,7 @@ import { LocationDto } from './dtos/location.dto';
 import { ELocationSuccessMessage } from '../../enum/location-success.enum';
 import { Location } from './entities/location.entity';
 import { ELocationErrorsMessage } from '../../enum/location-errors.enum';
+import { UpdateDescriptionLocationDto } from './dtos/update-description-location.dto';
 
 @Injectable()
 export class LocationsService implements ILocationsService {
@@ -65,5 +66,23 @@ export class LocationsService implements ILocationsService {
       throw new NotFoundException(ELocationErrorsMessage.NOT_FOUND);
     }
     return { message: ELocationSuccessMessage.UPDATE_CODE, data: null };
+  }
+
+  async updateDescriptionLocation(
+    updateDescriptionLocation: UpdateDescriptionLocationDto,
+    tenantId: string,
+  ): Promise<IResponse<null>> {
+    const updatedDescriptionLocation =
+      await this.repository.updateDescriptionLocation(
+        updateDescriptionLocation,
+        tenantId,
+      );
+    if (updatedDescriptionLocation.affected === 0) {
+      throw new NotFoundException(ELocationErrorsMessage.NOT_FOUND);
+    }
+    return {
+      message: ELocationSuccessMessage.UPDATE_DESCRIPTION,
+      data: null,
+    };
   }
 }

@@ -6,6 +6,7 @@ import { LocationDto } from './dtos/location.dto';
 import { Location } from './entities/location.entity';
 import { TenantId } from '../../decorators/tenant-id.decorator';
 import { EErrorsGlobal } from '../../enum/errors-global.enum';
+import { UpdateDescriptionLocationDto } from './dtos/update-description-location.dto';
 
 @Controller('locations')
 export class LocationsController implements ILocationsController {
@@ -42,5 +43,16 @@ export class LocationsController implements ILocationsController {
       throw new BadRequestException(EErrorsGlobal.INVALID_DATA);
     }
     return await this.service.updateCodeLocation(code, tenantId);
+  }
+
+  async updateDescriptionLocation(
+    updateDescriptionLocation: UpdateDescriptionLocationDto,
+    @TenantId()
+    tenantId: string,
+  ): Promise<IResponse<null>> {
+    return await this.service.updateDescriptionLocation(
+      updateDescriptionLocation,
+      tenantId,
+    );
   }
 }

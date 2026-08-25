@@ -16,6 +16,7 @@ describe('LocationsService', () => {
       createLocation: jest.fn(),
       findByCode: jest.fn(),
       updateCodeLocation: jest.fn(),
+      updateDescriptionLocation: jest.fn(),
     };
     service = new LocationsService(repository);
   });
@@ -103,6 +104,45 @@ describe('LocationsService', () => {
       await expect(
         service.updateCodeLocation(
           responseRepository.code,
+          responseRepository.tenantId,
+        ),
+      ).rejects.toThrow(
+        new NotFoundException(ELocationErrorsMessage.NOT_FOUND),
+      );
+    });
+  });
+
+  describe('updateDescriptionLocation', () => {
+    it(`should return { message: ${ELocationSuccessMessage.UPDATE_DESCRIPTION}, data: null }`, async () => {
+      response.message = ELocationSuccessMessage.UPDATE_DESCRIPTION;
+      repository.updateDescriptionLocation.mockResolvedValue({
+        raw: [],
+        affected: 1,
+        generatedMaps: [],
+      });
+      expect(
+        await service.updateDescriptionLocation(
+          {
+            code: responseRepository.code,
+            description: responseRepository.description,
+          },
+          responseRepository.tenantId,
+        ),
+      ).toEqual(response);
+    });
+
+    it('should return NotFoundException when the location not found', async () => {
+      repository.updateDescriptionLocation.mockResolvedValue({
+        raw: [],
+        affected: 0,
+        generatedMaps: [],
+      });
+      await expect(
+        service.updateDescriptionLocation(
+          {
+            code: responseRepository.code,
+            description: responseRepository.description,
+          },
           responseRepository.tenantId,
         ),
       ).rejects.toThrow(

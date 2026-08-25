@@ -1,9 +1,11 @@
-import { Controller, Inject } from '@nestjs/common';
+import { BadRequestException, Controller, Inject } from '@nestjs/common';
 import { ILocationsController } from './interfaces/locations.controller.interface';
 import type { ILocationsService } from './interfaces/locations.service.interface';
 import { IResponse } from '../../interfaces/response.interface';
 import { LocationDto } from './dtos/location.dto';
 import { Location } from './entities/location.entity';
+import { TenantId } from '../../decorators/tenant-id.decorator';
+import { EErrorsGlobal } from '../../enum/errors-global.enum';
 
 @Controller('locations')
 export class LocationsController implements ILocationsController {
@@ -14,6 +16,7 @@ export class LocationsController implements ILocationsController {
 
   async createLocation(
     tenantId: string,
+    @TenantId()
     locationDto: LocationDto,
   ): Promise<IResponse<null>> {
     return await this.service.createLocation({ ...locationDto, tenantId });
@@ -21,8 +24,23 @@ export class LocationsController implements ILocationsController {
 
   async findByCode(
     code: string,
+    @TenantId()
     tenantId: string,
   ): Promise<IResponse<Location>> {
+    if (!code && !tenantId) {
+      throw new BadRequestException(EErrorsGlobal.INVALID_DATA);
+    }
     return await this.service.findByCode(code, tenantId);
+  }
+
+  async updateCodeLocation(
+    code: string,
+    @TenantId()
+    tenantId: string,
+  ): Promise<IResponse<null>> {
+    if (!code && !tenantId) {
+      throw new BadRequestException(EErrorsGlobal.INVALID_DATA);
+    }
+    return await this.service.updateCodeLocation(code, tenantId);
   }
 }

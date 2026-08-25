@@ -13,6 +13,7 @@ describe('LocationController', () => {
     service = {
       createLocation: jest.fn(),
       findByCode: jest.fn(),
+      updateCodeLocation: jest.fn(),
     };
     controller = new LocationsController(service);
   });
@@ -50,6 +51,19 @@ describe('LocationController', () => {
       service.findByCode.mockResolvedValue(response as IResponse<Location>);
       expect(
         await controller.findByCode(
+          responseService.code,
+          responseService.tenantId,
+        ),
+      ).toEqual(response);
+    });
+  });
+
+  describe('updateCodeLocation', () => {
+    it(`should return { message: ${ELocationSuccessMessage.UPDATE_CODE}, data: null }`, async () => {
+      response.message = ELocationSuccessMessage.UPDATE_CODE;
+      service.updateCodeLocation.mockResolvedValue(response as IResponse<null>);
+      expect(
+        await controller.updateCodeLocation(
           responseService.code,
           responseService.tenantId,
         ),

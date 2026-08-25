@@ -99,4 +99,23 @@ describe('LocationsRepository', () => {
       () => repositoryOrm.findOne,
     );
   });
+
+  describe('updateCodeLocation', () => {
+    it('should return { raw [], affected: 1, generatedMaps: []', async () => {
+      repositoryOrm.update?.mockResolvedValue({
+        raw: [],
+        affected: 1,
+        generatedMaps: [],
+      });
+      expect(
+        await repository.updateCodeLocation(response.code, response.tenantId),
+      ).toEqual({ raw: [], affected: 1, generatedMaps: [] });
+    });
+
+    shouldHandleDatabaseErrors(
+      () =>
+        repository.updateCodeLocation(locationDto.code, locationDto.tenantId),
+      () => repositoryOrm.update,
+    );
+  });
 });

@@ -2,7 +2,7 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ILocationsRepository } from './interfaces/locations.repository.interface';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Location } from './entities/location.entity';
-import { Repository } from 'typeorm';
+import { Repository, UpdateResult } from 'typeorm';
 import { LocationDto } from './dtos/location.dto';
 import { EErrorsGlobal } from '../../enum/errors-global.enum';
 
@@ -25,6 +25,17 @@ export class LocationsRepository implements ILocationsRepository {
   async findByCode(code: string, tenantId: string): Promise<Location | null> {
     try {
       return await this.repository.findOne({ where: { code, tenantId } });
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
+
+  async updateCodeLocation(
+    code: string,
+    tenantId: string,
+  ): Promise<UpdateResult> {
+    try {
+      return await this.repository.update({ code, tenantId }, { code });
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }

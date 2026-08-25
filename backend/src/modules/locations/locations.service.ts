@@ -52,4 +52,18 @@ export class LocationsService implements ILocationsService {
       data: locationFound,
     };
   }
+
+  async updateCodeLocation(
+    code: string,
+    tenantId: string,
+  ): Promise<IResponse<null>> {
+    const updatedLocation = await this.repository.updateCodeLocation(
+      code,
+      tenantId,
+    );
+    if (updatedLocation.affected === 0) {
+      throw new NotFoundException(ELocationErrorsMessage.NOT_FOUND);
+    }
+    return { message: ELocationSuccessMessage.UPDATE_CODE, data: null };
+  }
 }

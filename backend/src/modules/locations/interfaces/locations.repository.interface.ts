@@ -7,7 +7,7 @@ export interface ILocationsRepository {
     locationDto: LocationDto & { tenantId: string },
   ): Promise<Location>;
 
-  updateLocation(id: string, tenantId: string): Promise<UpdateResult>;
-
   findByCode(code: string, tenantId: string): Promise<Location | null>;
+
+  updateCodeLocation(code: string, tenantId: string): Promise<UpdateResult>;
 }

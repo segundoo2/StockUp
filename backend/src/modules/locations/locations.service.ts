@@ -85,4 +85,31 @@ export class LocationsService implements ILocationsService {
       data: null,
     };
   }
+
+  async deleteLocation(
+    code: string,
+    tenantId: string,
+  ): Promise<IResponse<null>> {
+    const productListLocation = await this.repository.findByCode(
+      code,
+      tenantId,
+    );
+    if (
+      productListLocation?.productLocations &&
+      productListLocation.productLocations.length > 0
+    ) {
+      throw new ConflictException(ELocationErrorsMessage.CONFLICT_DELETE);
+    }
+    const deletedLocation = await this.repository.deleteLocation(
+      code,
+      tenantId,
+    );
+    if (deletedLocation.affected === 0) {
+      throw new NotFoundException(ELocationErrorsMessage.NOT_FOUND);
+    }
+    return {
+      message: ELocationSuccessMessage.DELETE,
+      data: null,
+    };
+  }
 }

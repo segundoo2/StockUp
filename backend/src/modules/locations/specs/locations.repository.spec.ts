@@ -143,4 +143,21 @@ describe('LocationsRepository', () => {
       () => repositoryOrm.update,
     );
   });
+
+  describe('deleteLocation', () => {
+    it('should return { raw [], affected: 1, generatedMaps: [] } when location found and deleted', async () => {
+      repositoryOrm.delete?.mockResolvedValue({
+        raw: [],
+        affected: 1,
+      });
+      expect(
+        await repository.deleteLocation(response.code, response.tenantId),
+      ).toEqual({ raw: [], affected: 1 });
+    });
+
+    shouldHandleDatabaseErrors(
+      () => repository.deleteLocation(locationDto.code, locationDto.tenantId),
+      () => repositoryOrm.delete,
+    );
+  });
 });

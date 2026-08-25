@@ -2,7 +2,7 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ILocationsRepository } from './interfaces/locations.repository.interface';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Location } from './entities/location.entity';
-import { Repository, UpdateResult } from 'typeorm';
+import { DeleteResult, Repository, UpdateResult } from 'typeorm';
 import { LocationDto } from './dtos/location.dto';
 import { EErrorsGlobal } from '../../enum/errors-global.enum';
 import { UpdateDescriptionLocationDto } from './dtos/update-description-location.dto';
@@ -51,6 +51,14 @@ export class LocationsRepository implements ILocationsRepository {
         { code: updateDescriptionLocation.code, tenantId },
         { description: updateDescriptionLocation.description },
       );
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
+
+  async deleteLocation(code: string, tenantId: string): Promise<DeleteResult> {
+    try {
+      return await this.repository.delete({ code, tenantId });
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }

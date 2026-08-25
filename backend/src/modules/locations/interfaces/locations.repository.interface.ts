@@ -1,4 +1,4 @@
-import { UpdateResult } from 'typeorm';
+import { DeleteResult, UpdateResult } from 'typeorm';
 import { LocationDto } from '../dtos/location.dto';
 import { Location } from '../entities/location.entity';
 import { UpdateDescriptionLocationDto } from '../dtos/update-description-location.dto';
@@ -16,4 +16,6 @@ export interface ILocationsRepository {
     updateDescriptionLocation: UpdateDescriptionLocationDto,
     tenantId: string,
   ): Promise<UpdateResult>;
+
+  deleteLocation(code: string, tenantId: string): Promise<DeleteResult>;
 }

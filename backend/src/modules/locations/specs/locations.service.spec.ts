@@ -17,6 +17,7 @@ describe('LocationsService', () => {
       findByCode: jest.fn(),
       updateCodeLocation: jest.fn(),
       updateDescriptionLocation: jest.fn(),
+      deleteLocation: jest.fn(),
     };
     service = new LocationsService(repository);
   });
@@ -82,6 +83,7 @@ describe('LocationsService', () => {
   describe('updateCodeLocation', () => {
     it(`should return { message: ${ELocationSuccessMessage.UPDATE_CODE}, data: null }`, async () => {
       response.message = ELocationSuccessMessage.UPDATE_CODE;
+      response.data = null;
       repository.updateCodeLocation.mockResolvedValue({
         raw: [],
         affected: 1,
@@ -115,6 +117,7 @@ describe('LocationsService', () => {
   describe('updateDescriptionLocation', () => {
     it(`should return { message: ${ELocationSuccessMessage.UPDATE_DESCRIPTION}, data: null }`, async () => {
       response.message = ELocationSuccessMessage.UPDATE_DESCRIPTION;
+      response.data = null;
       repository.updateDescriptionLocation.mockResolvedValue({
         raw: [],
         affected: 1,
@@ -143,6 +146,53 @@ describe('LocationsService', () => {
             code: responseRepository.code,
             description: responseRepository.description,
           },
+          responseRepository.tenantId,
+        ),
+      ).rejects.toThrow(
+        new NotFoundException(ELocationErrorsMessage.NOT_FOUND),
+      );
+    });
+  });
+
+  describe('deleteLocation', () => {
+    it(`should return { message: ${ELocationSuccessMessage.DELETE}, data: null }`, async () => {
+      response.message = ELocationSuccessMessage.DELETE;
+      response.data = null;
+      repository.deleteLocation.mockResolvedValue({
+        raw: [],
+        affected: 1,
+      });
+      expect(
+        await service.deleteLocation(
+          responseRepository.code,
+          responseRepository.tenantId,
+        ),
+      ).toEqual(response);
+    });
+
+    it('should return ConflictException when the location has products associated', async () => {
+      repository.findByCode.mockResolvedValue({
+        ...responseRepository,
+        productLocations: [{} as any],
+      });
+      await expect(
+        service.deleteLocation(
+          responseRepository.code,
+          responseRepository.tenantId,
+        ),
+      ).rejects.toThrow(
+        new ConflictException(ELocationErrorsMessage.CONFLICT_DELETE),
+      );
+    });
+
+    it('should return NotFoundException when the location not found', async () => {
+      repository.deleteLocation.mockResolvedValue({
+        raw: [],
+        affected: 0,
+      });
+      await expect(
+        service.deleteLocation(
+          responseRepository.code,
           responseRepository.tenantId,
         ),
       ).rejects.toThrow(

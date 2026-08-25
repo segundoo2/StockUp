@@ -15,6 +15,7 @@ describe('LocationController', () => {
       findByCode: jest.fn(),
       updateCodeLocation: jest.fn(),
       updateDescriptionLocation: jest.fn(),
+      deleteLocation: jest.fn(),
     };
     controller = new LocationsController(service);
   });
@@ -84,6 +85,19 @@ describe('LocationController', () => {
             code: responseService.code,
             description: responseService.description,
           },
+          responseService.tenantId,
+        ),
+      ).toEqual(response);
+    });
+  });
+
+  describe('deleteLocation', () => {
+    it(`should return { message: ${ELocationSuccessMessage.DELETE}, data: null }`, async () => {
+      response.message = ELocationSuccessMessage.DELETE;
+      service.deleteLocation.mockResolvedValue(response as IResponse<null>);
+      expect(
+        await controller.deleteLocation(
+          responseService.code,
           responseService.tenantId,
         ),
       ).toEqual(response);

@@ -16,4 +16,6 @@ export interface ILocationsService {
     updateDescriptionLocation: UpdateDescriptionLocationDto,
     tenantId: string,
   ): Promise<IResponse<null>>;
+
+  deleteLocation(code: string, tenantId: string): Promise<IResponse<null>>;
 }

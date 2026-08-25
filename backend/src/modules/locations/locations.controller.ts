@@ -55,4 +55,12 @@ export class LocationsController implements ILocationsController {
       tenantId,
     );
   }
+
+  async deleteLocation(
+    code: string,
+    @TenantId()
+    tenantId: string,
+  ): Promise<IResponse<null>> {
+    return await this.service.deleteLocation(code, tenantId);
+  }
 }

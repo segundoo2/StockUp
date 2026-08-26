@@ -25,7 +25,6 @@ import type { IUsersService } from './interfaces/users.service.interface';
 import { EUsersSuccess } from '../../enum/users-sucess.enum';
 import { UserDto } from './dtos/user.dto';
 import { UpdatePasswordDto } from './dtos/update-password.dto';
-import { UpdateUserRoleDto } from './dtos/update-user-role.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { PermissionGuard } from '../../guards/permission.guard';
 import { RequiresPermission } from '../../decorators/permission.decorator';
@@ -126,57 +125,6 @@ export class UsersController implements IUsersController {
     } catch (error) {
       this.logger.error(
         `Erro ao atualizar senha do usuário "${userDto.username}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
-  }
-
-  @Patch('/role')
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'), PermissionGuard)
-  @RequiresPermission(EPermission.USERS_UPDATE_ROLE)
-  @ApiCookieAuth('access_token')
-  @ApiOperation({
-    summary: 'Atualizar a role de um usuário',
-  })
-  @ApiBody({ type: UpdateUserRoleDto })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: EUsersSuccess.ROLE_UPDATE,
-    type: Object,
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Usuário ou role não encontrados.',
-  })
-  @ApiResponse({
-    status: HttpStatus.FORBIDDEN,
-    description: 'Acesso negado: permissão insuficiente.',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Não autorizado.',
-  })
-  async updateUserRole(
-    @Body() roleDto: UpdateUserRoleDto,
-    @TenantId() tenantId: string,
-  ): Promise<IResponse<null>> {
-    try {
-      roleDto.tenantId = tenantId;
-      this.logger.warn(
-        `Alteração de role solicitada para o usuário: "${roleDto.username}". Nova role: ${roleDto.roleId}`,
-      );
-
-      const result = await this.usersService.updateUserRole(roleDto);
-
-      this.logger.log(
-        `Role modificada com sucesso para o usuário: "${roleDto.username}".`,
-      );
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `Erro ao atualizar role do usuário "${roleDto.username}": ${(error as Error).message}`,
         (error as Error).stack,
       );
       throw error;

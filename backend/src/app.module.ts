@@ -7,7 +7,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from './modules/auth/auth.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ProductsModule } from './modules/products/products.module';
-import { CategorysModule } from './modules/categorys/categorys.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { LocationsModule } from './modules/locations/locations.module';
 
@@ -35,7 +34,6 @@ import { LocationsModule } from './modules/locations/locations.module';
     UsersModule,
     AuthModule,
     ProductsModule,
-    CategorysModule,
     CategoriesModule,
     LocationsModule,
   ],

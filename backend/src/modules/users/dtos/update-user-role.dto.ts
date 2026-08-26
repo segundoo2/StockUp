@@ -28,5 +28,5 @@ export abstract class UpdateUserRoleDto {
   })
   @IsUUID('4', { message: EUsersErrors.ROLE_INVALID })
   @IsNotEmpty({ message: EUsersErrors.ROLE_INVALID })
-  roleId!: string;
+  rolesIds!: string;
 }

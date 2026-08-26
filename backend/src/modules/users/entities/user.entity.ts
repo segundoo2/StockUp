@@ -3,14 +3,11 @@ import {
   CreateDateColumn,
   Entity,
   Index,
-  JoinColumn,
-  ManyToOne,
   PrimaryGeneratedColumn,
   Unique,
   UpdateDateColumn,
 } from 'typeorm';
 import { ApiProperty, ApiHideProperty } from '@nestjs/swagger';
-import { Role } from '../../roles/entities/role.entity';
 
 @Entity({ name: 'users' })
 @Unique('uq_user_tenant_username', ['tenantId', 'username'])
@@ -42,11 +39,7 @@ export class User {
     example: 'c22e5a7d-b2b2-4d76-8809-51a81231f24d',
   })
   @Column({ type: 'uuid', name: 'role_id' })
-  roleId!: string;
-
-  @ManyToOne(() => Role, (role) => role.users, { nullable: false })
-  @JoinColumn({ name: 'role_id' })
-  role!: Role;
+  rolesIds!: string;
 
   @ApiProperty({
     description: 'Flag para forçar a troca de senha no próximo login',

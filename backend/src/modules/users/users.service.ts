@@ -11,13 +11,11 @@ import * as generatePassword from 'generate-password';
 import * as bcrypt from 'bcrypt';
 import { UserDto } from './dtos/user.dto';
 import { UpdatePasswordDto } from './dtos/update-password.dto';
-import { UpdateUserRoleDto } from './dtos/update-user-role.dto';
 import { UpdateResult } from 'typeorm';
 import type { ICacheStorageService } from '../../common/redis/interface/cache-storage.interface';
-import type { IRolesService } from '../roles/interfaces/roles.service.interface';
-import { IResponse } from '../../interfaces/response.interface';
 import { EUsersSuccess } from '../../enum/users-sucess.enum';
 import { EUsersErrors } from '../../enum/users-errors.enum';
+import { IResponse } from '../../interfaces/response.interface';
 
 @Injectable()
 export class UsersService implements IUsersService {
@@ -29,14 +27,9 @@ export class UsersService implements IUsersService {
     private readonly usersRepository: IUsersRepository,
     @Inject('ICacheStorageService')
     private readonly cacheStorage: ICacheStorageService,
-    @Inject('IRolesService')
-    private readonly rolesService: IRolesService,
   ) {}
 
   async createUser(userDto: UserDto): Promise<IResponse<string>> {
-    await this.rolesService.ensureDefaultAdminRole(userDto.tenantId);
-    await this.rolesService.getRoleForTenant(userDto.roleId, userDto.tenantId);
-
     userDto.password = this.generateTemporaryPassword();
 
     await this.usersRepository.createUser({
@@ -68,19 +61,6 @@ export class UsersService implements IUsersService {
     const returnData = passwordDto.password ? null : plainPassword;
 
     return { message: EUsersSuccess.PASSWORD_UPDATE, data: returnData };
-  }
-
-  async updateUserRole(roleDto: UpdateUserRoleDto): Promise<IResponse<null>> {
-    this.verifyInvalidUsername(roleDto.username);
-    await this.rolesService.getRoleForTenant(roleDto.roleId, roleDto.tenantId);
-
-    const result: UpdateResult =
-      await this.usersRepository.updateUserRole(roleDto);
-    if (result.affected === 0) {
-      throw new NotFoundException(EUsersErrors.USER_NOT_FOUND);
-    }
-
-    return { message: EUsersSuccess.ROLE_UPDATE, data: null };
   }
 
   async findAllUsers(

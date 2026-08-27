@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinTable,
   ManyToMany,
   PrimaryGeneratedColumn,
@@ -10,18 +11,20 @@ import {
 import { Role } from '../../roles/entities/role.entity';
 
 @Entity('users')
+@Index(['tenantId', 'username'], { unique: true })
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ unique: true })
+  @Column({ name: 'tenant_id' })
+  @Index()
+  tenantId!: string;
+
+  @Column()
   username!: string;
 
   @Column()
   password!: string;
-
-  @Column()
-  tenantId!: string;
 
   @Column({ default: true })
   mustChangePassword!: boolean;
@@ -34,9 +37,9 @@ export class User {
   })
   roles!: Role[];
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt!: Date;
 }

@@ -32,7 +32,7 @@ export class Category {
     description: 'Nome da categoria',
     example: 'Eletrônicos',
   })
-  @Column({ type: 'varchar', length: 100, unique: true })
+  @Column({ type: 'varchar', length: 100 })
   name!: string;
 
   @ApiPropertyOptional({

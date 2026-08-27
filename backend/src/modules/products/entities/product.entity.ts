@@ -25,7 +25,6 @@ const decimalTransformer: ValueTransformer = {
 
 @Entity({ name: 'products' })
 @Index(['tenantId', 'sku'], { unique: true })
-@Index(['tenantId', 'ean'], { unique: true })
 export class Product {
   @ApiProperty({
     description: 'Identificador único do produto (UUID v4)',

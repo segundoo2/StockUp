@@ -1,8 +1,7 @@
-import { CustomDecorator, SetMetadata } from '@nestjs/common';
+import { SetMetadata } from '@nestjs/common';
 import { EPermission } from '../enum/permissions.enum';
 
-export const PERMISSIONS_KEY = 'permissions';
+export const PERMISSION_KEY = 'permission';
 
-export const RequiresPermission = (
-  ...permissions: EPermission[]
-): CustomDecorator<string> => SetMetadata(PERMISSIONS_KEY, permissions);
+export const RequiresPermission = (permission: EPermission) =>
+  SetMetadata(PERMISSION_KEY, permission);

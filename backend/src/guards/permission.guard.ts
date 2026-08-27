@@ -5,33 +5,46 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { IJwtPayload } from '../modules/auth/interfaces/jwt-payload.interface';
+import { Request } from 'express';
+import { PERMISSION_KEY } from '../decorators/permission.decorator';
 import { EPermission } from '../enum/permissions.enum';
-import { PERMISSIONS_KEY } from '../decorators/permission.decorator';
+import { User } from '../modules/users/entities/user.entity';
 
 @Injectable()
 export class PermissionGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredPermissions = this.reflector.getAllAndOverride<
-      EPermission[] | undefined
-    >(PERMISSIONS_KEY, [context.getHandler(), context.getClass()]);
+    const requiredPermission = this.reflector.getAllAndOverride<EPermission>(
+      PERMISSION_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
-    if (!requiredPermissions || requiredPermissions.length === 0) {
+    if (!requiredPermission) {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<{ user?: IJwtPayload }>();
+    const request = context
+      .switchToHttp()
+      .getRequest<Request & { user?: User }>();
     const user = request.user;
-    const userPermissions = user?.permissions ?? [];
 
-    const hasAllPermissions = requiredPermissions.every((permission) =>
-      userPermissions.includes(permission),
+    if (!user || !user.roles) {
+      throw new ForbiddenException(
+        'Acesso negado: Usuário sem papéis atribuídos.',
+      );
+    }
+
+    const userPermissions = new Set<string>(
+      user.roles.flatMap((role) => role.permissions || []),
     );
 
-    if (!user || !hasAllPermissions) {
-      throw new ForbiddenException('Acesso negado: permissão insuficiente.');
+    const hasPermission = userPermissions.has(requiredPermission);
+
+    if (!hasPermission) {
+      throw new ForbiddenException(
+        `Acesso negado: Requer a permissão '${requiredPermission}'.`,
+      );
     }
 
     return true;

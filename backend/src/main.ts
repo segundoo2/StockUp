@@ -5,11 +5,12 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { Application } from 'express';
 import helmet from 'helmet';
+import { PermissionsMetadataDto } from './modules/roles/permissions.controller';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  //configuração do class-validator/class-transform
+  // Configuração do class-validator/class-transformer
   app.useGlobalPipes(
     new ValidationPipe({
       stopAtFirstError: true,
@@ -29,14 +30,16 @@ async function bootstrap() {
     .addBearerAuth()
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
+  const document = SwaggerModule.createDocument(app, config, {
+    extraModels: [PermissionsMetadataDto],
+  });
 
   SwaggerModule.setup('api', app, document);
 
   // Configuração de parsing de cookie
   app.use(cookieParser());
 
-  // configurações do Helmet
+  // Configurações do Helmet (permitindo inline scripts/styles para renderização do Swagger UI)
   app.use(
     helmet({
       contentSecurityPolicy: {
@@ -44,21 +47,21 @@ async function bootstrap() {
           defaultSrc: [`'self'`],
           styleSrc: [`'self'`, `'unsafe-inline'`],
           imgSrc: [`'self'`, 'data:', 'blob:'],
-          scriptSrc: [`'self'`],
+          scriptSrc: [`'self'`, `'unsafe-inline'`],
         },
       },
-      crossOriginEmbedderPolicy: true,
+      crossOriginEmbedderPolicy: false,
       hidePoweredBy: true,
     }),
   );
 
-  // Configurações de Cors
+  // Configurações de CORS (corrigido typos da variável de ambiente)
   app.enableCors({
-    origin: process.env.FRONTEN_URL || 'http://localhost:3000',
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     credentials: true,
   });
 
-  //configuração do Express para Proxy reverso
+  // Configuração do Express para Proxy reverso
   const expressApp = app.getHttpAdapter().getInstance() as Application;
   expressApp.set('trust proxy', 1);
 

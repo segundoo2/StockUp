@@ -13,10 +13,10 @@ import {
   UpdateResult,
 } from 'typeorm';
 import { EErrorsGlobal } from '../../enum/errors-global.enum';
-import { UserDto } from './dtos/user.dto';
 import { UpdatePasswordDto } from './dtos/update-password.dto';
 import { IDatabaseDriverError } from '../../interfaces/database-driver-Error.interface';
 import { EUsersErrors } from '../../enum/users-errors.enum';
+import { UserDto } from './dtos/user.dto';
 
 @Injectable()
 export class UsersRepository implements IUsersRepository {
@@ -26,33 +26,23 @@ export class UsersRepository implements IUsersRepository {
 
   async createUser(userDto: UserDto): Promise<void> {
     try {
-      const user: User = this.repository.create(userDto);
+      // Mapeia o array de UUIDs (roleIds) para o formato { id } que a entity exige
+      const user = this.repository.create({
+        username: userDto.username,
+        password: userDto.password,
+        tenantId: userDto.tenantId,
+        mustChangePassword: userDto.mustChangePassword,
+        roles: userDto.roleIds.map((id) => ({ id })),
+      });
+
       await this.repository.save(user);
     } catch (error: unknown) {
       if (error instanceof QueryFailedError) {
         const driverError = error.driverError as IDatabaseDriverError;
-        const errorCode = driverError.code;
-
-        if (errorCode === '23505') {
+        if (driverError.code === '23505') {
           throw new ConflictException(EUsersErrors.USERNAME_EXIST);
         }
       }
-      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
-    }
-  }
-
-  async updateUserPassword(
-    passwordDto: UpdatePasswordDto,
-  ): Promise<UpdateResult> {
-    try {
-      return await this.repository.update(
-        { username: passwordDto.username, tenantId: passwordDto.tenantId },
-        {
-          password: passwordDto.password,
-          mustChangePassword: passwordDto.mustChangePassword,
-        },
-      );
-    } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }
   }
@@ -61,9 +51,10 @@ export class UsersRepository implements IUsersRepository {
     tenantId: string,
   ): Promise<Omit<User, 'password'>[] | null> {
     try {
-      const users: Omit<User, 'password'>[] = await this.repository.find({
-        where: {
-          tenantId,
+      const users = await this.repository.find({
+        where: { tenantId },
+        relations: {
+          roles: true,
         },
         select: {
           id: true,
@@ -86,6 +77,9 @@ export class UsersRepository implements IUsersRepository {
     try {
       return await this.repository.findOne({
         where: { username, tenantId },
+        relations: {
+          roles: true,
+        },
         select: {
           id: true,
           username: true,
@@ -94,6 +88,54 @@ export class UsersRepository implements IUsersRepository {
           updatedAt: true,
         },
       });
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
+
+  async updateUserPassword(
+    passwordDto: UpdatePasswordDto,
+  ): Promise<UpdateResult> {
+    try {
+      return await this.repository.update(
+        { username: passwordDto.username, tenantId: passwordDto.tenantId },
+        {
+          password: passwordDto.password,
+          mustChangePassword: passwordDto.mustChangePassword,
+        },
+      );
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
+
+  async addRoleToUser(
+    userId: string,
+    roleId: string,
+    tenantId: string,
+  ): Promise<void> {
+    try {
+      await this.repository
+        .createQueryBuilder()
+        .relation(User, 'roles')
+        .of({ id: userId, tenantId })
+        .add(roleId);
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
+
+  async removeRoleFromUser(
+    userId: string,
+    roleId: string,
+    tenantId: string,
+  ): Promise<void> {
+    try {
+      await this.repository
+        .createQueryBuilder()
+        .relation(User, 'roles')
+        .of({ id: userId, tenantId })
+        .remove(roleId);
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }

@@ -15,4 +15,7 @@ export enum EUsersErrors {
 
   USER_NOT_FOUND = 'Usuário não encontrado.',
   USERS_NOT_FOUND = 'Lista de usuários não encontrada.',
+
+  USER_ALREADY_HAS_ROLE = 'O usuário já possui esta Role atribuída',
+  USER_DOES_NOT_HAVE_ROLE = 'O usuário não possui esta Role para ser removida',
 }

@@ -1,8 +1,7 @@
 export enum EPermission {
   USERS_CREATE = 'users.create',
   USERS_READ = 'users.read',
-  USERS_UPDATE_PASSWORD = 'users.update_password',
-  USERS_UPDATE_ROLE = 'users.update_role',
+  USERS_UPDATE = 'users.update',
   USERS_DELETE = 'users.delete',
 
   PRODUCTS_CREATE = 'products.create',
@@ -20,7 +19,10 @@ export enum EPermission {
   ROLES_UPDATE = 'roles.update',
   ROLES_DELETE = 'roles.delete',
 
-  LOCATIONS_CREATE = 'locations.create',
+  LOCATION_CREATE = 'locations.create',
+  LOCATION_FIND = 'locations.find',
+  LOCATION_UPDATE = 'locations.update',
+  LOCATION_DELETE = 'locations.delete',
 }
 
 export const ALL_PERMISSIONS = Object.values(EPermission);

@@ -5,9 +5,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { UsersRepository } from './users.repository';
 import { RedisModule } from '../../common/redis/redis.module';
+import { RolesModule } from '../roles/roles.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User]), RedisModule],
+  imports: [TypeOrmModule.forFeature([User]), RedisModule, RolesModule],
   controllers: [UsersController],
   providers: [
     { provide: 'IUsersService', useClass: UsersService },

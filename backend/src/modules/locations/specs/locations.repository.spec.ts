@@ -1,4 +1,3 @@
-import { ObjectLiteral, Repository } from 'typeorm';
 import { LocationsRepository } from '../locations.repository';
 import { Location } from '../entities/location.entity';
 import { Test, TestingModule } from '@nestjs/testing';

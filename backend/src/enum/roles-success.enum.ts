@@ -1,8 +1,9 @@
 export enum ERolesSuccess {
-  CREATE = 'Role cadastrada com sucesso!',
-  UPDATE = 'Role atualizada com sucesso!',
-  DELETE = 'Role removida com sucesso!',
-  FOUND = 'Role encontrada com sucesso!',
-  LIST_FOUND = 'Roles encontradas com sucesso!',
-  PERMISSIONS_FOUND = 'Catálogo de permissões retornado com sucesso!',
+  CREATE_ROLE = 'Role criada com sucesso.',
+  ROLE_FOUND = 'Role encontrada com sucesso.',
+  ROLES_FOUND = 'Listagem de roles obtida com sucesso.',
+  UPDATE_ROLE = 'Role atualizada com sucesso.',
+  DELETE_ROLE = 'Role deletada com sucesso.',
+  ROLE_ADDED = 'Role atribuída ao usuário com sucesso',
+  ROLE_REMOVED = 'Role removida do usuário com sucesso',
 }

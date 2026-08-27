@@ -88,49 +88,6 @@ export class UsersController implements IUsersController {
     }
   }
 
-  @Patch()
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'), PermissionGuard)
-  @RequiresPermission(EPermission.USERS_UPDATE_PASSWORD)
-  @ApiCookieAuth('access_token')
-  @ApiOperation({ summary: 'Atualizar a senha de um usuário autenticado' })
-  @ApiBody({ type: UpdatePasswordDto })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: EUsersSuccess.PASSWORD_UPDATE,
-    type: Object,
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Senha atual incorreta ou nova senha inválida.',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Não autorizado.',
-  })
-  async updateUserPassword(
-    @Body() userDto: UpdatePasswordDto,
-    @TenantId() tenantId: string,
-  ): Promise<IResponse<string | null>> {
-    try {
-      userDto.tenantId = tenantId;
-      this.logger.log(
-        'Requisição recebida para atualização de senha de usuário.',
-      );
-
-      const result = await this.usersService.updateUserPassword(userDto);
-
-      this.logger.log('Senha do usuário atualizada com sucesso.');
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `Erro ao atualizar senha do usuário "${userDto.username}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
-  }
-
   @Get()
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'), PermissionGuard)
@@ -207,6 +164,77 @@ export class UsersController implements IUsersController {
       );
       throw error;
     }
+  }
+
+  @Patch()
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard('jwt'), PermissionGuard)
+  @RequiresPermission(EPermission.USERS_UPDATE_PASSWORD)
+  @ApiCookieAuth('access_token')
+  @ApiOperation({ summary: 'Atualizar a senha de um usuário autenticado' })
+  @ApiBody({ type: UpdatePasswordDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: EUsersSuccess.PASSWORD_UPDATE,
+    type: Object,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Senha atual incorreta ou nova senha inválida.',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Não autorizado.',
+  })
+  async updateUserPassword(
+    @Body() userDto: UpdatePasswordDto,
+    @TenantId() tenantId: string,
+  ): Promise<IResponse<string | null>> {
+    try {
+      userDto.tenantId = tenantId;
+      this.logger.log(
+        'Requisição recebida para atualização de senha de usuário.',
+      );
+
+      const result = await this.usersService.updateUserPassword(userDto);
+
+      this.logger.log('Senha do usuário atualizada com sucesso.');
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao atualizar senha do usuário "${userDto.username}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
+  }
+
+  @Post(':username/roles/:roleId')
+  @HttpCode(HttpStatus.OK)
+  @RequiresPermission(EPermission.USERS_UPDATE_ROLE)
+  @ApiOperation({ summary: 'Adicionar uma Role específica ao usuário' })
+  async addRoleToUser(
+    @Param('username') username: string,
+    @Param('roleId') roleId: string,
+    @TenantId() tenantId: string,
+  ): Promise<IResponse<null>> {
+    return await this.usersService.addRoleToUser(username, roleId, tenantId);
+  }
+
+  @Delete(':username/roles/:roleId')
+  @HttpCode(HttpStatus.OK)
+  @RequiresPermission(EPermission.USERS_UPDATE_ROLE)
+  @ApiOperation({ summary: 'Remover uma Role específica do usuário' })
+  async removeRoleFromUser(
+    @Param('username') username: string,
+    @Param('roleId') roleId: string,
+    @TenantId() tenantId: string,
+  ): Promise<IResponse<null>> {
+    return await this.usersService.removeRoleFromUser(
+      username,
+      roleId,
+      tenantId,
+    );
   }
 
   @Delete(':username')

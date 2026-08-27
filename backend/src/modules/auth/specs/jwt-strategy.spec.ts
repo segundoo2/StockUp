@@ -3,6 +3,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { IJwtPayload } from '../interfaces/jwt-payload.interface';
 import { RequestWithCookies } from '../interfaces/req-with-cookies.interface';
 import { JwtStrategy, cookieJwtExtractor } from '../strategies/jwt.strategy';
+import { EPermission } from '../../../enum/permissions.enum';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
@@ -36,9 +37,11 @@ describe('JwtStrategy', () => {
     it('should return the payload when valid', () => {
       const mockPayload: IJwtPayload = {
         sub: 'user-id-123',
-        admin: true,
+        tenantId: 'tenant-uuid-123',
         username: 'user.name',
-        fingerprint: 'any-fingerprint', // 👈 Adicionado
+        roles: ['ADMIN'],
+        permissions: [EPermission.USERS_READ],
+        fingerprint: 'any-fingerprint',
       };
       const result = strategy.validate(mockPayload);
       expect(result).toEqual(mockPayload);

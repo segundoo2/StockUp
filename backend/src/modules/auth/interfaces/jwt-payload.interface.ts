@@ -4,7 +4,7 @@ export interface IJwtPayload {
   sub: string;
   tenantId: string;
   username: string;
-  roleId: string;
+  roles: string[];
   permissions: EPermission[];
   fingerprint: string;
 }

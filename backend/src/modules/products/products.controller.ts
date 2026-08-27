@@ -25,9 +25,10 @@ import { Product } from './entities/product.entity';
 import { IResponse } from '../../interfaces/response.interface';
 import { TenantId } from '../../decorators/tenant-id.decorator';
 import { AuthGuard } from '@nestjs/passport';
-import { AdminGuard } from '../../guards/admin.guard';
-import { RequiresAdmin } from '../../decorators/admin.decorator';
 import { UpdateProductDto } from './dtos/update-product.dto';
+import { PermissionGuard } from '../../guards/permission.guard';
+import { RequiresPermission } from '../../decorators/permission.decorator';
+import { EPermission } from '../../enum/permissions.enum';
 
 @ApiTags('Products')
 @ApiBearerAuth()
@@ -44,8 +45,8 @@ export class ProductsController implements IProductsController {
   ) {}
 
   @Post()
-  @UseGuards(AuthGuard('jwt'), AdminGuard)
-  @RequiresAdmin()
+  @UseGuards(AuthGuard('jwt'), PermissionGuard)
+  @RequiresPermission(EPermission.PRODUCTS_CREATE)
   @ApiOperation({ summary: 'Cadastra um novo produto (Cadastro Rápido)' })
   @ApiResponse({
     status: 201,
@@ -70,8 +71,8 @@ export class ProductsController implements IProductsController {
   }
 
   @Patch(':id')
-  @UseGuards(AuthGuard('jwt'), AdminGuard)
-  @RequiresAdmin()
+  @UseGuards(AuthGuard('jwt'), PermissionGuard)
+  @RequiresPermission(EPermission.PRODUCTS_UPDATE)
   @ApiOperation({
     summary: 'Atualiza um produto ou vincula dados adicionais (Ex: Categoria)',
   })
@@ -101,7 +102,8 @@ export class ProductsController implements IProductsController {
   }
 
   @Get(':sku')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), PermissionGuard)
+  @RequiresPermission(EPermission.PRODUCTS_READ)
   @ApiOperation({ summary: 'Busca um produto pelo SKU' })
   @ApiParam({
     name: 'sku',
@@ -126,7 +128,8 @@ export class ProductsController implements IProductsController {
   }
 
   @Get()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), PermissionGuard)
+  @RequiresPermission(EPermission.PRODUCTS_READ)
   @ApiOperation({ summary: 'Lista todos os produtos do tenant' })
   @ApiResponse({
     status: 200,
@@ -144,8 +147,8 @@ export class ProductsController implements IProductsController {
   }
 
   @Delete(':sku')
-  @UseGuards(AuthGuard('jwt'), AdminGuard)
-  @RequiresAdmin()
+  @UseGuards(AuthGuard('jwt'), PermissionGuard)
+  @RequiresPermission(EPermission.PRODUCTS_DELETE)
   @ApiOperation({ summary: 'Remove um produto pelo SKU' })
   @ApiParam({
     name: 'sku',

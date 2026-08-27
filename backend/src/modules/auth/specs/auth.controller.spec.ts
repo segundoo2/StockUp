@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { AuthController } from '../auth.controller';
 import { IAuthService } from '../interfaces/auth.service.interface';
-import { ESuccess } from '../../../enum/auth-success.enum';
 import { IJwtPayloadWithExpiry } from '../interfaces/jwt-payload.interface';
 import { RequestWithCookies } from '../interfaces/req-with-cookies.interface';
 import { LoginDto } from '../dtos/login.dto';
+import { EPermission } from '../../../enum/permissions.enum';
 import type { Response, Request } from 'express';
+import { EAuthSuccess } from '../../../enum/auth-success.enum';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -36,7 +37,7 @@ describe('AuthController', () => {
   describe('login', () => {
     it('should return the object envelope when the user logs in successfully', async () => {
       const mockResponseData = {
-        message: ESuccess.LOGIN,
+        message: EAuthSuccess.LOGIN,
         data: { accessToken: 'access-token', refreshToken: 'refresh-token' },
       };
 
@@ -55,14 +56,15 @@ describe('AuthController', () => {
         sub: 'user-id-123',
         tenantId: 'tenant-uuid-123',
         username: 'user.name',
-        admin: true,
+        roles: ['ADMIN'],
+        permissions: [EPermission.USERS_READ],
         fingerprint: 'test-agent',
         exp: 1718900000,
         iat: 1718800000,
       };
 
       const mockAuthPayload = {
-        message: ESuccess.REFRESH,
+        message: EAuthSuccess.REFRESH,
         data: {
           accessToken: 'new-access-token',
           refreshToken: 'new-refresh-token',
@@ -93,7 +95,8 @@ describe('AuthController', () => {
       const mockJwtPayload: IJwtPayloadWithExpiry = {
         sub: 'user-id-123',
         username: 'user.name',
-        admin: true,
+        roles: ['ADMIN'],
+        permissions: [EPermission.USERS_READ],
         tenantId: 'tenant-uuid-123',
         fingerprint: 'test-agent',
         exp: 1718900000,
@@ -115,7 +118,7 @@ describe('AuthController', () => {
       (mockResponse.json as jest.Mock).mockImplementation(
         (body: unknown) => body,
       );
-      mockService.logout.mockResolvedValue({ message: ESuccess.LOGOUT });
+      mockService.logout.mockResolvedValue({ message: EAuthSuccess.LOGOUT });
 
       const result = await controller.logout(mockLogoutRequest, mockResponse);
 
@@ -136,9 +139,9 @@ describe('AuthController', () => {
         path: '/auth',
       });
       expect(mockResponse.json).toHaveBeenCalledWith({
-        message: ESuccess.LOGOUT,
+        message: EAuthSuccess.LOGOUT,
       });
-      expect(result).toEqual({ message: ESuccess.LOGOUT });
+      expect(result).toEqual({ message: EAuthSuccess.LOGOUT });
     });
   });
 });

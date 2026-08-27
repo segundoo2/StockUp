@@ -1,9 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { UnauthorizedException } from '@nestjs/common';
-import { UserDto } from '../../users/dtos/user.dto';
 import { AuthService } from '../auth.service';
 import { IAuthRepository } from '../interfaces/auth.repository.interface';
-import { ESuccess } from '../../../enum/auth-success.enum';
 import * as bcrypt from 'bcrypt';
 import { User } from '../../users/entities/user.entity';
 import { ITokenService } from '../interfaces/jwt-service.interface';
@@ -12,7 +10,10 @@ import {
   IJwtPayloadWithExpiry,
 } from '../interfaces/jwt-payload.interface';
 import { RedisService } from '../../../common/redis/redis.service';
-import { EErrors } from '../../../enum/auth-errors.enum';
+import { EPermission } from '../../../enum/permissions.enum';
+import { EAuthSuccess } from '../../../enum/auth-success.enum';
+import { LoginDto } from '../dtos/login.dto';
+import { EErrorsGlobal } from '../../../enum/errors-global.enum';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -21,7 +22,7 @@ describe('AuthService', () => {
   let mockRedisService: jest.Mocked<RedisService>;
   let validPasswordHash: string;
 
-  const userDto: Pick<UserDto, 'username' | 'password' | 'tenantId'> = {
+  const userDto: LoginDto = {
     username: 'segundo',
     password: '12345678',
     tenantId: 'tenant-uuid-123',
@@ -29,7 +30,7 @@ describe('AuthService', () => {
   const testFingerprint = 'test-fingerprint';
 
   beforeAll(async () => {
-    validPasswordHash = await bcrypt.hash(userDto.password as string, 10);
+    validPasswordHash = await bcrypt.hash(userDto.password, 10);
   });
 
   beforeEach(() => {
@@ -53,25 +54,26 @@ describe('AuthService', () => {
     );
   });
 
-  const mockUser: Pick<
-    User,
-    'id' | 'tenantId' | 'username' | 'admin' | 'password'
-  > = {
+  const mockUser = {
     id: 'uuid-user',
     tenantId: 'tenant-uuid-123',
     username: 'user.name',
-    admin: true,
     password: '12345678',
-  };
+    roles: [
+      {
+        id: 'role-1',
+        name: 'ADMIN',
+        permissions: [{ id: 'perm-1', slug: EPermission.USERS_READ }],
+      },
+    ],
+  } as unknown as User;
 
   describe('login', () => {
     it('should throw UnauthorizedException when the user is not found', async () => {
       mockRepository.findUserByUsername.mockResolvedValue(null);
 
       await expect(service.login(userDto, testFingerprint)).rejects.toThrow(
-        new UnauthorizedException(
-          'Usuário não encontrado ou credenciais inválidas.',
-        ),
+        UnauthorizedException,
       );
       expect(mockRepository.findUserByUsername).toHaveBeenCalledWith(
         userDto.username,
@@ -93,8 +95,10 @@ describe('AuthService', () => {
         refreshToken: 'refresh-token',
       };
 
-      mockRepository.findUserByUsername.mockResolvedValue(mockUser);
-      mockUser.password = validPasswordHash;
+      mockRepository.findUserByUsername.mockResolvedValue({
+        ...mockUser,
+        password: validPasswordHash,
+      });
 
       mockTokenService.signAsync.mockImplementation(
         // eslint-disable-next-line @typescript-eslint/require-await
@@ -108,7 +112,7 @@ describe('AuthService', () => {
       const result = await service.login(userDto, testFingerprint);
 
       expect(result).toEqual({
-        message: ESuccess.LOGIN,
+        message: EAuthSuccess.LOGIN,
         data: tokens,
       });
 
@@ -116,7 +120,8 @@ describe('AuthService', () => {
         sub: mockUser.id,
         tenantId: mockUser.tenantId,
         username: mockUser.username,
-        admin: mockUser.admin,
+        roles: ['ADMIN'],
+        permissions: [EPermission.USERS_READ],
         fingerprint: testFingerprint,
       };
 
@@ -131,9 +136,10 @@ describe('AuthService', () => {
       sub: 'uuid-user',
       tenantId: 'tenant-uuid-123',
       username: 'user.name',
-      admin: true,
+      roles: ['ADMIN'],
+      permissions: [EPermission.USERS_READ],
       fingerprint: testFingerprint,
-      exp: Math.floor(Date.now() / 1000) + 3600, // Expira em 1 hora
+      exp: Math.floor(Date.now() / 1000) + 3600,
     };
 
     it('should throw UnauthorizedException when user context cannot be retrieved', async () => {
@@ -142,7 +148,7 @@ describe('AuthService', () => {
       await expect(
         service.refresh(mockJwtPayload, testFingerprint),
       ).rejects.toThrow(
-        new UnauthorizedException(EErrors.FAILED_RETRIEVE_SESSION),
+        new UnauthorizedException(EErrorsGlobal.FAILED_RETRIEVE_SESSION),
       );
     });
 
@@ -161,7 +167,7 @@ describe('AuthService', () => {
       const result = await service.refresh(mockJwtPayload, 'new-fingerprint');
 
       expect(result).toEqual({
-        message: ESuccess.REFRESH,
+        message: EAuthSuccess.REFRESH,
         data: tokens,
       });
 
@@ -179,16 +185,17 @@ describe('AuthService', () => {
         sub: 'uuid-user',
         tenantId: 'tenant-uuid-123',
         username: 'user.name',
-        admin: true,
+        roles: ['ADMIN'],
+        permissions: [EPermission.USERS_READ],
         fingerprint: testFingerprint,
-        exp: Math.floor(Date.now() / 1000) + 600, // Expira em 10 minutos
+        exp: Math.floor(Date.now() / 1000) + 600,
       };
 
       mockRedisService.setWithExpiry.mockResolvedValue(undefined);
 
       const result = await service.logout(mockJwtPayload);
 
-      expect(result).toEqual({ message: ESuccess.LOGOUT });
+      expect(result).toEqual({ message: EAuthSuccess.LOGOUT });
       expect(mockRedisService.setWithExpiry).toHaveBeenCalledWith(
         `blacklist:refresh:${mockJwtPayload.sub}:${mockJwtPayload.exp}`,
         'revoked',

@@ -19,16 +19,25 @@ describe('AuthRepository', () => {
     tenantId: 'tenant-uuid-123',
   };
 
-  const mockUser: Pick<
-    User,
-    'id' | 'tenantId' | 'username' | 'admin' | 'password'
-  > = {
+  const mockUser = {
     id: 'uuid-user',
     tenantId: 'tenant-uuid-123',
-    username: 'user.name',
-    admin: true,
-    password: '12345678',
-  };
+    username: 'segundo',
+    password: 'hashed-password',
+    mustChangePassword: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    roles: [
+      {
+        id: 'role-1',
+        tenantId: 'tenant-uuid-123',
+        name: 'ADMIN',
+        permissions: ['users.read', 'products.read'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ],
+  } as unknown as User;
 
   beforeEach(() => {
     ormRepositoryMock = {
@@ -45,7 +54,7 @@ describe('AuthRepository', () => {
   afterEach(() => jest.restoreAllMocks());
 
   describe('findUserByUsername', () => {
-    it('should return user selection fields when user is found based on username and tenantId', async () => {
+    it('should return user with roles relation when found based on username and tenantId', async () => {
       ormRepositoryMock.findOne.mockResolvedValue(mockUser);
 
       const result = await repository.findUserByUsername(
@@ -56,12 +65,10 @@ describe('AuthRepository', () => {
       expect(result).toBe(mockUser);
       expect(ormRepositoryMock.findOne).toHaveBeenCalledWith({
         where: { username: userDto.username, tenantId: userDto.tenantId },
-        select: {
-          id: true,
-          tenantId: true,
-          username: true,
-          admin: true,
-          password: true,
+        relations: {
+          roles: {
+            permissions: true,
+          },
         },
       });
     });

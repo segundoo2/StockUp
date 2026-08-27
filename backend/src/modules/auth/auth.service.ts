@@ -1,143 +1,159 @@
 import { Injectable, Inject, UnauthorizedException } from '@nestjs/common';
+import { RedisService } from '../../common/redis/redis.service';
+import { EAuthSuccess } from '../../enum/auth-success.enum';
+import { EPermission } from '../../enum/permissions.enum';
+import { User } from '../users/entities/user.entity';
+import { LoginDto } from './dtos/login.dto';
+import type { IAuthRepository } from './interfaces/auth.repository.interface';
 import {
-  IJwtPayload,
   IJwtPayloadWithExpiry,
+  IJwtPayload,
 } from './interfaces/jwt-payload.interface';
 import type {
   ITokenService,
   TokenDuration,
 } from './interfaces/jwt-service.interface';
-import type { IAuthRepository } from './interfaces/auth.repository.interface';
-import type { IAuthService } from './interfaces/auth.service.interface';
-import { EAuthSuccess } from '../../enum/auth-success.enum';
-import { RedisService } from '../../common/redis/redis.service';
-import { IAuthPayload } from './interfaces/auth-payload.interface';
 import * as bcrypt from 'bcrypt';
-import { EAuthErrors } from '../../enum/auth-errors.enum';
-import { LoginDto } from './dtos/login.dto';
+import { EErrorsGlobal } from '../../enum/errors-global.enum';
+
+type PermissionItem = EPermission | { slug: EPermission };
 
 @Injectable()
-export class AuthService implements IAuthService {
+export class AuthService {
   constructor(
-    @Inject('ITokenService') private readonly tokenService: ITokenService,
-    @Inject('IAuthRepository') private readonly authRepository: IAuthRepository,
+    @Inject('ITokenService')
+    private readonly tokenService: ITokenService,
+    @Inject('IAuthRepository')
+    private readonly authRepository: IAuthRepository,
     private readonly redisService: RedisService,
   ) {}
 
-  async login(loginDto: LoginDto, fingerprint: string): Promise<IAuthPayload> {
+  async login(loginDto: LoginDto, fingerprint: string) {
     const user = await this.authRepository.findUserByUsername(
       loginDto.username,
       loginDto.tenantId,
     );
+
     if (!user) {
-      throw new UnauthorizedException(EAuthErrors.USER_NOT_FOUND);
+      throw new UnauthorizedException('Usuário ou senha incorretos.');
     }
 
-    await this.validatePassword(loginDto.password, user.password);
+    const isPasswordValid = await bcrypt.compare(
+      loginDto.password,
+      user.password,
+    );
 
-    const payload: IJwtPayload = {
-      sub: user.id,
-      tenantId: user.tenantId,
-      username: user.username,
-      admin: user.admin,
-      fingerprint,
-    };
-    const tokens = await this.generateTokenPair(payload);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Senha incorreta.');
+    }
+
+    const payload = this.buildJwtPayload(user, fingerprint);
+
+    const accessTokenExpiresIn = (process.env.ACCESS_TOKEN_EXPIRES_IN ||
+      '15m') as TokenDuration;
+    const refreshTokenExpiresIn = (process.env.REFRESH_TOKEN_EXPIRES_IN ||
+      '7d') as TokenDuration;
+
+    const [accessToken, refreshToken] = await Promise.all([
+      this.tokenService.signAsync(payload, {
+        expiresIn: accessTokenExpiresIn,
+      }),
+      this.tokenService.signAsync(payload, {
+        expiresIn: refreshTokenExpiresIn,
+      }),
+    ]);
 
     return {
       message: EAuthSuccess.LOGIN,
-      data: tokens,
+      data: {
+        accessToken,
+        refreshToken,
+      },
     };
   }
 
-  async refresh(
-    payload: IJwtPayloadWithExpiry,
-    currentFingerprint: string,
-  ): Promise<IAuthPayload> {
+  async refresh(payload: IJwtPayloadWithExpiry, newFingerprint: string) {
     const user = await this.authRepository.findUserByUsername(
       payload.username,
       payload.tenantId,
     );
 
     if (!user) {
-      throw new UnauthorizedException(EAuthErrors.FAILED_RETRIEVE_SESSION);
+      throw new UnauthorizedException(EErrorsGlobal.FAILED_RETRIEVE_SESSION);
     }
 
-    const ttlSeconds = this.calculateTtlSeconds(payload.exp);
+    const nowInSeconds = Math.floor(Date.now() / 1000);
+    const ttl = payload.exp - nowInSeconds;
 
-    if (ttlSeconds > 0) {
-      const blacklistKey = `blacklist:refresh:${payload.sub}:${payload.exp}`;
+    if (ttl > 0) {
       await this.redisService.setWithExpiry(
-        blacklistKey,
+        `blacklist:refresh:${payload.sub}:${payload.exp}`,
         'rotated',
-        ttlSeconds,
+        ttl,
       );
     }
 
-    const newPayload: IJwtPayload = {
-      sub: payload.sub,
-      tenantId: payload.tenantId,
-      username: payload.username,
-      admin: payload.admin,
-      fingerprint: currentFingerprint,
-    };
-    const tokens = await this.generateTokenPair(newPayload);
+    const newPayload = this.buildJwtPayload(user, newFingerprint);
+
+    const accessTokenExpiresIn = (process.env.ACCESS_TOKEN_EXPIRES_IN ||
+      '15m') as TokenDuration;
+    const refreshTokenExpiresIn = (process.env.REFRESH_TOKEN_EXPIRES_IN ||
+      '7d') as TokenDuration;
+
+    const [accessToken, refreshToken] = await Promise.all([
+      this.tokenService.signAsync(newPayload, {
+        expiresIn: accessTokenExpiresIn,
+      }),
+      this.tokenService.signAsync(newPayload, {
+        expiresIn: refreshTokenExpiresIn,
+      }),
+    ]);
 
     return {
       message: EAuthSuccess.REFRESH,
-      data: tokens,
+      data: {
+        accessToken,
+        refreshToken,
+      },
     };
   }
 
-  async logout(
-    payload: IJwtPayloadWithExpiry,
-  ): Promise<{ message: EAuthSuccess }> {
-    const ttlSeconds = this.calculateTtlSeconds(payload.exp);
+  async logout(payload: IJwtPayloadWithExpiry) {
+    const nowInSeconds = Math.floor(Date.now() / 1000);
+    const ttl = payload.exp - nowInSeconds;
 
-    if (ttlSeconds > 0) {
-      const blacklistKey = `blacklist:refresh:${payload.sub}:${payload.exp}`;
+    if (ttl > 0) {
       await this.redisService.setWithExpiry(
-        blacklistKey,
+        `blacklist:refresh:${payload.sub}:${payload.exp}`,
         'revoked',
-        ttlSeconds,
+        ttl,
       );
     }
 
-    return { message: EAuthSuccess.LOGOUT };
+    return {
+      message: EAuthSuccess.LOGOUT,
+    };
   }
 
-  // ==========================================
-  // MÉTODOS AUXILIARES (Isolamento de Funções)
-  // ==========================================
+  private buildJwtPayload(user: User, fingerprint: string): IJwtPayload {
+    const roles = user.roles?.map((role) => role.name) ?? [];
 
-  private async validatePassword(
-    password: string,
-    hash: string,
-  ): Promise<void> {
-    const isPasswordValid = await bcrypt.compare(password, hash);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Senha incorreta.');
-    }
-  }
+    const rawPermissions =
+      user.roles?.flatMap(
+        (role) => role.permissions as unknown as PermissionItem[],
+      ) ?? [];
 
-  private async generateTokenPair(
-    payload: IJwtPayload,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
-    const accessToken = await this.tokenService.signAsync(payload, {
-      expiresIn:
-        (process.env.ACCESS_TOKEN_EXPIRES_IN as TokenDuration) || '15m',
-    });
+    const permissions = rawPermissions.map((permission) =>
+      typeof permission === 'string' ? permission : permission.slug,
+    );
 
-    const refreshToken = await this.tokenService.signAsync(payload, {
-      expiresIn:
-        (process.env.REFRESH_TOKEN_EXPIRES_IN as TokenDuration) || '7d',
-    });
-
-    return { accessToken, refreshToken };
-  }
-
-  private calculateTtlSeconds(exp: number): number {
-    const nowSeconds = Math.floor(Date.now() / 1000);
-    return exp - nowSeconds;
+    return {
+      sub: user.id,
+      tenantId: user.tenantId,
+      username: user.username,
+      roles,
+      permissions: Array.from(new Set(permissions)),
+      fingerprint,
+    };
   }
 }

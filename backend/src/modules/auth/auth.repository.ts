@@ -15,20 +15,15 @@ export class AuthRepository implements IAuthRepository {
   async findUserByUsername(
     username: string,
     tenantId: string,
-  ): Promise<Pick<
-    User,
-    'id' | 'tenantId' | 'username' | 'admin' | 'password'
-  > | null> {
+  ): Promise<User | null> {
     try {
       return (
         (await this.repository.findOne({
           where: { username, tenantId },
-          select: {
-            id: true,
-            tenantId: true,
-            username: true,
-            admin: true,
-            password: true,
+          relations: {
+            roles: {
+              permissions: true,
+            },
           },
         })) ?? null
       );

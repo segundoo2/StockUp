@@ -19,6 +19,7 @@ describe('CategoriesService', () => {
     isActive: true,
     description: 'capinhas de celulares de diversos modelos',
   };
+
   const category: Category = {
     id: 'uuid',
     tenantId: 'tenant-uuid',
@@ -28,10 +29,6 @@ describe('CategoriesService', () => {
     products: [],
     createdAt: new Date(),
     updatedAt: new Date(),
-  };
-  let response: IResponse<Category | Category[] | null> = {
-    message: ECategorySuccess.CREATE,
-    data: null,
   };
 
   beforeEach(() => {
@@ -48,13 +45,18 @@ describe('CategoriesService', () => {
 
   describe('createCategory', () => {
     it(`should return the object { message: ${ECategorySuccess.CREATE}, data: null } when category is created success`, async () => {
+      const expectedResponse: IResponse<null> = {
+        message: ECategorySuccess.CREATE,
+        data: null,
+      };
+
       repository.createCategory.mockResolvedValue(category);
       expect(
         await service.createCategory({
           ...categoryDto,
           tenantId: category.tenantId,
         }),
-      ).toEqual(response);
+      ).toEqual(expectedResponse);
       expect(repository.createCategory).toHaveBeenCalledWith({
         ...categoryDto,
         tenantId: category.tenantId,
@@ -72,14 +74,17 @@ describe('CategoriesService', () => {
   });
 
   describe('updateCategory', () => {
-    response = { message: ECategorySuccess.UPDATE, data: null };
+    const expectedResponse: IResponse<null> = {
+      message: ECategorySuccess.UPDATE,
+      data: null,
+    };
     const responseRepository: UpdateResult = {
       raw: [],
       generatedMaps: [],
       affected: 1,
     };
 
-    it(`should return { message: ${ECategorySuccess.UPDATE}, data: null when the category is update success`, async () => {
+    it(`should return { message: ${ECategorySuccess.UPDATE}, data: null } when the category is update success`, async () => {
       repository.updateCategory.mockResolvedValue(responseRepository);
       expect(
         await service.updateCategory(
@@ -87,7 +92,7 @@ describe('CategoriesService', () => {
           category.tenantId,
           categoryDto,
         ),
-      ).toEqual(response);
+      ).toEqual(expectedResponse);
       expect(repository.updateCategory).toHaveBeenCalledWith(
         category.id,
         category.tenantId,
@@ -108,14 +113,15 @@ describe('CategoriesService', () => {
 
   describe('findByCategoryName', () => {
     it(`should return the object { message: ${ECategorySuccess.FOUND_CATEGORY}, data: Category }`, async () => {
-      response = {
+      const expectedResponse: IResponse<Category> = {
         message: ECategorySuccess.FOUND_CATEGORY,
         data: category,
       };
+
       repository.findByCategoryName.mockResolvedValue(category);
       expect(
         await service.findByCategoryName(category.name, category.tenantId),
-      ).toEqual(response);
+      ).toEqual(expectedResponse);
       expect(repository.findByCategoryName).toHaveBeenCalledWith(
         category.name,
         category.tenantId,
@@ -134,15 +140,16 @@ describe('CategoriesService', () => {
 
   describe('findAllCategories', () => {
     const categoriesList: Category[] = [category, category, category];
-    response = {
-      message: ECategorySuccess.FOUND_CATEGORIES_LIST,
-      data: categoriesList,
-    };
 
     it('should return category list when the categories is found', async () => {
+      const expectedResponse: IResponse<Category[]> = {
+        message: ECategorySuccess.FOUND_CATEGORIES_LIST,
+        data: categoriesList,
+      };
+
       repository.findAllCategories.mockResolvedValue(categoriesList);
       expect(await service.findAllCategories(category.tenantId)).toEqual(
-        response,
+        expectedResponse,
       );
       expect(repository.findAllCategories).toHaveBeenCalledWith(
         category.tenantId,
@@ -160,7 +167,7 @@ describe('CategoriesService', () => {
   });
 
   describe('deleteCategory', () => {
-    response = {
+    const expectedResponse: IResponse<null> = {
       message: ECategorySuccess.DELETE,
       data: null,
     };
@@ -173,7 +180,7 @@ describe('CategoriesService', () => {
       repository.deleteCategory.mockResolvedValue(deleteResult);
       expect(
         await service.deleteCategory(category.id, category.tenantId),
-      ).toEqual(response);
+      ).toEqual(expectedResponse);
       expect(repository.deleteCategory).toHaveBeenCalledWith(
         category.id,
         category.tenantId,

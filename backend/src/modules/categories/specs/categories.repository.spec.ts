@@ -125,7 +125,7 @@ describe('CategoriesRepository', () => {
         ),
       ).toEqual(category);
       expect(ormRepository.findOne).toHaveBeenCalledWith({
-        where: { category: category.name, tenantId: category.tenantId },
+        where: { name: category.name, tenantId: category.tenantId },
       });
     });
 

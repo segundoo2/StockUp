@@ -71,14 +71,19 @@ export class AuthController implements IAuthController {
       'unknown';
 
     try {
+      this.logger.log(
+        `[AUTH] Tentativa de login para o usuário "${loginDto.username}" no tenant "${loginDto.tenantId}".`,
+      );
+
       const response = await this.authService.login(loginDto, fingerprint);
+
       this.logger.log(
         `[AUTH] Usuário "${loginDto.username}" do Tenant "${loginDto.tenantId}" logado com sucesso.`,
       );
       return response;
     } catch (error) {
       this.logger.warn(
-        `[AUTH] Tentativa de login falhou para o usuário: "${loginDto.username}"`,
+        `[AUTH] Tentativa de login falhou para o usuário: "${loginDto.username}" - ${(error as Error).message}`,
       );
       throw error;
     }
@@ -115,14 +120,19 @@ export class AuthController implements IAuthController {
       'unknown';
 
     try {
+      this.logger.log(
+        `[AUTH] Solicitando rotação de token para o usuário "${userPayload.username}".`,
+      );
+
       const response = await this.authService.refresh(userPayload, fingerprint);
+
       this.logger.log(
         `[AUTH] Sessão do usuário "${userPayload.username}" rotacionada com sucesso.`,
       );
       return response;
     } catch (error) {
       this.logger.warn(
-        `[AUTH] Falha na rotação de token para o usuário: "${userPayload.username}"`,
+        `[AUTH] Falha na rotação de token para o usuário: "${userPayload.username}" - ${(error as Error).message}`,
       );
       throw error;
     }
@@ -150,28 +160,40 @@ export class AuthController implements IAuthController {
   ): Promise<Response> {
     const userPayload = req.user as IJwtPayloadWithExpiry;
 
-    await this.authService.logout(userPayload);
+    try {
+      this.logger.log(
+        `[AUTH] Iniciando encerramento de sessão para o usuário "${userPayload.username}".`,
+      );
 
-    const isProd = process.env.NODE_ENV === 'production';
-    const cookieOptions = {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: 'strict' as const,
-    };
+      await this.authService.logout(userPayload);
 
-    res.clearCookie('access_token', {
-      ...cookieOptions,
-      path: '/',
-    });
-    res.clearCookie('refresh_token', {
-      ...cookieOptions,
-      path: '/auth',
-    });
+      const isProd = process.env.NODE_ENV === 'production';
+      const cookieOptions = {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: 'strict' as const,
+      };
 
-    this.logger.log(
-      `[AUTH] O usuário "${userPayload.username}" encerrou a sessão (Logout concluído).`,
-    );
+      res.clearCookie('access_token', {
+        ...cookieOptions,
+        path: '/',
+      });
+      res.clearCookie('refresh_token', {
+        ...cookieOptions,
+        path: '/auth',
+      });
 
-    return res.json({ message: EAuthSuccess.LOGOUT });
+      this.logger.log(
+        `[AUTH] O usuário "${userPayload.username}" encerrou a sessão (Logout concluído).`,
+      );
+
+      return res.json({ message: EAuthSuccess.LOGOUT });
+    } catch (error) {
+      this.logger.error(
+        `[AUTH] Erro ao encerrar sessão do usuário "${userPayload.username}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 }

@@ -3,7 +3,10 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Inject,
+  Logger,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -24,7 +27,7 @@ import type { IProductsService } from './interfaces/products.service.interface';
 import { Product } from './entities/product.entity';
 import { IResponse } from '../../interfaces/response.interface';
 import { TenantId } from '../../decorators/tenant-id.decorator';
-import { AuthGuard } from '@nestjs/passport';
+import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
 import { UpdateProductDto } from './dtos/update-product.dto';
 import { PermissionGuard } from '../../guards/permission.guard';
 import { RequiresPermission } from '../../decorators/permission.decorator';
@@ -37,41 +40,61 @@ import { EPermission } from '../../enum/permissions.enum';
   description: 'Identificador do Tenant',
   required: true,
 })
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @Controller('products')
 export class ProductsController implements IProductsController {
+  private readonly logger = new Logger(ProductsController.name);
+
   constructor(
     @Inject('IProductsService')
     private readonly productsService: IProductsService,
   ) {}
 
   @Post()
-  @UseGuards(AuthGuard('jwt'), PermissionGuard)
+  @HttpCode(HttpStatus.CREATED)
   @RequiresPermission(EPermission.PRODUCTS_CREATE)
   @ApiOperation({ summary: 'Cadastra um novo produto (Cadastro Rápido)' })
   @ApiResponse({
-    status: 201,
+    status: HttpStatus.CREATED,
     description: 'Produto criado com sucesso.',
   })
   @ApiResponse({
-    status: 400,
+    status: HttpStatus.BAD_REQUEST,
     description: 'Dados de requisição inválidos.',
   })
   @ApiResponse({
-    status: 409,
+    status: HttpStatus.CONFLICT,
     description: 'Produto com este SKU já existe no tenant.',
   })
   async createProduct(
     @Body() productDto: ProductDto,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    return await this.productsService.createProduct({
-      ...productDto,
-      tenantId,
-    });
+    try {
+      this.logger.log(
+        `Tentativa de criação do produto SKU "${productDto.sku}" no tenant "${tenantId}".`,
+      );
+
+      const result = await this.productsService.createProduct({
+        ...productDto,
+        tenantId,
+      });
+
+      this.logger.log(
+        `Produto SKU "${productDto.sku}" criado com sucesso no tenant "${tenantId}".`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao criar produto SKU "${productDto.sku}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 
   @Patch(':id')
-  @UseGuards(AuthGuard('jwt'), PermissionGuard)
+  @HttpCode(HttpStatus.OK)
   @RequiresPermission(EPermission.PRODUCTS_UPDATE)
   @ApiOperation({
     summary: 'Atualiza um produto ou vincula dados adicionais (Ex: Categoria)',
@@ -82,11 +105,11 @@ export class ProductsController implements IProductsController {
     type: String,
   })
   @ApiResponse({
-    status: 200,
+    status: HttpStatus.OK,
     description: 'Produto atualizado com sucesso.',
   })
   @ApiResponse({
-    status: 404,
+    status: HttpStatus.NOT_FOUND,
     description: 'Produto não encontrado.',
   })
   async updateProduct(
@@ -94,15 +117,32 @@ export class ProductsController implements IProductsController {
     @Param('id', ParseUUIDPipe) id: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    return await this.productsService.updateProduct(
-      updateProductDto,
-      id,
-      tenantId,
-    );
+    try {
+      this.logger.log(
+        `Atualizando produto ID "${id}" no tenant "${tenantId}".`,
+      );
+
+      const result = await this.productsService.updateProduct(
+        updateProductDto,
+        id,
+        tenantId,
+      );
+
+      this.logger.log(
+        `Produto ID "${id}" atualizado com sucesso no tenant "${tenantId}".`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao atualizar produto ID "${id}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 
   @Get(':sku')
-  @UseGuards(AuthGuard('jwt'), PermissionGuard)
+  @HttpCode(HttpStatus.OK)
   @RequiresPermission(EPermission.PRODUCTS_READ)
   @ApiOperation({ summary: 'Busca um produto pelo SKU' })
   @ApiParam({
@@ -112,42 +152,64 @@ export class ProductsController implements IProductsController {
     example: 'PROD-ALFA-001',
   })
   @ApiResponse({
-    status: 200,
+    status: HttpStatus.OK,
     description: 'Produto localizado.',
     type: Product,
   })
   @ApiResponse({
-    status: 404,
+    status: HttpStatus.NOT_FOUND,
     description: 'Produto não encontrado.',
   })
   async findOneBySku(
     @Param('sku') sku: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<Product>> {
-    return await this.productsService.findOneBySku(sku, tenantId);
+    try {
+      this.logger.log(
+        `Buscando produto pelo SKU "${sku}" no tenant "${tenantId}".`,
+      );
+      return await this.productsService.findOneBySku(sku, tenantId);
+    } catch (error) {
+      this.logger.error(
+        `Erro ao buscar produto SKU "${sku}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 
   @Get()
-  @UseGuards(AuthGuard('jwt'), PermissionGuard)
+  @HttpCode(HttpStatus.OK)
   @RequiresPermission(EPermission.PRODUCTS_READ)
   @ApiOperation({ summary: 'Lista todos os produtos do tenant' })
   @ApiResponse({
-    status: 200,
+    status: HttpStatus.OK,
     description: 'Lista de produtos retornada com sucesso.',
     type: [Product],
   })
   @ApiResponse({
-    status: 404,
+    status: HttpStatus.NOT_FOUND,
     description: 'Nenhum produto encontrado para este tenant.',
   })
   async findAllProducts(
     @TenantId() tenantId: string,
   ): Promise<IResponse<Product[]>> {
-    return await this.productsService.findAllProducts(tenantId);
+    try {
+      this.logger.log(
+        `Buscando listagem de todos os produtos do tenant "${tenantId}".`,
+      );
+      return await this.productsService.findAllProducts(tenantId);
+    } catch (error) {
+      this.logger.error(
+        `Erro ao buscar listagem de produtos do tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 
   @Delete(':sku')
-  @UseGuards(AuthGuard('jwt'), PermissionGuard)
+  @HttpCode(HttpStatus.OK)
   @RequiresPermission(EPermission.PRODUCTS_DELETE)
   @ApiOperation({ summary: 'Remove um produto pelo SKU' })
   @ApiParam({
@@ -156,17 +218,34 @@ export class ProductsController implements IProductsController {
     type: String,
   })
   @ApiResponse({
-    status: 200,
+    status: HttpStatus.OK,
     description: 'Produto removido com sucesso.',
   })
   @ApiResponse({
-    status: 404,
+    status: HttpStatus.NOT_FOUND,
     description: 'Produto não encontrado.',
   })
   async deleteProduct(
     @Param('sku') sku: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    return await this.productsService.deleteProduct(sku, tenantId);
+    try {
+      this.logger.warn(
+        `Solicitação de remoção do produto SKU "${sku}" no tenant "${tenantId}".`,
+      );
+
+      const result = await this.productsService.deleteProduct(sku, tenantId);
+
+      this.logger.log(
+        `Produto SKU "${sku}" removido com sucesso do tenant "${tenantId}".`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao remover produto SKU "${sku}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 }

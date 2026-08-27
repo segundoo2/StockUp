@@ -6,16 +6,17 @@ import {
   HttpCode,
   HttpStatus,
   Inject,
+  Logger,
   Param,
   Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { IRolesService } from './interfaces/roles.service.interface';
 import { UpdateRoleDto } from './dtos/update-role.dto';
 import { Role } from './entities/role.entity';
+import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
 import { PermissionGuard } from '../../guards/permission.guard';
 import { RequiresPermission } from '../../decorators/permission.decorator';
 import { TenantId } from '../../decorators/tenant-id.decorator';
@@ -24,10 +25,12 @@ import { IResponse } from '../../interfaces/response.interface';
 import { RoleDto } from './dtos/role.dto';
 
 @ApiTags('Roles')
-@Controller('roles')
-@UseGuards(AuthGuard('jwt'), PermissionGuard)
 @ApiCookieAuth('access_token')
+@UseGuards(JwtAuthGuard, PermissionGuard)
+@Controller('roles')
 export class RolesController {
+  private readonly logger = new Logger(RolesController.name);
+
   constructor(
     @Inject('IRolesService')
     private readonly rolesService: IRolesService,
@@ -41,8 +44,25 @@ export class RolesController {
     @Body() roleDto: RoleDto,
     @TenantId() tenantId: string,
   ): Promise<IResponse<Role>> {
-    roleDto.tenantId = tenantId;
-    return await this.rolesService.createRole(roleDto);
+    try {
+      roleDto.tenantId = tenantId;
+      this.logger.log(
+        `Tentativa de criação da role "${roleDto.name}" no tenant "${tenantId}".`,
+      );
+
+      const result = await this.rolesService.createRole(roleDto);
+
+      this.logger.log(
+        `Role "${roleDto.name}" criada com sucesso no tenant "${tenantId}".`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao criar role "${roleDto.name}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 
   @Get()
@@ -50,7 +70,18 @@ export class RolesController {
   @RequiresPermission(EPermission.ROLES_READ)
   @ApiOperation({ summary: 'Listar todas as Roles do tenant' })
   async findAllRoles(@TenantId() tenantId: string): Promise<IResponse<Role[]>> {
-    return await this.rolesService.findAllRoles(tenantId);
+    try {
+      this.logger.log(
+        `Buscando listagem de todas as roles do tenant "${tenantId}".`,
+      );
+      return await this.rolesService.findAllRoles(tenantId);
+    } catch (error) {
+      this.logger.error(
+        `Erro ao buscar roles do tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 
   @Get(':id')
@@ -61,7 +92,16 @@ export class RolesController {
     @Param('id') id: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<Role>> {
-    return await this.rolesService.findRoleById(id, tenantId);
+    try {
+      this.logger.log(`Buscando role ID "${id}" no tenant "${tenantId}".`);
+      return await this.rolesService.findRoleById(id, tenantId);
+    } catch (error) {
+      this.logger.error(
+        `Erro ao buscar role ID "${id}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 
   @Patch(':id')
@@ -73,7 +113,26 @@ export class RolesController {
     @Body() updateRoleDto: UpdateRoleDto,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    return await this.rolesService.updateRole(id, tenantId, updateRoleDto);
+    try {
+      this.logger.log(`Atualizando role ID "${id}" no tenant "${tenantId}".`);
+
+      const result = await this.rolesService.updateRole(
+        id,
+        tenantId,
+        updateRoleDto,
+      );
+
+      this.logger.log(
+        `Role ID "${id}" atualizada com sucesso no tenant "${tenantId}".`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao atualizar role ID "${id}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 
   @Delete(':id')
@@ -84,6 +143,23 @@ export class RolesController {
     @Param('id') id: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    return await this.rolesService.deleteRole(id, tenantId);
+    try {
+      this.logger.warn(
+        `Solicitação de remoção da role ID "${id}" no tenant "${tenantId}".`,
+      );
+
+      const result = await this.rolesService.deleteRole(id, tenantId);
+
+      this.logger.log(
+        `Role ID "${id}" removida com sucesso do tenant "${tenantId}".`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao remover role ID "${id}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 }

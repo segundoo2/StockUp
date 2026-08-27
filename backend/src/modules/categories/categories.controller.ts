@@ -3,7 +3,10 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Inject,
+  Logger,
   Param,
   Patch,
   Post,
@@ -22,92 +25,78 @@ import { CategoryDto } from './dtos/category.dto';
 import type { ICategoriesService } from './interfaces/categories.service.interface';
 import { Category } from './entities/category.entity';
 import { UpdateCategoryDto } from './dtos/update-category.dto';
-import { AuthGuard } from '@nestjs/passport';
-import { RequiresAdmin } from '../../decorators/admin.decorator';
-import { AdminGuard } from '../../guards/admin.guard';
+import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
 import { TenantId } from '../../decorators/tenant-id.decorator';
+import { PermissionGuard } from '../../guards/permission.guard';
+import { RequiresPermission } from '../../decorators/permission.decorator';
+import { EPermission } from '../../enum/permissions.enum';
 
 @ApiTags('Categories')
 @ApiBearerAuth()
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @Controller('categories')
 export class CategoriesController implements ICategoriesController {
+  private readonly logger = new Logger(CategoriesController.name);
+
   constructor(
     @Inject('ICategoriesService')
     private readonly service: ICategoriesService,
   ) {}
 
   @Post()
-  @UseGuards(AuthGuard('jwt'), AdminGuard)
-  @RequiresAdmin()
+  @HttpCode(HttpStatus.CREATED)
+  @RequiresPermission(EPermission.CATEGORIES_CREATE)
   @ApiOperation({ summary: 'Cria uma nova categoria' })
   @ApiResponse({
-    status: 201,
+    status: HttpStatus.CREATED,
     description: 'Categoria criada com sucesso.',
   })
   @ApiResponse({
-    status: 400,
+    status: HttpStatus.BAD_REQUEST,
     description: 'Dados de entrada inválidos.',
   })
   @ApiResponse({
-    status: 401,
+    status: HttpStatus.UNAUTHORIZED,
     description: 'Não autorizado.',
   })
   @ApiResponse({
-    status: 403,
+    status: HttpStatus.FORBIDDEN,
     description: 'Acesso negado (requer privilégios de administrador).',
   })
   @ApiResponse({
-    status: 409,
+    status: HttpStatus.CONFLICT,
     description: 'Já existe uma categoria com esse nome para o tenant.',
   })
   async createCategory(
     @TenantId() tenantId: string,
     @Body() categoryDto: CategoryDto,
   ): Promise<IResponse<null>> {
-    return await this.service.createCategory({ tenantId, ...categoryDto });
-  }
+    try {
+      this.logger.log(
+        `Tentativa de criação da categoria "${categoryDto.name}" no tenant "${tenantId}".`,
+      );
 
-  @Patch(':id')
-  @UseGuards(AuthGuard('jwt'), AdminGuard)
-  @RequiresAdmin()
-  @ApiOperation({ summary: 'Atualiza uma categoria existente pelo ID' })
-  @ApiParam({
-    name: 'id',
-    description: 'ID da categoria (UUID)',
-    type: String,
-    example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Categoria atualizada com sucesso.',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Dados de entrada inválidos.',
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Não autorizado.',
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Acesso negado (requer privilégios de administrador).',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Categoria não encontrada.',
-  })
-  async updateCategory(
-    @Param('id') id: string,
-    @TenantId() tenantId: string,
-    @Body() updateCategoryDto: UpdateCategoryDto,
-  ): Promise<IResponse<null>> {
-    return await this.service.updateCategory(id, tenantId, updateCategoryDto);
+      const result = await this.service.createCategory({
+        tenantId,
+        ...categoryDto,
+      });
+
+      this.logger.log(
+        `Categoria "${categoryDto.name}" criada com sucesso no tenant "${tenantId}".`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao criar categoria "${categoryDto.name}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 
   @Get(':name')
-  @UseGuards(AuthGuard('jwt'), AdminGuard)
-  @RequiresAdmin()
+  @HttpCode(HttpStatus.OK)
+  @RequiresPermission(EPermission.CATEGORIES_READ)
   @ApiOperation({ summary: 'Busca uma categoria pelo nome' })
   @ApiParam({
     name: 'name',
@@ -116,59 +105,140 @@ export class CategoriesController implements ICategoriesController {
     example: 'Eletrônicos',
   })
   @ApiResponse({
-    status: 200,
+    status: HttpStatus.OK,
     description: 'Categoria encontrada.',
     type: Category,
   })
   @ApiResponse({
-    status: 401,
+    status: HttpStatus.UNAUTHORIZED,
     description: 'Não autorizado.',
   })
   @ApiResponse({
-    status: 403,
+    status: HttpStatus.FORBIDDEN,
     description: 'Acesso negado (requer privilégios de administrador).',
   })
   @ApiResponse({
-    status: 404,
+    status: HttpStatus.NOT_FOUND,
     description: 'Categoria não encontrada.',
   })
   async findByCategoryName(
     @TenantId() tenantId: string,
     @Param('name') nameCategory: string,
   ): Promise<IResponse<Category>> {
-    return await this.service.findByCategoryName(tenantId, nameCategory);
+    try {
+      this.logger.log(
+        `Buscando categoria pelo nome "${nameCategory}" no tenant "${tenantId}".`,
+      );
+      return await this.service.findByCategoryName(tenantId, nameCategory);
+    } catch (error) {
+      this.logger.error(
+        `Erro ao buscar categoria "${nameCategory}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 
   @Get()
-  @UseGuards(AuthGuard('jwt'), AdminGuard)
-  @RequiresAdmin()
+  @HttpCode(HttpStatus.OK)
+  @RequiresPermission(EPermission.CATEGORIES_READ)
   @ApiOperation({ summary: 'Lista todas as categorias do tenant' })
   @ApiResponse({
-    status: 200,
+    status: HttpStatus.OK,
     description: 'Lista de categorias retornada com sucesso.',
     type: [Category],
   })
   @ApiResponse({
-    status: 401,
+    status: HttpStatus.UNAUTHORIZED,
     description: 'Não autorizado.',
   })
   @ApiResponse({
-    status: 403,
+    status: HttpStatus.FORBIDDEN,
     description: 'Acesso negado (requer privilégios de administrador).',
   })
   @ApiResponse({
-    status: 404,
+    status: HttpStatus.NOT_FOUND,
     description: 'Nenhuma categoria encontrada para este tenant.',
   })
   async findAllCategories(
     @TenantId() tenantId: string,
   ): Promise<IResponse<Category[]>> {
-    return await this.service.findAllCategories(tenantId);
+    try {
+      this.logger.log(
+        `Buscando listagem de categorias para o tenant "${tenantId}".`,
+      );
+      return await this.service.findAllCategories(tenantId);
+    } catch (error) {
+      this.logger.error(
+        `Erro ao buscar lista de categorias do tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
+  }
+
+  @Patch(':id')
+  @HttpCode(HttpStatus.OK)
+  @RequiresPermission(EPermission.CATEGORIES_UPDATE)
+  @ApiOperation({ summary: 'Atualiza uma categoria existente pelo ID' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID da categoria (UUID)',
+    type: String,
+    example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Categoria atualizada com sucesso.',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Dados de entrada inválidos.',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Não autorizado.',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Acesso negado (requer privilégios de administrador).',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Categoria não encontrada.',
+  })
+  async updateCategory(
+    @Param('id') id: string,
+    @TenantId() tenantId: string,
+    @Body() updateCategoryDto: UpdateCategoryDto,
+  ): Promise<IResponse<null>> {
+    try {
+      this.logger.log(
+        `Atualizando categoria ID "${id}" no tenant "${tenantId}".`,
+      );
+
+      const result = await this.service.updateCategory(
+        id,
+        tenantId,
+        updateCategoryDto,
+      );
+
+      this.logger.log(
+        `Categoria ID "${id}" atualizada com sucesso no tenant "${tenantId}".`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao atualizar categoria ID "${id}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 
   @Delete(':id')
-  @UseGuards(AuthGuard('jwt'), AdminGuard)
-  @RequiresAdmin()
+  @HttpCode(HttpStatus.OK)
+  @RequiresPermission(EPermission.CATEGORIES_DELETE)
   @ApiOperation({ summary: 'Remove uma categoria pelo ID' })
   @ApiParam({
     name: 'id',
@@ -177,25 +247,42 @@ export class CategoriesController implements ICategoriesController {
     example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
   })
   @ApiResponse({
-    status: 200,
+    status: HttpStatus.OK,
     description: 'Categoria removida com sucesso.',
   })
   @ApiResponse({
-    status: 401,
+    status: HttpStatus.UNAUTHORIZED,
     description: 'Não autorizado.',
   })
   @ApiResponse({
-    status: 403,
+    status: HttpStatus.FORBIDDEN,
     description: 'Acesso negado (requer privilégios de administrador).',
   })
   @ApiResponse({
-    status: 404,
+    status: HttpStatus.NOT_FOUND,
     description: 'Categoria não encontrada.',
   })
   async deleteCategory(
     @Param('id') id: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    return await this.service.deleteCategory(id, tenantId);
+    try {
+      this.logger.warn(
+        `Solicitação de remoção da categoria ID "${id}" no tenant "${tenantId}".`,
+      );
+
+      const result = await this.service.deleteCategory(id, tenantId);
+
+      this.logger.log(
+        `Categoria ID "${id}" removida com sucesso do tenant "${tenantId}".`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao remover categoria ID "${id}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 }

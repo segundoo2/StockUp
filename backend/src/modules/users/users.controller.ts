@@ -25,7 +25,7 @@ import type { IUsersService } from './interfaces/users.service.interface';
 import { EUsersSuccess } from '../../enum/users-sucess.enum';
 import { UserDto } from './dtos/user.dto';
 import { UpdatePasswordDto } from './dtos/update-password.dto';
-import { AuthGuard } from '@nestjs/passport';
+import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
 import { PermissionGuard } from '../../guards/permission.guard';
 import { RequiresPermission } from '../../decorators/permission.decorator';
 import { User } from './entities/user.entity';
@@ -34,6 +34,8 @@ import { TenantId } from '../../decorators/tenant-id.decorator';
 import { EPermission } from '../../enum/permissions.enum';
 
 @ApiTags('Users')
+@ApiCookieAuth('access_token')
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @Controller('users')
 export class UsersController implements IUsersController {
   private readonly logger = new Logger(UsersController.name);
@@ -44,9 +46,7 @@ export class UsersController implements IUsersController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @UseGuards(AuthGuard('jwt'), PermissionGuard)
   @RequiresPermission(EPermission.USERS_CREATE)
-  @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Criar um novo usuário' })
   @ApiBody({ type: UserDto })
   @ApiResponse({
@@ -72,7 +72,7 @@ export class UsersController implements IUsersController {
     try {
       userDto.tenantId = tenantId;
       this.logger.log(
-        `Tentativa de criação de usuário para o username: "${userDto.username}"`,
+        `Tentativa de criação de usuário "${userDto.username}" no tenant "${tenantId}".`,
       );
 
       const result = await this.usersService.createUser(userDto);
@@ -81,7 +81,7 @@ export class UsersController implements IUsersController {
       return result;
     } catch (error) {
       this.logger.error(
-        `Erro ao criar usuário "${userDto.username}": ${(error as Error).message}`,
+        `Erro ao criar usuário "${userDto.username}" no tenant "${tenantId}": ${(error as Error).message}`,
         (error as Error).stack,
       );
       throw error;
@@ -90,9 +90,7 @@ export class UsersController implements IUsersController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'), PermissionGuard)
   @RequiresPermission(EPermission.USERS_READ)
-  @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Buscar lista de todos os usuários' })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -112,7 +110,9 @@ export class UsersController implements IUsersController {
     @TenantId() tenantId: string,
   ): Promise<IResponse<Omit<User, 'password'>[]>> {
     try {
-      this.logger.log('Buscando listagem geral de usuários cadastrados.');
+      this.logger.log(
+        `Buscando listagem geral de usuários do tenant "${tenantId}".`,
+      );
       return await this.usersService.findAllUsers(tenantId);
     } catch (error) {
       this.logger.error(
@@ -125,9 +125,7 @@ export class UsersController implements IUsersController {
 
   @Get(':username')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'), PermissionGuard)
   @RequiresPermission(EPermission.USERS_READ)
-  @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Buscar usuário através do username' })
   @ApiParam({
     name: 'username',
@@ -154,12 +152,12 @@ export class UsersController implements IUsersController {
   ): Promise<IResponse<Omit<User, 'password'>>> {
     try {
       this.logger.log(
-        `Buscando dados parciais do perfil do username: "${username}".`,
+        `Buscando dados parciais do perfil do username "${username}" no tenant "${tenantId}".`,
       );
       return await this.usersService.findOneByUsername(username, tenantId);
     } catch (error) {
       this.logger.error(
-        `Erro ao buscar usuário "${username}": ${(error as Error).message}`,
+        `Erro ao buscar usuário "${username}" no tenant "${tenantId}": ${(error as Error).message}`,
         (error as Error).stack,
       );
       throw error;
@@ -168,9 +166,7 @@ export class UsersController implements IUsersController {
 
   @Patch()
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'), PermissionGuard)
-  @RequiresPermission(EPermission.USERS_UPDATE_PASSWORD)
-  @ApiCookieAuth('access_token')
+  @RequiresPermission(EPermission.USERS_UPDATE)
   @ApiOperation({ summary: 'Atualizar a senha de um usuário autenticado' })
   @ApiBody({ type: UpdatePasswordDto })
   @ApiResponse({
@@ -193,12 +189,14 @@ export class UsersController implements IUsersController {
     try {
       userDto.tenantId = tenantId;
       this.logger.log(
-        'Requisição recebida para atualização de senha de usuário.',
+        `Requisição recebida para atualização de senha do usuário "${userDto.username}".`,
       );
 
       const result = await this.usersService.updateUserPassword(userDto);
 
-      this.logger.log('Senha do usuário atualizada com sucesso.');
+      this.logger.log(
+        `Senha do usuário "${userDto.username}" atualizada com sucesso.`,
+      );
       return result;
     } catch (error) {
       this.logger.error(
@@ -211,37 +209,73 @@ export class UsersController implements IUsersController {
 
   @Post(':username/roles/:roleId')
   @HttpCode(HttpStatus.OK)
-  @RequiresPermission(EPermission.USERS_UPDATE_ROLE)
+  @RequiresPermission(EPermission.USERS_UPDATE)
   @ApiOperation({ summary: 'Adicionar uma Role específica ao usuário' })
   async addRoleToUser(
     @Param('username') username: string,
     @Param('roleId') roleId: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    return await this.usersService.addRoleToUser(username, roleId, tenantId);
+    try {
+      this.logger.log(
+        `Vinculando role "${roleId}" ao usuário "${username}" no tenant "${tenantId}".`,
+      );
+
+      const result = await this.usersService.addRoleToUser(
+        username,
+        roleId,
+        tenantId,
+      );
+
+      this.logger.log(
+        `Role "${roleId}" vinculada ao usuário "${username}" com sucesso.`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao vincular role "${roleId}" ao usuário "${username}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 
   @Delete(':username/roles/:roleId')
   @HttpCode(HttpStatus.OK)
-  @RequiresPermission(EPermission.USERS_UPDATE_ROLE)
+  @RequiresPermission(EPermission.USERS_UPDATE)
   @ApiOperation({ summary: 'Remover uma Role específica do usuário' })
   async removeRoleFromUser(
     @Param('username') username: string,
     @Param('roleId') roleId: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    return await this.usersService.removeRoleFromUser(
-      username,
-      roleId,
-      tenantId,
-    );
+    try {
+      this.logger.log(
+        `Removendo role "${roleId}" do usuário "${username}" no tenant "${tenantId}".`,
+      );
+
+      const result = await this.usersService.removeRoleFromUser(
+        username,
+        roleId,
+        tenantId,
+      );
+
+      this.logger.log(
+        `Role "${roleId}" removida do usuário "${username}" com sucesso.`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao remover role "${roleId}" do usuário "${username}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 
   @Delete(':username')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(AuthGuard('jwt'), PermissionGuard)
   @RequiresPermission(EPermission.USERS_DELETE)
-  @ApiCookieAuth('access_token')
   @ApiOperation({
     summary: 'Deleta um usuário cadastrado permanentemente',
   })
@@ -273,7 +307,7 @@ export class UsersController implements IUsersController {
   ): Promise<IResponse<null>> {
     try {
       this.logger.warn(
-        `COMANDO CRÍTICO: Solicitação de exclusão permanente para o username: "${username}".`,
+        `COMANDO CRÍTICO: Solicitação de exclusão permanente para o username "${username}" no tenant "${tenantId}".`,
       );
 
       const result = await this.usersService.deleteUser(username, tenantId);
@@ -284,7 +318,7 @@ export class UsersController implements IUsersController {
       return result;
     } catch (error) {
       this.logger.error(
-        `Erro crítico ao deletar o usuário "${username}": ${(error as Error).message}`,
+        `Erro crítico ao deletar o usuário "${username}" no tenant "${tenantId}": ${(error as Error).message}`,
         (error as Error).stack,
       );
       throw error;

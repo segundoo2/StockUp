@@ -7,6 +7,7 @@ import {
   HttpCode,
   HttpStatus,
   Inject,
+  Logger,
   Param,
   Patch,
   Post,
@@ -33,15 +34,17 @@ import { TenantId } from '../../decorators/tenant-id.decorator';
 import { EErrorsGlobal } from '../../enum/errors-global.enum';
 import { UpdateDescriptionLocationDto } from './dtos/update-description-location.dto';
 import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
-import { EPermission } from '../../enum/permissions.enum';
 import { PermissionGuard } from '../../guards/permission.guard';
 import { RequiresPermission } from '../../decorators/permission.decorator';
+import { EPermission } from '../../enum/permissions.enum';
 
 @ApiTags('Locations')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, PermissionGuard)
 @Controller('locations')
 export class LocationsController implements ILocationsController {
+  private readonly logger = new Logger(LocationsController.name);
+
   constructor(
     @Inject('ILocationsService')
     private readonly service: ILocationsService,
@@ -67,7 +70,27 @@ export class LocationsController implements ILocationsController {
     @TenantId() tenantId: string,
     @Body() locationDto: LocationDto,
   ): Promise<IResponse<null>> {
-    return await this.service.createLocation({ ...locationDto, tenantId });
+    try {
+      this.logger.log(
+        `Tentativa de criação de localização "${locationDto.code}" no tenant "${tenantId}".`,
+      );
+
+      const result = await this.service.createLocation({
+        ...locationDto,
+        tenantId,
+      });
+
+      this.logger.log(
+        `Localização "${locationDto.code}" criada com sucesso para o tenant "${tenantId}".`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao criar localização "${locationDto.code}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 
   @Get(':code')
@@ -98,10 +121,25 @@ export class LocationsController implements ILocationsController {
     @Param('code') code: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<Location>> {
-    if (!code || !tenantId) {
-      throw new BadRequestException(EErrorsGlobal.INVALID_DATA);
+    try {
+      if (!code || !tenantId) {
+        this.logger.warn(
+          `Tentativa de busca com dados inválidos. Code: "${code}", TenantId: "${tenantId}".`,
+        );
+        throw new BadRequestException(EErrorsGlobal.INVALID_DATA);
+      }
+
+      this.logger.log(
+        `Buscando localização pelo código "${code}" no tenant "${tenantId}".`,
+      );
+      return await this.service.findByCode(code, tenantId);
+    } catch (error) {
+      this.logger.error(
+        `Erro ao buscar localização "${code}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
     }
-    return await this.service.findByCode(code, tenantId);
   }
 
   @Patch(':code/code')
@@ -128,10 +166,31 @@ export class LocationsController implements ILocationsController {
     @Param('code') code: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    if (!code || !tenantId) {
-      throw new BadRequestException(EErrorsGlobal.INVALID_DATA);
+    try {
+      if (!code || !tenantId) {
+        this.logger.warn(
+          `Tentativa de atualização de código com dados inválidos. Code: "${code}", TenantId: "${tenantId}".`,
+        );
+        throw new BadRequestException(EErrorsGlobal.INVALID_DATA);
+      }
+
+      this.logger.log(
+        `Atualizando código da localização "${code}" no tenant "${tenantId}".`,
+      );
+
+      const result = await this.service.updateCodeLocation(code, tenantId);
+
+      this.logger.log(
+        `Código da localização "${code}" atualizado com sucesso.`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao atualizar código da localização "${code}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
     }
-    return await this.service.updateCodeLocation(code, tenantId);
   }
 
   @Patch('description')
@@ -154,10 +213,27 @@ export class LocationsController implements ILocationsController {
     @Body() updateDescriptionLocation: UpdateDescriptionLocationDto,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    return await this.service.updateDescriptionLocation(
-      updateDescriptionLocation,
-      tenantId,
-    );
+    try {
+      this.logger.log(
+        `Atualizando descrição da localização "${updateDescriptionLocation.code}" no tenant "${tenantId}".`,
+      );
+
+      const result = await this.service.updateDescriptionLocation(
+        updateDescriptionLocation,
+        tenantId,
+      );
+
+      this.logger.log(
+        `Descrição da localização "${updateDescriptionLocation.code}" atualizada com sucesso.`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao atualizar descrição da localização "${updateDescriptionLocation.code}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 
   @Delete(':code')
@@ -183,6 +259,23 @@ export class LocationsController implements ILocationsController {
     @Param('code') code: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    return await this.service.deleteLocation(code, tenantId);
+    try {
+      this.logger.warn(
+        `Solicitação de remoção da localização "${code}" no tenant "${tenantId}".`,
+      );
+
+      const result = await this.service.deleteLocation(code, tenantId);
+
+      this.logger.log(
+        `Localização "${code}" removida com sucesso do tenant "${tenantId}".`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao remover localização "${code}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
   }
 }

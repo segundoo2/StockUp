@@ -13,6 +13,7 @@ describe('LocationController', () => {
     service = {
       createLocation: jest.fn(),
       findByCode: jest.fn(),
+      findAllLocations: jest.fn(),
       updateCodeLocation: jest.fn(),
       updateDescriptionLocation: jest.fn(),
       deleteLocation: jest.fn(),
@@ -57,6 +58,24 @@ describe('LocationController', () => {
           responseService.tenantId,
         ),
       ).toEqual(response);
+    });
+  });
+
+  describe('findAllLocations', () => {
+    it('should return paginated response from service', async () => {
+      const expectedResponse = {
+        message: ELocationSuccessMessage.FIND_ALL,
+        data: {
+          data: [responseService],
+          meta: { page: 1, limit: 10, total: 1, totalPages: 1 },
+        },
+      };
+
+      service.findAllLocations.mockResolvedValue(expectedResponse);
+
+      expect(
+        await controller.findAllLocations(tenantId, { page: 1, limit: 10 }),
+      ).toEqual(expectedResponse);
     });
   });
 

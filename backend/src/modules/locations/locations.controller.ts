@@ -11,6 +11,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -26,7 +27,10 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ILocationsController } from './interfaces/locations.controller.interface';
-import type { ILocationsService } from './interfaces/locations.service.interface';
+import type {
+  ILocationsService,
+  IPaginatedResponse,
+} from './interfaces/locations.service.interface';
 import { IResponse } from '../../interfaces/response.interface';
 import { LocationDto } from './dtos/location.dto';
 import { Location } from './entities/location.entity';
@@ -37,6 +41,8 @@ import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
 import { PermissionGuard } from '../../guards/permission.guard';
 import { RequiresPermission } from '../../decorators/permission.decorator';
 import { EPermission } from '../../enum/permissions.enum';
+import { ELocationSuccessMessage } from '../../enum/location-success.enum';
+import { PaginationQueryDto } from './dtos/pagination-query.dto';
 
 @ApiTags('Locations')
 @ApiBearerAuth()
@@ -136,6 +142,69 @@ export class LocationsController implements ILocationsController {
     } catch (error) {
       this.logger.error(
         `Erro ao buscar localização "${code}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
+  }
+
+  @Get()
+  @HttpCode(HttpStatus.OK)
+  @RequiresPermission(EPermission.LOCATION_FIND)
+  @ApiOperation({
+    summary: 'Listar localizações paginadas',
+    description:
+      'Retorna a lista paginada de localizações pertencentes ao tenant do usuário autenticado.',
+  })
+  @ApiOkResponse({
+    description: 'Lista paginada de localizações retornada com sucesso.',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: ELocationSuccessMessage.FIND_ALL },
+        data: {
+          type: 'object',
+          properties: {
+            data: {
+              type: 'array',
+              items: { $ref: '#/components/schemas/Location' },
+            },
+            meta: {
+              type: 'object',
+              properties: {
+                page: { type: 'number', example: 1 },
+                limit: { type: 'number', example: 10 },
+                total: { type: 'number', example: 42 },
+                totalPages: { type: 'number', example: 5 },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiBadRequestResponse({ description: 'Parâmetros de paginação inválidos.' })
+  @ApiUnauthorizedResponse({
+    description: 'Token de acesso inválido ou expirado.',
+  })
+  @ApiForbiddenResponse({
+    description: 'Acesso negado: permissão insuficiente.',
+  })
+  async findAllLocations(
+    @TenantId() tenantId: string,
+    @Query() query: PaginationQueryDto,
+  ): Promise<IResponse<IPaginatedResponse<Location>>> {
+    try {
+      this.logger.log(
+        `Listando localizações paginadas para o tenant "${tenantId}". Página: ${query.page}, Limite: ${query.limit}.`,
+      );
+
+      const result = await this.service.findAllLocations(tenantId, query);
+
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao buscar localizações paginadas no tenant "${tenantId}": ${(error as Error).message}`,
         (error as Error).stack,
       );
       throw error;

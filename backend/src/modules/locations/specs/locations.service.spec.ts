@@ -15,6 +15,7 @@ describe('LocationsService', () => {
     repository = {
       createLocation: jest.fn(),
       findByCode: jest.fn(),
+      findAllPaginated: jest.fn(),
       updateCodeLocation: jest.fn(),
       updateDescriptionLocation: jest.fn(),
       deleteLocation: jest.fn(),
@@ -77,6 +78,33 @@ describe('LocationsService', () => {
       ).rejects.toThrow(
         new NotFoundException(ELocationErrorsMessage.NOT_FOUND),
       );
+    });
+  });
+
+  describe('findAllLocations', () => {
+    it('should return paginated response structure', async () => {
+      const locationsList = [responseRepository];
+      repository.findAllPaginated.mockResolvedValue({
+        locations: locationsList,
+        total: 1,
+      });
+
+      const expectedResult = {
+        message: ELocationSuccessMessage.FIND_ALL,
+        data: {
+          data: locationsList,
+          meta: {
+            page: 1,
+            limit: 10,
+            total: 1,
+            totalPages: 1,
+          },
+        },
+      };
+
+      expect(
+        await service.findAllLocations('uuid', { page: 1, limit: 10 }),
+      ).toEqual(expectedResult);
     });
   });
 

@@ -4,7 +4,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ILocationsService } from './interfaces/locations.service.interface';
+import {
+  ILocationsService,
+  IPaginatedResponse,
+} from './interfaces/locations.service.interface';
 import type { ILocationsRepository } from './interfaces/locations.repository.interface';
 import { IResponse } from '../../interfaces/response.interface';
 import { LocationDto } from './dtos/location.dto';
@@ -12,6 +15,7 @@ import { ELocationSuccessMessage } from '../../enum/location-success.enum';
 import { Location } from './entities/location.entity';
 import { ELocationErrorsMessage } from '../../enum/location-errors.enum';
 import { UpdateDescriptionLocationDto } from './dtos/update-description-location.dto';
+import { PaginationQueryDto } from './dtos/pagination-query.dto';
 
 @Injectable()
 export class LocationsService implements ILocationsService {
@@ -51,6 +55,32 @@ export class LocationsService implements ILocationsService {
     return {
       message: ELocationSuccessMessage.FINDONE,
       data: locationFound,
+    };
+  }
+
+  async findAllLocations(
+    tenantId: string,
+    pagination: PaginationQueryDto,
+  ): Promise<IResponse<IPaginatedResponse<Location>>> {
+    const { page = 1, limit = 10 } = pagination;
+
+    const { locations, total } = await this.repository.findAllPaginated(
+      tenantId,
+      page,
+      limit,
+    );
+
+    return {
+      message: ELocationSuccessMessage.FIND_ALL,
+      data: {
+        data: locations,
+        meta: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     };
   }
 

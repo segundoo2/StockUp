@@ -5,6 +5,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { LocationDto } from '../dtos/location.dto';
 import { InternalServerErrorException } from '@nestjs/common';
 import { EErrorsGlobal } from '../../../enum/errors-global.enum';
+import { ObjectLiteral, Repository } from 'typeorm';
 
 type MockRepository<T extends ObjectLiteral> = {
   [P in keyof Repository<T>]?: Repository<T>[P] extends (
@@ -25,6 +26,7 @@ describe('LocationsRepository', () => {
       update: jest.fn(),
       find: jest.fn(),
       findOne: jest.fn(),
+      findAndCount: jest.fn(),
       delete: jest.fn(),
     });
 
@@ -96,6 +98,25 @@ describe('LocationsRepository', () => {
     shouldHandleDatabaseErrors(
       () => repository.findByCode(locationDto.code, locationDto.tenantId),
       () => repositoryOrm.findOne,
+    );
+  });
+
+  describe('findAllPaginated', () => {
+    it('should return paginated locations and total count', async () => {
+      const locationsList = [response];
+      repositoryOrm.findAndCount?.mockResolvedValue([locationsList, 1]);
+
+      expect(
+        await repository.findAllPaginated(locationDto.tenantId, 1, 10),
+      ).toEqual({
+        locations: locationsList,
+        total: 1,
+      });
+    });
+
+    shouldHandleDatabaseErrors(
+      () => repository.findAllPaginated(locationDto.tenantId, 1, 10),
+      () => repositoryOrm.findAndCount,
     );
   });
 

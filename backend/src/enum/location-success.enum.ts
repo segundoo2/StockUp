@@ -4,4 +4,5 @@ export enum ELocationSuccessMessage {
   UPDATE_CODE = 'Código da localização atualizado com sucesso!',
   UPDATE_DESCRIPTION = 'Descrição da localização atualizado com sucesso!',
   DELETE = 'Localização deletada com sucesso!',
+  FIND_ALL = 'Lista de localizações encontrada com sucesso!',
 }

@@ -31,6 +31,25 @@ export class LocationsRepository implements ILocationsRepository {
     }
   }
 
+  async findAllPaginated(
+    tenantId: string,
+    page: number,
+    limit: number,
+  ): Promise<{ locations: Location[]; total: number }> {
+    try {
+      const [locations, total] = await this.repository.findAndCount({
+        where: { tenantId },
+        skip: (page - 1) * limit,
+        take: limit,
+        order: { createdAt: 'DESC' },
+      });
+
+      return { locations, total };
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
+
   async updateCodeLocation(
     code: string,
     tenantId: string,

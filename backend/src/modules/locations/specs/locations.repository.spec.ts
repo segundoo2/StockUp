@@ -4,7 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { LocationDto } from '../dtos/location.dto';
 import { InternalServerErrorException } from '@nestjs/common';
-import { EErrorsGlobal } from '../../../enum/errors-global.enum';
+import { EErrorsGlobal } from '../../../common/enum/errors-global.enum';
 import { ObjectLiteral, Repository } from 'typeorm';
 
 type MockRepository<T extends ObjectLiteral> = {

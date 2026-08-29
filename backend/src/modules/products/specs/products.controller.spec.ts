@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { IResponse } from '../../../interfaces/response.interface';
+import { IResponse } from '../../../common/interfaces/response.interface';
 import { ProductDto } from '../dtos/product.dto';
 import { Product } from '../entities/product.entity';
-import { EProductsSuccess } from '../../../enum/products-success.enum';
+import { EProductsSuccess } from '../../../common/enum/products-success.enum';
 import { IProductsController } from '../interfaces/products.controller.interface';
 import { IProductsService } from '../interfaces/products.service.interface';
 import { ProductsController } from '../products.controller';
 import { UpdateProductDto } from '../dtos/update-product.dto';
+import { PaginationQueryDto } from '../../../common/dtos/pagination-query.dto';
+import { IPaginatedResponse } from '../../../common/interfaces/paginated-response.interface';
 
 describe('ProductsController', () => {
   let controller: IProductsController;
@@ -16,7 +18,7 @@ describe('ProductsController', () => {
     mockService = {
       createProduct: jest.fn(),
       updateProduct: jest.fn(),
-      applyStockDelta: jest.fn(), //só para o ts não reclamar, mas não é usado no controller
+      applyStockDelta: jest.fn(),
       findOneBySku: jest.fn(),
       findAllProducts: jest.fn(),
       deleteProduct: jest.fn(),
@@ -128,17 +130,26 @@ describe('ProductsController', () => {
   });
 
   describe('findAllProducts', () => {
-    it("should return all products when it's is found", async () => {
-      const response: IResponse<Product[]> = {
+    it('should return paginated products when it is found', async () => {
+      const paginationQuery: PaginationQueryDto = { page: 1, limit: 10 };
+      const response: IPaginatedResponse<Product> = {
         message: EProductsSuccess.FIND_ALL,
         data: [mockProduct, mockProduct, mockProduct],
+        meta: {
+          itemCount: 3,
+          totalItems: 3,
+          itemsPerPage: 10,
+          totalPages: 1,
+          currentPage: 1,
+        },
       };
       mockService.findAllProducts.mockResolvedValue(response);
-      expect(await controller.findAllProducts(mockProduct.tenantId)).toEqual(
-        response,
-      );
+      expect(
+        await controller.findAllProducts(mockProduct.tenantId, paginationQuery),
+      ).toEqual(response);
       expect(mockService.findAllProducts).toHaveBeenCalledWith(
         mockProduct.tenantId,
+        paginationQuery,
       );
     });
   });

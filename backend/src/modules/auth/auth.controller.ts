@@ -24,10 +24,10 @@ import { IAuthController } from './interfaces/auth.controller.interface';
 import type { IAuthService } from './interfaces/auth.service.interface';
 import { IAuthPayload } from './interfaces/auth-payload.interface';
 import { AuthGuard } from '@nestjs/passport';
-import { SetCookiesInterceptor } from './interceptors/auth.interceptor';
+import { SetCookiesInterceptor } from '../../common/interceptors/auth.interceptor';
 import { IJwtPayloadWithExpiry } from './interfaces/jwt-payload.interface';
 import type { RequestWithCookies } from './interfaces/req-with-cookies.interface';
-import { EAuthSuccess } from '../../enum/auth-success.enum';
+import { EAuthSuccess } from '../../common/enum/auth-success.enum';
 import { LoginDto } from './dtos/login.dto';
 
 @ApiTags('Authentication')

@@ -6,14 +6,16 @@ import {
 } from '@nestjs/common';
 import { ProductDto } from '../dtos/product.dto';
 import { Product } from '../entities/product.entity';
-import { EProductsSuccess } from '../../../enum/products-success.enum';
-import { EProductsErrors } from '../../../enum/products-errors.enum';
+import { EProductsSuccess } from '../../../common/enum/products-success.enum';
+import { EProductsErrors } from '../../../common/enum/products-errors.enum';
 import { IProductsRepository } from '../interfaces/products.repository.interface';
 import { IProductsService } from '../interfaces/products.service.interface';
-import { IResponse } from '../../../interfaces/response.interface';
+import { IResponse } from '../../../common/interfaces/response.interface';
 import { ProductsService } from '../products.service';
 import { DeleteResult, UpdateResult } from 'typeorm';
 import { UpdateProductDto } from '../dtos/update-product.dto';
+import { PaginationQueryDto } from '../../../common/dtos/pagination-query.dto';
+import { IPaginatedResponse } from '../../../common/interfaces/paginated-response.interface';
 
 describe('ProductsService', () => {
   let service: IProductsService;
@@ -161,11 +163,11 @@ describe('ProductsService', () => {
   describe('applyStockDelta', () => {
     let delta: number = 3;
     mockProduct.currentStock = 10;
-    const responseIncrement: IResponse<{ newCurrentStock }> = {
+    const responseIncrement: IResponse<{ newCurrentStock: number }> = {
       message: EProductsSuccess.INPUT_MOVIMENT,
       data: { newCurrentStock: mockProduct.currentStock + delta },
     };
-    const responsedecrement: IResponse<{ newCurrentStock }> = {
+    const responsedecrement: IResponse<{ newCurrentStock: number }> = {
       message: EProductsSuccess.OUTPUT_MOVIMENT,
       data: { newCurrentStock: mockProduct.currentStock - delta },
     };
@@ -262,30 +264,44 @@ describe('ProductsService', () => {
     });
   });
 
-  describe('findAllProduct', () => {
-    it("should return list product when it's is found", async () => {
-      const response: IResponse<Product[]> = {
+  describe('findAllProducts', () => {
+    const pagination: PaginationQueryDto = { page: 1, limit: 10 };
+
+    it('should return paginated list when products are found', async () => {
+      const mockList: Product[] = [mockProduct, mockProduct, mockProduct];
+      const response: IPaginatedResponse<Product> = {
         message: EProductsSuccess.FIND_ALL,
-        data: [mockProduct, mockProduct, mockProduct],
+        data: mockList,
+        meta: {
+          itemCount: 3,
+          totalItems: 3,
+          itemsPerPage: 10,
+          totalPages: 1,
+          currentPage: 1,
+        },
       };
-      mockRepository.findAllProducts.mockResolvedValue(response.data);
-      expect(await service.findAllProducts(mockProduct.tenantId)).toEqual(
-        response,
-      );
+
+      mockRepository.findAllProducts.mockResolvedValue([mockList, 3]);
+
+      expect(
+        await service.findAllProducts(mockProduct.tenantId, pagination),
+      ).toEqual(response);
       expect(mockRepository.findAllProducts).toHaveBeenCalledWith(
         mockProduct.tenantId,
+        pagination,
       );
     });
 
-    it('should return NotFoundException when the products not found', async () => {
-      mockRepository.findAllProducts.mockResolvedValue([]);
+    it('should return NotFoundException when no products are found', async () => {
+      mockRepository.findAllProducts.mockResolvedValue([[], 0]);
       await expect(
-        service.findAllProducts(mockProduct.tenantId),
+        service.findAllProducts(mockProduct.tenantId, pagination),
       ).rejects.toThrow(
         new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND),
       );
       expect(mockRepository.findAllProducts).toHaveBeenCalledWith(
         mockProduct.tenantId,
+        pagination,
       );
     });
   });

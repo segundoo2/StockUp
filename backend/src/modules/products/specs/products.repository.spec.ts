@@ -6,8 +6,9 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { ProductsRepository } from '../products.repository';
 import { ProductDto } from '../dtos/product.dto';
 import { InternalServerErrorException } from '@nestjs/common';
-import { EErrorsGlobal } from '../../../enum/errors-global.enum';
+import { EErrorsGlobal } from '../../../common/enum/errors-global.enum';
 import { UpdateProductDto } from '../dtos/update-product.dto';
+import { PaginationQueryDto } from '../../../common/dtos/pagination-query.dto';
 
 type MockRepository<T extends ObjectLiteral> = Partial<
   Record<keyof Repository<T>, jest.Mock>
@@ -70,6 +71,7 @@ describe('ProductsRepository', () => {
       update: jest.fn(),
       find: jest.fn(),
       findOne: jest.fn(),
+      findAndCount: jest.fn(),
       delete: jest.fn(),
     });
 
@@ -259,20 +261,31 @@ describe('ProductsRepository', () => {
   });
 
   describe('findAllProducts', () => {
-    it("should return product list when it's is found", async () => {
-      const productsList = [mockProduct, mockProduct, mockProduct];
-      ormRepositoryMock.find?.mockResolvedValue(productsList);
+    const pagination: PaginationQueryDto = { page: 1, limit: 10 };
+
+    it("should return tuple [Product[], number] when it's is found", async () => {
+      const productsList: [Product[], number] = [
+        [mockProduct, mockProduct, mockProduct],
+        3,
+      ];
+      ormRepositoryMock.findAndCount?.mockResolvedValue(productsList);
       expect(
-        await productsRepository.findAllProducts(mockProduct.tenantId),
+        await productsRepository.findAllProducts(
+          mockProduct.tenantId,
+          pagination,
+        ),
       ).toEqual(productsList);
-      expect(ormRepositoryMock.find).toHaveBeenCalledWith({
+      expect(ormRepositoryMock.findAndCount).toHaveBeenCalledWith({
         where: { tenantId: mockProduct.tenantId },
+        skip: 0,
+        take: 10,
       });
     });
 
     shouldHandleDatabaseErrors(
-      () => productsRepository.findAllProducts(mockProduct.tenantId),
-      () => ormRepositoryMock.find,
+      () =>
+        productsRepository.findAllProducts(mockProduct.tenantId, pagination),
+      () => ormRepositoryMock.findAndCount,
     );
   });
 

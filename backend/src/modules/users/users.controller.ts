@@ -11,6 +11,7 @@ import {
   HttpCode,
   UseGuards,
   Logger,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,19 +20,22 @@ import {
   ApiParam,
   ApiCookieAuth,
   ApiBody,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { IUsersController } from './interfaces/users.controller.interface';
 import type { IUsersService } from './interfaces/users.service.interface';
-import { EUsersSuccess } from '../../enum/users-sucess.enum';
+import { EUsersSuccess } from '../../common/enum/users-sucess.enum';
 import { UserDto } from './dtos/user.dto';
 import { UpdatePasswordDto } from './dtos/update-password.dto';
-import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
-import { PermissionGuard } from '../../guards/permission.guard';
-import { RequiresPermission } from '../../decorators/permission.decorator';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { PermissionGuard } from '../../common/guards/permission.guard';
 import { User } from './entities/user.entity';
-import { IResponse } from '../../interfaces/response.interface';
-import { TenantId } from '../../decorators/tenant-id.decorator';
-import { EPermission } from '../../enum/permissions.enum';
+import { IResponse } from '../../common/interfaces/response.interface';
+import { EPermission } from '../../common/enum/permissions.enum';
+import { RequiresPermission } from '../../common/decorators/permission.decorator';
+import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
+import { IPaginatedResponse } from '../../common/interfaces/paginated-response.interface';
 
 @ApiTags('Users')
 @ApiCookieAuth('access_token')
@@ -106,23 +110,6 @@ export class UsersController implements IUsersController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Não autorizado.',
   })
-  async findAllUsers(
-    @TenantId() tenantId: string,
-  ): Promise<IResponse<Omit<User, 'password'>[]>> {
-    try {
-      this.logger.log(
-        `Buscando listagem geral de usuários do tenant "${tenantId}".`,
-      );
-      return await this.usersService.findAllUsers(tenantId);
-    } catch (error) {
-      this.logger.error(
-        `Erro ao buscar listagem de usuários do tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
-  }
-
   @Get(':username')
   @HttpCode(HttpStatus.OK)
   @RequiresPermission(EPermission.USERS_READ)
@@ -158,6 +145,44 @@ export class UsersController implements IUsersController {
     } catch (error) {
       this.logger.error(
         `Erro ao buscar usuário "${username}" no tenant "${tenantId}": ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw error;
+    }
+  }
+
+  @Get()
+  @HttpCode(HttpStatus.OK)
+  @RequiresPermission(EPermission.USERS_READ)
+  @ApiOperation({ summary: 'Buscar lista de todos os usuários' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description:
+      'Retorna uma mensagem de status, os dados parciais paginados e metadados de paginação.',
+    type: Object,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Nenhum usuário cadastrado no sistema.',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Não autorizado.',
+  })
+  async findAllUsers(
+    @TenantId() tenantId: string,
+    @Query() pagination: PaginationQueryDto,
+  ): Promise<IPaginatedResponse<Omit<User, 'password'>[]>> {
+    try {
+      this.logger.log(
+        `Buscando listagem geral de usuários do tenant "${tenantId}".`,
+      );
+      return await this.usersService.findAllUsers(tenantId, pagination);
+    } catch (error) {
+      this.logger.error(
+        `Erro ao buscar listagem de usuários do tenant "${tenantId}": ${(error as Error).message}`,
         (error as Error).stack,
       );
       throw error;

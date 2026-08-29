@@ -1,14 +1,15 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { ECategorySuccess } from '../../../enum/category-success.enum';
-import { IResponse } from '../../../interfaces/response.interface';
+import { ECategorySuccess } from '../../../common/enum/category-success.enum';
+import { IResponse } from '../../../common/interfaces/response.interface';
 import { CategoriesService } from '../categories.service';
 import { CategoryDto } from '../dtos/category.dto';
 import { Category } from '../entities/category.entity';
 import { ICategoriesRepository } from '../interfaces/categories.repository.interface';
 import { ICategoriesService } from '../interfaces/categories.service.interface';
-import { ECategoryErrors } from '../../../enum/category-errors.enum';
+import { ECategoryErrors } from '../../../common/enum/category-errors.enum';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { DeleteResult, UpdateResult } from 'typeorm';
+import { PaginationQueryDto } from '../../../common/dtos/pagination-query.dto';
 
 describe('CategoriesService', () => {
   let service: ICategoriesService;
@@ -140,26 +141,31 @@ describe('CategoriesService', () => {
 
   describe('findAllCategories', () => {
     const categoriesList: Category[] = [category, category, category];
+    const pagination: PaginationQueryDto = { page: 1, limit: 10 };
 
-    it('should return category list when the categories is found', async () => {
-      const expectedResponse: IResponse<Category[]> = {
+    it('should return tuple response when categories are found', async () => {
+      const expectedResponse: IResponse<[Category[], number]> = {
         message: ECategorySuccess.FOUND_CATEGORIES_LIST,
-        data: categoriesList,
+        data: [categoriesList, 3],
       };
 
-      repository.findAllCategories.mockResolvedValue(categoriesList);
-      expect(await service.findAllCategories(category.tenantId)).toEqual(
-        expectedResponse,
-      );
+      repository.findAllCategories.mockResolvedValue([categoriesList, 3]);
+
+      expect(
+        await service.findAllCategories(category.tenantId, pagination),
+      ).toEqual(expectedResponse);
+
       expect(repository.findAllCategories).toHaveBeenCalledWith(
         category.tenantId,
+        pagination,
       );
     });
 
-    it('should return NotFoundException when category list === []', async () => {
-      repository.findAllCategories.mockResolvedValue([]);
+    it('should return NotFoundException when total count is 0', async () => {
+      repository.findAllCategories.mockResolvedValue([[], 0]);
+
       await expect(
-        service.findAllCategories(category.tenantId),
+        service.findAllCategories(category.tenantId, pagination),
       ).rejects.toThrow(
         new NotFoundException(ECategoryErrors.CATEGORY_NOT_FOUND),
       );

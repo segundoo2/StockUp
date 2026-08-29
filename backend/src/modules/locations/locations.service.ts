@@ -4,18 +4,16 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  ILocationsService,
-  IPaginatedResponse,
-} from './interfaces/locations.service.interface';
+import { ILocationsService } from './interfaces/locations.service.interface';
 import type { ILocationsRepository } from './interfaces/locations.repository.interface';
-import { IResponse } from '../../interfaces/response.interface';
+import { IResponse } from '../../common/interfaces/response.interface';
 import { LocationDto } from './dtos/location.dto';
-import { ELocationSuccessMessage } from '../../enum/location-success.enum';
+import { ELocationSuccessMessage } from '../../common/enum/location-success.enum';
 import { Location } from './entities/location.entity';
-import { ELocationErrorsMessage } from '../../enum/location-errors.enum';
+import { ELocationErrorsMessage } from '../../common/enum/location-errors.enum';
 import { UpdateDescriptionLocationDto } from './dtos/update-description-location.dto';
-import { PaginationQueryDto } from './dtos/pagination-query.dto';
+import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
+import { IPaginatedResponse } from '../../common/interfaces/paginated-response.interface';
 
 @Injectable()
 export class LocationsService implements ILocationsService {
@@ -61,8 +59,9 @@ export class LocationsService implements ILocationsService {
   async findAllLocations(
     tenantId: string,
     pagination: PaginationQueryDto,
-  ): Promise<IResponse<IPaginatedResponse<Location>>> {
-    const { page = 1, limit = 10 } = pagination;
+  ): Promise<IPaginatedResponse<Location>> {
+    const page = pagination.page ?? 1;
+    const limit = pagination.limit ?? 10;
 
     const { locations, total } = await this.repository.findAllPaginated(
       tenantId,
@@ -70,16 +69,21 @@ export class LocationsService implements ILocationsService {
       limit,
     );
 
+    if (locations.length === 0) {
+      throw new NotFoundException(ELocationErrorsMessage.NOT_FOUND);
+    }
+
+    const totalPages = Math.ceil(total / limit);
+
     return {
       message: ELocationSuccessMessage.FIND_ALL,
-      data: {
-        data: locations,
-        meta: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
+      data: locations,
+      meta: {
+        itemCount: locations.length,
+        totalItems: total,
+        itemsPerPage: limit,
+        totalPages,
+        currentPage: page,
       },
     };
   }

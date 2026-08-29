@@ -1,19 +1,21 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { IProductsRepository } from './interfaces/products.repository.interface';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Product } from './entities/product.entity';
 import { ProductDto } from './dtos/product.dto';
-import { EErrorsGlobal } from '../../enum/errors-global.enum';
+import { EErrorsGlobal } from '../../common/enum/errors-global.enum';
 import { DeleteResult, Repository, UpdateResult } from 'typeorm';
 import { UpdateProductDto } from './dtos/update-product.dto';
+import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
 
 @Injectable()
-export class ProductsRepository implements IProductsRepository {
+export class ProductsRepository implements ProductsRepository {
   constructor(
     @InjectRepository(Product) private readonly repository: Repository<Product>,
   ) {}
 
-  async createProduct(productDto: ProductDto & { tenantId }): Promise<Product> {
+  async createProduct(
+    productDto: ProductDto & { tenantId: string },
+  ): Promise<Product> {
     try {
       const product = this.repository.create(productDto);
       return await this.repository.save(product);
@@ -84,9 +86,20 @@ export class ProductsRepository implements IProductsRepository {
     }
   }
 
-  async findAllProducts(tenantId: string): Promise<Product[] | []> {
+  async findAllProducts(
+    tenantId: string,
+    pagination: PaginationQueryDto,
+  ): Promise<[Product[], number]> {
     try {
-      return await this.repository.find({ where: { tenantId } });
+      const page = pagination.page ?? 1;
+      const limit = pagination.limit ?? 10;
+      const skip = (page - 1) * limit;
+
+      return await this.repository.findAndCount({
+        where: { tenantId },
+        skip,
+        take: limit,
+      });
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }

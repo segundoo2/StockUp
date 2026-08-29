@@ -1,8 +1,8 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-jwt';
-import { IJwtPayload } from '../interfaces/jwt-payload.interface';
-import { RequestWithCookies } from '../interfaces/req-with-cookies.interface';
+import { IJwtPayload } from '../../modules/auth/interfaces/jwt-payload.interface';
+import { RequestWithCookies } from '../../modules/auth/interfaces/req-with-cookies.interface';
 
 export const cookieJwtExtractor = (req: RequestWithCookies): string | null => {
   const strictReq = req;

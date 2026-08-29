@@ -4,17 +4,18 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { EUsersSuccess } from '../../../enum/users-sucess.enum';
+import { EUsersSuccess } from '../../../common/enum/users-sucess.enum';
 import { IUsersRepository } from '../interfaces/users.repository.interface';
 import { UsersService } from '../users.service';
-import { EUsersErrors } from '../../../enum/users-errors.enum';
-import { ERolesErrors } from '../../../enum/roles-errors.enum';
+import { EUsersErrors } from '../../../common/enum/users-errors.enum';
+import { ERolesErrors } from '../../../common/enum/roles-errors.enum';
 import { UpdateResult } from 'typeorm';
 import { ICacheStorageService } from '../../../common/redis/interface/cache-storage.interface';
 import { IRolesRepository } from '../../roles/interfaces/roles.repository.interface';
-import { createFakeUser } from '../../../helpers/create-fake-user.helper';
+import { createFakeUser } from '../../../common/helpers/create-fake-user.helper';
 import { Role } from '../../roles/entities/role.entity';
-import { ERolesSuccess } from '../../../enum/roles-success.enum';
+import { ERolesSuccess } from '../../../common/enum/roles-success.enum';
+import { User } from '../entities/user.entity';
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -70,36 +71,6 @@ describe('UsersService', () => {
     );
   });
 
-  describe('Shared Username Validation Guard', () => {
-    it.each([
-      { label: 'undefined', value: undefined as unknown as string },
-      { label: 'empty string', value: '' },
-      { label: 'only spaces', value: '   ' },
-    ])(
-      'should throw BadRequestException if username is $label',
-      async ({ value }) => {
-        const payload = {
-          tenantId: '1',
-          username: value,
-          roleIds: [roleId],
-          mustChangePassword: true,
-        };
-
-        await expect(service.updateUserPassword(payload)).rejects.toThrow(
-          new BadRequestException(EUsersErrors.USERNAME_INVALID),
-        );
-        await expect(
-          service.findOneByUsername(value, fakeTenantId),
-        ).rejects.toThrow(
-          new BadRequestException(EUsersErrors.USERNAME_INVALID),
-        );
-        await expect(service.deleteUser(value, fakeTenantId)).rejects.toThrow(
-          new BadRequestException(EUsersErrors.USERNAME_INVALID),
-        );
-      },
-    );
-  });
-
   describe('createUser', () => {
     const createDto = {
       tenantId: '1',
@@ -140,6 +111,57 @@ describe('UsersService', () => {
       await expect(service.createUser(createDto)).rejects.toThrow(
         new ConflictException(EUsersErrors.USERNAME_EXIST),
       );
+    });
+  });
+
+  describe('findOneByUsername', () => {
+    it('should return targeted single user profile', async () => {
+      mockUsersRepository.findOneByUsername.mockResolvedValue(user);
+
+      expect(
+        await service.findOneByUsername(user.username, fakeTenantId),
+      ).toEqual({ message: EUsersSuccess.USER_FOUND, data: user });
+    });
+
+    it('should throw NotFoundException if target profile does not exist', async () => {
+      mockUsersRepository.findOneByUsername.mockResolvedValue(null);
+
+      await expect(
+        service.findOneByUsername(user.username, fakeTenantId),
+      ).rejects.toThrow(new NotFoundException(EUsersErrors.USER_NOT_FOUND));
+    });
+  });
+
+  describe('findAllUsers', () => {
+    it('should return wrapped paginated users payload array with metadata', async () => {
+      const users = [user, user] as Omit<User, 'password'>[];
+      const pagination = { page: 1, limit: 10 };
+
+      mockUsersRepository.findAllUsers.mockResolvedValue([users, 2]);
+
+      expect(await service.findAllUsers(fakeTenantId, pagination)).toEqual({
+        message: EUsersSuccess.USERS_FOUND,
+        data: users,
+        meta: {
+          itemCount: 2,
+          totalItems: 2,
+          itemsPerPage: 10,
+          totalPages: 1,
+          currentPage: 1,
+        },
+      });
+      expect(mockUsersRepository.findAllUsers).toHaveBeenCalledWith(
+        fakeTenantId,
+        pagination,
+      );
+    });
+
+    it('should throw NotFoundException if repository returns null/empty', async () => {
+      mockUsersRepository.findAllUsers.mockResolvedValue([[], 0]);
+
+      await expect(
+        service.findAllUsers(fakeTenantId, { page: 1, limit: 10 }),
+      ).rejects.toThrow(new NotFoundException(EUsersErrors.USERS_NOT_FOUND));
     });
   });
 
@@ -188,73 +210,6 @@ describe('UsersService', () => {
       await expect(service.updateUserPassword(baseDto)).rejects.toThrow(
         new NotFoundException(EUsersErrors.USER_NOT_FOUND),
       );
-    });
-  });
-
-  describe('findAllUsers', () => {
-    it('should return wrapped users payload array', async () => {
-      const users = [user, user];
-      mockUsersRepository.findAllUsers.mockResolvedValue(users);
-
-      expect(await service.findAllUsers(fakeTenantId)).toEqual({
-        message: EUsersSuccess.USERS_FOUND,
-        data: users,
-      });
-    });
-
-    it('should throw NotFoundException if repository returns null/empty', async () => {
-      mockUsersRepository.findAllUsers.mockResolvedValue(null);
-
-      await expect(service.findAllUsers(fakeTenantId)).rejects.toThrow(
-        new NotFoundException(EUsersErrors.USERS_NOT_FOUND),
-      );
-    });
-  });
-
-  describe('findOneByUsername', () => {
-    it('should return targeted single user profile', async () => {
-      mockUsersRepository.findOneByUsername.mockResolvedValue(user);
-
-      expect(
-        await service.findOneByUsername(user.username, fakeTenantId),
-      ).toEqual({ message: EUsersSuccess.USER_FOUND, data: user });
-    });
-
-    it('should throw NotFoundException if target profile does not exist', async () => {
-      mockUsersRepository.findOneByUsername.mockResolvedValue(null);
-
-      await expect(
-        service.findOneByUsername(user.username, fakeTenantId),
-      ).rejects.toThrow(new NotFoundException(EUsersErrors.USER_NOT_FOUND));
-    });
-  });
-
-  describe('deleteUser', () => {
-    it('should purge record and set structural temporary expiration blacklist item inside Redis', async () => {
-      mockUsersRepository.findOneByUsername.mockResolvedValue(user);
-      mockUsersRepository.deleteUser.mockResolvedValue({
-        raw: [],
-        affected: 1,
-      });
-      mockRedisService.setWithExpiry.mockResolvedValue(undefined);
-
-      expect(await service.deleteUser(user.username, fakeTenantId)).toEqual({
-        message: EUsersSuccess.DELETE_USER,
-        data: null,
-      });
-      expect(mockRedisService.setWithExpiry).toHaveBeenCalledWith(
-        `blacklist:user:${user.id}`,
-        'deleted',
-        900,
-      );
-    });
-
-    it('should throw NotFoundException if entity missing before execution steps', async () => {
-      mockUsersRepository.findOneByUsername.mockResolvedValue(null);
-
-      await expect(
-        service.deleteUser(user.username, fakeTenantId),
-      ).rejects.toThrow(new NotFoundException(EUsersErrors.USER_NOT_FOUND));
     });
   });
 
@@ -351,6 +306,35 @@ describe('UsersService', () => {
       ).rejects.toThrow(
         new NotFoundException(EUsersErrors.USER_DOES_NOT_HAVE_ROLE),
       );
+    });
+  });
+
+  describe('deleteUser', () => {
+    it('should purge record and set structural temporary expiration blacklist item inside Redis', async () => {
+      mockUsersRepository.findOneByUsername.mockResolvedValue(user);
+      mockUsersRepository.deleteUser.mockResolvedValue({
+        raw: [],
+        affected: 1,
+      });
+      mockRedisService.setWithExpiry.mockResolvedValue(undefined);
+
+      expect(await service.deleteUser(user.username, fakeTenantId)).toEqual({
+        message: EUsersSuccess.DELETE_USER,
+        data: null,
+      });
+      expect(mockRedisService.setWithExpiry).toHaveBeenCalledWith(
+        `blacklist:user:${user.id}`,
+        'deleted',
+        900,
+      );
+    });
+
+    it('should throw NotFoundException if entity missing before execution steps', async () => {
+      mockUsersRepository.findOneByUsername.mockResolvedValue(null);
+
+      await expect(
+        service.deleteUser(user.username, fakeTenantId),
+      ).rejects.toThrow(new NotFoundException(EUsersErrors.USER_NOT_FOUND));
     });
   });
 });

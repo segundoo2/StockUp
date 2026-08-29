@@ -4,9 +4,9 @@ import { DeleteResult, ObjectLiteral, Repository, UpdateResult } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { UsersRepository } from '../users.repository';
 import { InternalServerErrorException } from '@nestjs/common';
-import { EErrorsGlobal } from '../../../enum/errors-global.enum';
+import { EErrorsGlobal } from '../../../common/enum/errors-global.enum';
 import { UserDto } from '../dtos/user.dto';
-import { createFakeUser } from '../../../helpers/create-fake-user.helper';
+import { createFakeUser } from '../../../common/helpers/create-fake-user.helper';
 
 type MockRepository<T extends ObjectLiteral> = Partial<
   Record<keyof Repository<T>, jest.Mock>
@@ -28,18 +28,6 @@ describe('UsersRepository', () => {
     password: user.password,
   };
 
-  const createRelationQueryBuilderMock = (
-    addMock = jest.fn(),
-    removeMock = jest.fn(),
-  ) => ({
-    relation: jest.fn().mockReturnValue({
-      of: jest.fn().mockReturnValue({
-        add: addMock,
-        remove: removeMock,
-      }),
-    }),
-  });
-
   beforeEach(async () => {
     const mockFactory = (): MockRepository<User> => ({
       create: jest.fn(),
@@ -47,6 +35,7 @@ describe('UsersRepository', () => {
       update: jest.fn(),
       find: jest.fn(),
       findOne: jest.fn(),
+      findAndCount: jest.fn(),
       delete: jest.fn(),
       createQueryBuilder: jest.fn(),
     });
@@ -108,6 +97,57 @@ describe('UsersRepository', () => {
     );
   });
 
+  describe('findOneByUsername', () => {
+    it('should return a user when found in the database', async () => {
+      ormRepositoryMock.findOne?.mockResolvedValue(user);
+      expect(await repository.findOneByUsername('segundo', '1')).toEqual(user);
+    });
+
+    it('should return null if user is not found', async () => {
+      ormRepositoryMock.findOne?.mockResolvedValue(null);
+      expect(await repository.findOneByUsername('segundo', '1')).toBeNull();
+    });
+
+    shouldHandleDatabaseErrors(
+      () => repository.findOneByUsername('segundo', '1'),
+      () => ormRepositoryMock.findOne,
+    );
+  });
+
+  describe('findAllUsers', () => {
+    it('should return all registered users with total count', async () => {
+      const usersMock = [createFakeUser(), createFakeUser()];
+      const pagination = { page: 1, limit: 10 };
+
+      ormRepositoryMock.findAndCount?.mockResolvedValue([usersMock, 2]);
+
+      expect(await repository.findAllUsers('1', pagination)).toEqual([
+        usersMock,
+        2,
+      ]);
+      expect(ormRepositoryMock.findAndCount).toHaveBeenCalledWith({
+        where: { tenantId: '1' },
+        relations: {
+          roles: true,
+        },
+        select: {
+          id: true,
+          username: true,
+          mustChangePassword: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        skip: 0,
+        take: 10,
+      });
+    });
+
+    shouldHandleDatabaseErrors(
+      () => repository.findAllUsers('1', { page: 1, limit: 10 }),
+      () => ormRepositoryMock.findAndCount,
+    );
+  });
+
   describe('updateUserPassword', () => {
     const response: UpdateResult = { raw: [], affected: 0, generatedMaps: [] };
 
@@ -138,42 +178,6 @@ describe('UsersRepository', () => {
     );
   });
 
-  describe('findAllUsers', () => {
-    it('should return all registered users', async () => {
-      const usersMock = [createFakeUser(), createFakeUser()];
-      ormRepositoryMock.find?.mockResolvedValue(usersMock);
-
-      expect(await repository.findAllUsers('1')).toEqual(usersMock);
-    });
-
-    it('should return null if no user is found', async () => {
-      ormRepositoryMock.find?.mockResolvedValue([]);
-      expect(await repository.findAllUsers('1')).toBeNull();
-    });
-
-    shouldHandleDatabaseErrors(
-      () => repository.findAllUsers('1'),
-      () => ormRepositoryMock.find,
-    );
-  });
-
-  describe('findOneByUsername', () => {
-    it('should return a user when found in the database', async () => {
-      ormRepositoryMock.findOne?.mockResolvedValue(user);
-      expect(await repository.findOneByUsername('segundo', '1')).toEqual(user);
-    });
-
-    it('should return null if user is not found', async () => {
-      ormRepositoryMock.findOne?.mockResolvedValue(null);
-      expect(await repository.findOneByUsername('segundo', '1')).toBeNull();
-    });
-
-    shouldHandleDatabaseErrors(
-      () => repository.findOneByUsername('segundo', '1'),
-      () => ormRepositoryMock.findOne,
-    );
-  });
-
   describe('deleteUser', () => {
     const response: DeleteResult = { raw: [], affected: 1 };
 
@@ -198,48 +202,74 @@ describe('UsersRepository', () => {
   describe('addRoleToUser', () => {
     it('should call relation query builder add method', async () => {
       const addMock = jest.fn().mockResolvedValue(undefined);
-      ormRepositoryMock.createQueryBuilder?.mockReturnValue(
-        createRelationQueryBuilderMock(addMock),
-      );
+      ormRepositoryMock.createQueryBuilder?.mockReturnValue({
+        relation: jest.fn().mockReturnValue({
+          of: jest.fn().mockReturnValue({
+            add: addMock,
+          }),
+        }),
+      } as any);
 
       await repository.addRoleToUser(user.id, roleId, '1');
 
       expect(addMock).toHaveBeenCalledWith(roleId);
     });
 
-    shouldHandleDatabaseErrors(
-      () => repository.addRoleToUser(user.id, roleId, '1'),
-      () => {
-        const addMock = jest.fn();
-        ormRepositoryMock.createQueryBuilder?.mockReturnValue(
-          createRelationQueryBuilderMock(addMock),
-        );
-        return addMock;
-      },
-    );
+    it('should return InternalServerException when TypeORM throws an error', async () => {
+      ormRepositoryMock.createQueryBuilder?.mockReturnValue({
+        relation: jest.fn().mockReturnValue({
+          of: jest.fn().mockReturnValue({
+            add: jest
+              .fn()
+              .mockRejectedValue(
+                new Error('[TypeOrmModule] Unable to connect to the database'),
+              ),
+          }),
+        }),
+      } as any);
+
+      await expect(
+        repository.addRoleToUser(user.id, roleId, '1'),
+      ).rejects.toThrow(
+        new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR),
+      );
+    });
   });
 
   describe('removeRoleFromUser', () => {
     it('should call relation query builder remove method', async () => {
       const removeMock = jest.fn().mockResolvedValue(undefined);
-      ormRepositoryMock.createQueryBuilder?.mockReturnValue(
-        createRelationQueryBuilderMock(jest.fn(), removeMock),
-      );
+      ormRepositoryMock.createQueryBuilder?.mockReturnValue({
+        relation: jest.fn().mockReturnValue({
+          of: jest.fn().mockReturnValue({
+            remove: removeMock,
+          }),
+        }),
+      } as any);
 
       await repository.removeRoleFromUser(user.id, roleId, '1');
 
       expect(removeMock).toHaveBeenCalledWith(roleId);
     });
 
-    shouldHandleDatabaseErrors(
-      () => repository.removeRoleFromUser(user.id, roleId, '1'),
-      () => {
-        const removeMock = jest.fn();
-        ormRepositoryMock.createQueryBuilder?.mockReturnValue(
-          createRelationQueryBuilderMock(jest.fn(), removeMock),
-        );
-        return removeMock;
-      },
-    );
+    it('should return InternalServerException when TypeORM throws an error', async () => {
+      ormRepositoryMock.createQueryBuilder?.mockReturnValue({
+        relation: jest.fn().mockReturnValue({
+          of: jest.fn().mockReturnValue({
+            remove: jest
+              .fn()
+              .mockRejectedValue(
+                new Error('[TypeOrmModule] Unable to connect to the database'),
+              ),
+          }),
+        }),
+      } as any);
+
+      await expect(
+        repository.removeRoleFromUser(user.id, roleId, '1'),
+      ).rejects.toThrow(
+        new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR),
+      );
+    });
   });
 });

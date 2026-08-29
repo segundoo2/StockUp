@@ -9,7 +9,7 @@ import {
   IsArray,
   IsUUID,
 } from 'class-validator';
-import { EUsersErrors } from '../../../enum/users-errors.enum';
+import { EUsersErrors } from '../../../common/enum/users-errors.enum';
 
 export abstract class UserDto {
   tenantId!: string;

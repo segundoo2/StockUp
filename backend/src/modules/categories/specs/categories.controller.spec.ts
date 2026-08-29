@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { ECategorySuccess } from '../../../enum/category-success.enum';
-import { IResponse } from '../../../interfaces/response.interface';
+import { PaginationQueryDto } from '../../../common/dtos/pagination-query.dto';
+import { ECategorySuccess } from '../../../common/enum/category-success.enum';
+import { IResponse } from '../../../common/interfaces/response.interface';
 import { CategoriesController } from '../categories.controller';
 import { CategoryDto } from '../dtos/category.dto';
 import { Category } from '../entities/category.entity';
@@ -87,19 +88,22 @@ describe('CategoriesController', () => {
 
   describe('findAllCategories', () => {
     const categoriesList: Category[] = [category, category, category];
-    response = {
+    const pagination: PaginationQueryDto = { page: 1, limit: 10 };
+    const response: IResponse<[Category[], number]> = {
       message: ECategorySuccess.FOUND_CATEGORIES_LIST,
-      data: categoriesList,
+      data: [categoriesList, 3],
     };
 
-    it('should return category list when the categories is found', async () => {
-      service.findAllCategories.mockResolvedValue(
-        response as IResponse<Category[]>,
+    it('should return category list with total count when categories are found', async () => {
+      service.findAllCategories.mockResolvedValue(response);
+
+      expect(
+        await controller.findAllCategories(category.tenantId, pagination),
+      ).toEqual(response);
+      expect(service.findAllCategories).toHaveBeenCalledWith(
+        category.tenantId,
+        pagination,
       );
-      expect(await controller.findAllCategories(category.tenantId)).toEqual(
-        response,
-      );
-      expect(service.findAllCategories).toHaveBeenCalledWith(category.tenantId);
     });
   });
 

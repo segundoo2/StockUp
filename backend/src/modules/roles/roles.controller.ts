@@ -10,25 +10,29 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { IRolesService } from './interfaces/roles.service.interface';
+import { IRolesController } from './interfaces/roles.controller.interface';
 import { UpdateRoleDto } from './dtos/update-role.dto';
 import { Role } from './entities/role.entity';
-import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
-import { PermissionGuard } from '../../guards/permission.guard';
-import { RequiresPermission } from '../../decorators/permission.decorator';
-import { TenantId } from '../../decorators/tenant-id.decorator';
-import { EPermission } from '../../enum/permissions.enum';
-import { IResponse } from '../../interfaces/response.interface';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { PermissionGuard } from '../../common/guards/permission.guard';
+import { EPermission } from '../../common/enum/permissions.enum';
+import { IResponse } from '../../common/interfaces/response.interface';
 import { RoleDto } from './dtos/role.dto';
+import { RequiresPermission } from '../../common/decorators/permission.decorator';
+import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
+import { IPaginatedResponse } from '../../common/interfaces/paginated-response.interface';
 
 @ApiTags('Roles')
 @ApiCookieAuth('access_token')
 @UseGuards(JwtAuthGuard, PermissionGuard)
 @Controller('roles')
-export class RolesController {
+export class RolesController implements IRolesController {
   private readonly logger = new Logger(RolesController.name);
 
   constructor(
@@ -68,13 +72,16 @@ export class RolesController {
   @Get()
   @HttpCode(HttpStatus.OK)
   @RequiresPermission(EPermission.ROLES_READ)
-  @ApiOperation({ summary: 'Listar todas as Roles do tenant' })
-  async findAllRoles(@TenantId() tenantId: string): Promise<IResponse<Role[]>> {
+  @ApiOperation({ summary: 'Listar todas as Roles do tenant com paginação' })
+  async findAllRoles(
+    @TenantId() tenantId: string,
+    @Query() paginationQuery: PaginationQueryDto,
+  ): Promise<IPaginatedResponse<Role>> {
     try {
       this.logger.log(
-        `Buscando listagem de todas as roles do tenant "${tenantId}".`,
+        `Buscando listagem de roles do tenant "${tenantId}" - Página: ${paginationQuery.page ?? 1}, Limite: ${paginationQuery.limit ?? 10}.`,
       );
-      return await this.rolesService.findAllRoles(tenantId);
+      return await this.rolesService.findAllRoles(tenantId, paginationQuery);
     } catch (error) {
       this.logger.error(
         `Erro ao buscar roles do tenant "${tenantId}": ${(error as Error).message}`,

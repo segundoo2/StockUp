@@ -1,5 +1,5 @@
-import { ELocationSuccessMessage } from '../../../enum/location-success.enum';
-import { IResponse } from '../../../interfaces/response.interface';
+import { ELocationSuccessMessage } from '../../../common/enum/location-success.enum';
+import { IResponse } from '../../../common/interfaces/response.interface';
 import { LocationDto } from '../dtos/location.dto';
 import { Location } from '../entities/location.entity';
 import { ILocationsService } from '../interfaces/locations.service.interface';

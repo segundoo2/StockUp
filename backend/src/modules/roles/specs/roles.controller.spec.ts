@@ -5,8 +5,10 @@ import { IRolesService } from '../interfaces/roles.service.interface';
 import { RoleDto } from '../dtos/role.dto';
 import { UpdateRoleDto } from '../dtos/update-role.dto';
 import { Role } from '../entities/role.entity';
-import { IResponse } from '../../../interfaces/response.interface';
-import { ERolesSuccess } from '../../../enum/roles-success.enum';
+import { IResponse } from '../../../common/interfaces/response.interface';
+import { ERolesSuccess } from '../../../common/enum/roles-success.enum';
+import { PaginationQueryDto } from '../../../common/dtos/pagination-query.dto';
+import { IPaginatedResponse } from '../../../common/interfaces/paginated-response.interface';
 
 describe('RolesController', () => {
   let controller: RolesController;
@@ -77,18 +79,29 @@ describe('RolesController', () => {
   });
 
   describe('findAllRoles', () => {
-    it('should return list of roles response', async () => {
-      const response: IResponse<Role[]> = {
+    it('should return paginated list of roles response', async () => {
+      const paginationQuery: PaginationQueryDto = { page: 1, limit: 10 };
+      const response: IPaginatedResponse<Role> = {
         message: ERolesSuccess.ROLES_FOUND,
         data: [mockRole],
+        meta: {
+          itemCount: 1,
+          totalItems: 1,
+          itemsPerPage: 10,
+          totalPages: 1,
+          currentPage: 1,
+        },
       };
 
       mockService.findAllRoles.mockResolvedValue(response);
 
-      const result = await controller.findAllRoles(tenantId);
+      const result = await controller.findAllRoles(tenantId, paginationQuery);
 
       expect(result).toEqual(response);
-      expect(mockService.findAllRoles).toHaveBeenCalledWith(tenantId);
+      expect(mockService.findAllRoles).toHaveBeenCalledWith(
+        tenantId,
+        paginationQuery,
+      );
     });
   });
 

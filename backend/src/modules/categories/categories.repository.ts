@@ -4,8 +4,9 @@ import { CategoryDto } from './dtos/category.dto';
 import { Category } from './entities/category.entity';
 import { DeleteResult, Repository, UpdateResult } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EErrorsGlobal } from '../../enum/errors-global.enum';
+import { EErrorsGlobal } from '../../common/enum/errors-global.enum';
 import { UpdateCategoryDto } from './dtos/update-category.dto';
+import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
 
 @Injectable()
 export class CategoriesRepository implements ICategoriesRepository {
@@ -50,9 +51,20 @@ export class CategoriesRepository implements ICategoriesRepository {
     }
   }
 
-  async findAllCategories(tenantId: string): Promise<Category[]> {
+  async findAllCategories(
+    tenantId: string,
+    pagination: PaginationQueryDto,
+  ): Promise<[Category[], number]> {
     try {
-      return await this.repository.find({ where: { tenantId } });
+      const page = pagination.page ?? 1;
+      const limit = pagination.limit ?? 10;
+      const skip = (page - 1) * limit;
+
+      return await this.repository.findAndCount({
+        where: { tenantId },
+        skip,
+        take: limit,
+      });
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }

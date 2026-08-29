@@ -7,8 +7,9 @@ import { IRolesRepository } from '../interfaces/roles.repository.interface';
 import { RoleDto } from '../dtos/role.dto';
 import { UpdateRoleDto } from '../dtos/update-role.dto';
 import { Role } from '../entities/role.entity';
-import { ERolesSuccess } from '../../../enum/roles-success.enum';
-import { ERolesErrors } from '../../../enum/roles-errors.enum';
+import { ERolesSuccess } from '../../../common/enum/roles-success.enum';
+import { ERolesErrors } from '../../../common/enum/roles-errors.enum';
+import { PaginationQueryDto } from '../../../common/dtos/pagination-query.dto';
 
 describe('RolesService', () => {
   let service: RolesService;
@@ -76,23 +77,35 @@ describe('RolesService', () => {
   });
 
   describe('findAllRoles', () => {
-    it('should return all roles when found', async () => {
-      const rolesMock = [mockRole];
-      mockRepository.findAllRoles.mockResolvedValue(rolesMock);
+    const pagination: PaginationQueryDto = { page: 1, limit: 10 };
 
-      const result = await service.findAllRoles(tenantId);
+    it('should return paginated roles when found', async () => {
+      const rolesMock = [mockRole];
+      mockRepository.findAllRoles.mockResolvedValue([rolesMock, 1]);
+
+      const result = await service.findAllRoles(tenantId, pagination);
 
       expect(result).toEqual({
         message: ERolesSuccess.ROLES_FOUND,
         data: rolesMock,
+        meta: {
+          itemCount: 1,
+          totalItems: 1,
+          itemsPerPage: 10,
+          totalPages: 1,
+          currentPage: 1,
+        },
       });
-      expect(mockRepository.findAllRoles).toHaveBeenCalledWith(tenantId);
+      expect(mockRepository.findAllRoles).toHaveBeenCalledWith(
+        tenantId,
+        pagination,
+      );
     });
 
-    it('should throw NotFoundException when repository returns null', async () => {
-      mockRepository.findAllRoles.mockResolvedValue(null);
+    it('should throw NotFoundException when repository returns empty array', async () => {
+      mockRepository.findAllRoles.mockResolvedValue([[], 0]);
 
-      await expect(service.findAllRoles(tenantId)).rejects.toThrow(
+      await expect(service.findAllRoles(tenantId, pagination)).rejects.toThrow(
         new NotFoundException(ERolesErrors.ROLES_NOT_FOUND),
       );
     });

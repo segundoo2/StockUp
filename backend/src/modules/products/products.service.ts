@@ -8,12 +8,14 @@ import {
 import type { IProductsRepository } from './interfaces/products.repository.interface';
 import { IProductsService } from './interfaces/products.service.interface';
 import { ProductDto } from './dtos/product.dto';
-import { EProductsSuccess } from '../../enum/products-success.enum';
+import { EProductsSuccess } from '../../common/enum/products-success.enum';
 import { Product } from './entities/product.entity';
-import { IResponse } from '../../interfaces/response.interface';
-import { EProductsErrors } from '../../enum/products-errors.enum';
+import { IResponse } from '../../common/interfaces/response.interface';
+import { EProductsErrors } from '../../common/enum/products-errors.enum';
 import { DeleteResult } from 'typeorm';
 import { UpdateProductDto } from './dtos/update-product.dto';
+import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
+import { IPaginatedResponse } from '../../common/interfaces/paginated-response.interface';
 
 @Injectable()
 export class ProductsService implements IProductsService {
@@ -91,7 +93,7 @@ export class ProductsService implements IProductsService {
         delta > 0
           ? EProductsSuccess.INPUT_MOVIMENT
           : EProductsSuccess.OUTPUT_MOVIMENT,
-      data: { newCurrentStock: newCurrentStock },
+      data: { newCurrentStock },
     };
   }
 
@@ -110,14 +112,35 @@ export class ProductsService implements IProductsService {
     };
   }
 
-  async findAllProducts(tenantId: string): Promise<IResponse<Product[]>> {
-    const productList = await this.productsRepository.findAllProducts(tenantId);
-    if (productList?.length === 0) {
+  async findAllProducts(
+    tenantId: string,
+    paginationQuery: PaginationQueryDto,
+  ): Promise<IPaginatedResponse<Product>> {
+    const page = paginationQuery.page ?? 1;
+    const limit = paginationQuery.limit ?? 10;
+
+    const [products, totalItems] =
+      await this.productsRepository.findAllProducts(tenantId, {
+        page,
+        limit,
+      });
+
+    if (products.length === 0) {
       throw new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND);
     }
+
+    const totalPages = Math.ceil(totalItems / limit);
+
     return {
       message: EProductsSuccess.FIND_ALL,
-      data: productList as Product[],
+      data: products,
+      meta: {
+        itemCount: products.length,
+        totalItems,
+        itemsPerPage: limit,
+        totalPages,
+        currentPage: page,
+      },
     };
   }
 

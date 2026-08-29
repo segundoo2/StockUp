@@ -16,9 +16,10 @@ import { RolesRepository } from '../roles.repository';
 import { Role } from '../entities/role.entity';
 import { RoleDto } from '../dtos/role.dto';
 import { UpdateRoleDto } from '../dtos/update-role.dto';
-import { ERolesErrors } from '../../../enum/roles-errors.enum';
-import { EErrorsGlobal } from '../../../enum/errors-global.enum';
-import { IDatabaseDriverError } from '../../../interfaces/database-driver-Error.interface';
+import { ERolesErrors } from '../../../common/enum/roles-errors.enum';
+import { EErrorsGlobal } from '../../../common/enum/errors-global.enum';
+import { IDatabaseDriverError } from '../../../common/interfaces/database-driver-Error.interface';
+import { PaginationQueryDto } from '../../../common/dtos/pagination-query.dto';
 
 type MockRepository<T extends ObjectLiteral> = Partial<
   Record<keyof Repository<T>, jest.Mock>
@@ -57,6 +58,7 @@ describe('RolesRepository', () => {
       save: jest.fn(),
       find: jest.fn(),
       findOne: jest.fn(),
+      findAndCount: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     });
@@ -127,28 +129,25 @@ describe('RolesRepository', () => {
   });
 
   describe('findAllRoles', () => {
-    it('should return roles array when records match tenant', async () => {
-      ormRepositoryMock.find?.mockResolvedValue([mockRole]);
+    const pagination: PaginationQueryDto = { page: 1, limit: 10 };
 
-      const result = await repository.findAllRoles(tenantId);
+    it('should return tuple [Role[], number] when records match tenant', async () => {
+      const rolesList: [Role[], number] = [[mockRole], 1];
+      ormRepositoryMock.findAndCount?.mockResolvedValue(rolesList);
 
-      expect(result).toEqual([mockRole]);
-      expect(ormRepositoryMock.find).toHaveBeenCalledWith({
+      const result = await repository.findAllRoles(tenantId, pagination);
+
+      expect(result).toEqual(rolesList);
+      expect(ormRepositoryMock.findAndCount).toHaveBeenCalledWith({
         where: { tenantId },
+        skip: 0,
+        take: 10,
       });
     });
 
-    it('should return null when no role is found', async () => {
-      ormRepositoryMock.find?.mockResolvedValue([]);
-
-      const result = await repository.findAllRoles(tenantId);
-
-      expect(result).toBeNull();
-    });
-
     shouldHandleDatabaseErrors(
-      () => repository.findAllRoles(tenantId),
-      () => ormRepositoryMock.find,
+      () => repository.findAllRoles(tenantId, pagination),
+      () => ormRepositoryMock.findAndCount,
     );
   });
 

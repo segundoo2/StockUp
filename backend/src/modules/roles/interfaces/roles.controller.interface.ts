@@ -1,14 +1,19 @@
+import { PaginationQueryDto } from '../../../common/dtos/pagination-query.dto';
+import { IPaginatedResponse } from '../../../common/interfaces/paginated-response.interface';
+import { IResponse } from '../../../common/interfaces/response.interface';
+import { RoleDto } from '../dtos/role.dto';
 import { UpdateRoleDto } from '../dtos/update-role.dto';
 import { Role } from '../entities/role.entity';
-import { IResponse } from '../../../interfaces/response.interface';
-import { RoleDto } from '../dtos/role.dto';
 
 export interface IRolesController {
   createRole(roleDto: RoleDto, tenantId: string): Promise<IResponse<Role>>;
 
-  findAllRoles(tenantId: string): Promise<IResponse<Role[]>>;
-
   findRoleById(id: string, tenantId: string): Promise<IResponse<Role>>;
+
+  findAllRoles(
+    tenantId: string,
+    paginationQuery: PaginationQueryDto,
+  ): Promise<IPaginatedResponse<Role>>;
 
   updateRole(
     id: string,

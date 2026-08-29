@@ -1,4 +1,5 @@
-import { IResponse } from '../../../interfaces/response.interface';
+import { PaginationQueryDto } from '../../../common/dtos/pagination-query.dto';
+import { IResponse } from '../../../common/interfaces/response.interface';
 import { CategoryDto } from '../dtos/category.dto';
 import { UpdateCategoryDto } from '../dtos/update-category.dto';
 import { Category } from '../entities/category.entity';
@@ -20,7 +21,10 @@ export interface ICategoriesController {
     nameCategory: string,
   ): Promise<IResponse<Category>>;
 
-  findAllCategories(tenantId: string): Promise<IResponse<Category[]>>;
+  findAllCategories(
+    tenantId: string,
+    pagination: PaginationQueryDto,
+  ): Promise<IResponse<[Category[], number]>>;
 
   deleteCategory(id: string, tenantId: string): Promise<IResponse<null>>;
 }

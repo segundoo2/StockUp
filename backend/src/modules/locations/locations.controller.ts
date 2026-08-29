@@ -27,22 +27,20 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ILocationsController } from './interfaces/locations.controller.interface';
-import type {
-  ILocationsService,
-  IPaginatedResponse,
-} from './interfaces/locations.service.interface';
-import { IResponse } from '../../interfaces/response.interface';
+import type { ILocationsService } from './interfaces/locations.service.interface';
+import { IResponse } from '../../common/interfaces/response.interface';
 import { LocationDto } from './dtos/location.dto';
 import { Location } from './entities/location.entity';
-import { TenantId } from '../../decorators/tenant-id.decorator';
-import { EErrorsGlobal } from '../../enum/errors-global.enum';
+import { EErrorsGlobal } from '../../common/enum/errors-global.enum';
 import { UpdateDescriptionLocationDto } from './dtos/update-description-location.dto';
-import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
-import { PermissionGuard } from '../../guards/permission.guard';
-import { RequiresPermission } from '../../decorators/permission.decorator';
-import { EPermission } from '../../enum/permissions.enum';
-import { ELocationSuccessMessage } from '../../enum/location-success.enum';
-import { PaginationQueryDto } from './dtos/pagination-query.dto';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { PermissionGuard } from '../../common/guards/permission.guard';
+import { EPermission } from '../../common/enum/permissions.enum';
+import { ELocationSuccessMessage } from '../../common/enum/location-success.enum';
+import { RequiresPermission } from '../../common/decorators/permission.decorator';
+import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
+import { IPaginatedResponse } from '../../common/interfaces/paginated-response.interface';
 
 @ApiTags('Locations')
 @ApiBearerAuth()
@@ -193,7 +191,7 @@ export class LocationsController implements ILocationsController {
   async findAllLocations(
     @TenantId() tenantId: string,
     @Query() query: PaginationQueryDto,
-  ): Promise<IResponse<IPaginatedResponse<Location>>> {
+  ): Promise<IPaginatedResponse<Location>> {
     try {
       this.logger.log(
         `Listando localizações paginadas para o tenant "${tenantId}". Página: ${query.page}, Limite: ${query.limit}.`,

@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
-import { IJwtPayload } from '../interfaces/jwt-payload.interface';
-import { RequestWithCookies } from '../interfaces/req-with-cookies.interface';
-import { JwtStrategy, cookieJwtExtractor } from '../strategies/jwt.strategy';
-import { EPermission } from '../../../enum/permissions.enum';
+import { IJwtPayload } from '../../modules/auth/interfaces/jwt-payload.interface';
+import { RequestWithCookies } from '../../modules/auth/interfaces/req-with-cookies.interface';
+import { JwtStrategy, cookieJwtExtractor } from './jwt.strategy';
+import { EPermission } from '../enum/permissions.enum';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;

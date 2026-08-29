@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsArray, IsEnum, IsNotEmpty, IsString, Length } from 'class-validator';
-import { EPermission } from '../../../enum/permissions.enum';
+import { EPermission } from '../../../common/enum/permissions.enum';
 
 export class RoleDto {
   tenantId!: string;

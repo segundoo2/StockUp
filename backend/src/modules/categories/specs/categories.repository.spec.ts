@@ -5,7 +5,8 @@ import { ICategoriesRepository } from '../interfaces/categories.repository.inter
 import { CategoriesRepository } from '../categories.repository';
 import { CategoryDto } from '../dtos/category.dto';
 import { InternalServerErrorException } from '@nestjs/common';
-import { EErrorsGlobal } from '../../../enum/errors-global.enum';
+import { EErrorsGlobal } from '../../../common/enum/errors-global.enum';
+import { PaginationQueryDto } from '../../../common/dtos/pagination-query.dto';
 
 describe('CategoriesRepository', () => {
   let categoriesRepository: ICategoriesRepository;
@@ -141,20 +142,31 @@ describe('CategoriesRepository', () => {
 
   describe('findAllCategories', () => {
     const categoriesList: Category[] = [category, category, category];
+    const pagination: PaginationQueryDto = { page: 1, limit: 10 };
 
-    it('should return category list when the categories is found', async () => {
-      ormRepository.find.mockResolvedValue(categoriesList);
+    it('should return category tuple [categories, total] when categories are found', async () => {
+      ormRepository.findAndCount = jest
+        .fn()
+        .mockResolvedValue([categoriesList, 3]);
+
       expect(
-        await categoriesRepository.findAllCategories(category.tenantId),
-      ).toBe(categoriesList);
-      expect(ormRepository.find).toHaveBeenCalledWith({
+        await categoriesRepository.findAllCategories(
+          category.tenantId,
+          pagination,
+        ),
+      ).toEqual([categoriesList, 3]);
+
+      expect(ormRepository.findAndCount).toHaveBeenCalledWith({
         where: { tenantId: category.tenantId },
+        skip: 0,
+        take: 10,
       });
     });
 
     shouldHandleDatabaseErrors(
-      () => categoriesRepository.findAllCategories(category.tenantId),
-      () => ormRepository.find as unknown as jest.Mock,
+      () =>
+        categoriesRepository.findAllCategories(category.tenantId, pagination),
+      () => ormRepository.findAndCount as unknown as jest.Mock,
     );
   });
 

@@ -5,13 +5,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ICategoriesService } from './interfaces/categories.service.interface';
-import { IResponse } from '../../interfaces/response.interface';
+import { IResponse } from '../../common/interfaces/response.interface';
 import { CategoryDto } from './dtos/category.dto';
 import type { ICategoriesRepository } from './interfaces/categories.repository.interface';
-import { ECategorySuccess } from '../../enum/category-success.enum';
+import { ECategorySuccess } from '../../common/enum/category-success.enum';
 import { Category } from './entities/category.entity';
-import { ECategoryErrors } from '../../enum/category-errors.enum';
+import { ECategoryErrors } from '../../common/enum/category-errors.enum';
 import { UpdateCategoryDto } from './dtos/update-category.dto';
+import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
 
 @Injectable()
 export class CategoriesService implements ICategoriesService {
@@ -76,16 +77,22 @@ export class CategoriesService implements ICategoriesService {
     };
   }
 
-  async findAllCategories(tenantId: string): Promise<IResponse<Category[]>> {
-    const categoriesList = await this.repository.findAllCategories(tenantId);
+  async findAllCategories(
+    tenantId: string,
+    pagination: PaginationQueryDto,
+  ): Promise<IResponse<[Category[], number]>> {
+    const [categoriesList, total] = await this.repository.findAllCategories(
+      tenantId,
+      pagination,
+    );
 
-    if (categoriesList.length === 0) {
+    if (total === 0 || categoriesList.length === 0) {
       throw new NotFoundException(ECategoryErrors.CATEGORY_NOT_FOUND);
     }
 
     return {
       message: ECategorySuccess.FOUND_CATEGORIES_LIST,
-      data: categoriesList,
+      data: [categoriesList, total],
     };
   }
 

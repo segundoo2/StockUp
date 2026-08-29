@@ -1,7 +1,7 @@
 import { Injectable, Inject, UnauthorizedException } from '@nestjs/common';
 import { RedisService } from '../../common/redis/redis.service';
-import { EAuthSuccess } from '../../enum/auth-success.enum';
-import { EPermission } from '../../enum/permissions.enum';
+import { EAuthSuccess } from '../../common/enum/auth-success.enum';
+import { EPermission } from '../../common/enum/permissions.enum';
 import { User } from '../users/entities/user.entity';
 import { LoginDto } from './dtos/login.dto';
 import type { IAuthRepository } from './interfaces/auth.repository.interface';
@@ -14,7 +14,7 @@ import type {
   TokenDuration,
 } from './interfaces/jwt-service.interface';
 import * as bcrypt from 'bcrypt';
-import { EErrorsGlobal } from '../../enum/errors-global.enum';
+import { EErrorsGlobal } from '../../common/enum/errors-global.enum';
 
 type PermissionItem = EPermission | { slug: EPermission };
 

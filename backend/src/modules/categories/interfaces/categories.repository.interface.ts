@@ -2,10 +2,11 @@ import { DeleteResult, UpdateResult } from 'typeorm';
 import { CategoryDto } from '../dtos/category.dto';
 import { UpdateCategoryDto } from '../dtos/update-category.dto';
 import { Category } from '../entities/category.entity';
+import { PaginationQueryDto } from '../../../common/dtos/pagination-query.dto';
 
 export interface ICategoriesRepository {
   createCategory(
-    CategoryDto: CategoryDto & { tenantId: string },
+    categoryDto: CategoryDto & { tenantId: string },
   ): Promise<Category>;
 
   updateCategory(
@@ -15,11 +16,14 @@ export interface ICategoriesRepository {
   ): Promise<UpdateResult>;
 
   findByCategoryName(
-    tenantId: string,
     nameCategory: string,
+    tenantId: string,
   ): Promise<Category | null>;
 
-  findAllCategories(tenantId: string): Promise<Category[] | []>;
+  findAllCategories(
+    tenantId: string,
+    pagination: PaginationQueryDto,
+  ): Promise<[Category[], number]>;
 
   deleteCategory(id: string, tenantId: string): Promise<DeleteResult>;
 }

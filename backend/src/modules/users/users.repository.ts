@@ -12,11 +12,12 @@ import {
   Repository,
   UpdateResult,
 } from 'typeorm';
-import { EErrorsGlobal } from '../../enum/errors-global.enum';
+import { EErrorsGlobal } from '../../common/enum/errors-global.enum';
 import { UpdatePasswordDto } from './dtos/update-password.dto';
-import { IDatabaseDriverError } from '../../interfaces/database-driver-Error.interface';
-import { EUsersErrors } from '../../enum/users-errors.enum';
+import { IDatabaseDriverError } from '../../common/interfaces/database-driver-Error.interface';
+import { EUsersErrors } from '../../common/enum/users-errors.enum';
 import { UserDto } from './dtos/user.dto';
+import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
 
 @Injectable()
 export class UsersRepository implements IUsersRepository {
@@ -47,29 +48,6 @@ export class UsersRepository implements IUsersRepository {
     }
   }
 
-  async findAllUsers(
-    tenantId: string,
-  ): Promise<Omit<User, 'password'>[] | null> {
-    try {
-      const users = await this.repository.find({
-        where: { tenantId },
-        relations: {
-          roles: true,
-        },
-        select: {
-          id: true,
-          username: true,
-          mustChangePassword: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      });
-      return users.length === 0 ? null : users;
-    } catch {
-      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
-    }
-  }
-
   async findOneByUsername(
     username: string,
     tenantId: string,
@@ -87,6 +65,35 @@ export class UsersRepository implements IUsersRepository {
           createdAt: true,
           updatedAt: true,
         },
+      });
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
+
+  async findAllUsers(
+    tenantId: string,
+    pagination: PaginationQueryDto,
+  ): Promise<[Omit<User, 'password'>[], number]> {
+    try {
+      const page = pagination.page ?? 1;
+      const limit = pagination.limit ?? 10;
+      const skip = (page - 1) * limit;
+
+      return await this.repository.findAndCount({
+        where: { tenantId },
+        relations: {
+          roles: true,
+        },
+        select: {
+          id: true,
+          username: true,
+          mustChangePassword: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        skip,
+        take: limit,
       });
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);

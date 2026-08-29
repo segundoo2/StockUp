@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
-import { IJwtPayloadWithExpiry } from '../interfaces/jwt-payload.interface';
-import { RequestWithCookies } from '../interfaces/req-with-cookies.interface';
-import { JwtRefreshStrategy } from '../strategies/refresh-token.strategy';
-import { RedisService } from '../../../common/redis/redis.service';
-import { EPermission } from '../../../enum/permissions.enum';
+import { IJwtPayloadWithExpiry } from '../../modules/auth/interfaces/jwt-payload.interface';
+import { RequestWithCookies } from '../../modules/auth/interfaces/req-with-cookies.interface';
+import { JwtRefreshStrategy } from './refresh-token.strategy';
+import { RedisService } from '../redis/redis.service';
+import { EPermission } from '../enum/permissions.enum';
 
 describe('JwtRefreshStrategy', () => {
   let strategy: JwtRefreshStrategy;

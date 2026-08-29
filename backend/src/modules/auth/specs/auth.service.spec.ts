@@ -10,10 +10,10 @@ import {
   IJwtPayloadWithExpiry,
 } from '../interfaces/jwt-payload.interface';
 import { RedisService } from '../../../common/redis/redis.service';
-import { EPermission } from '../../../enum/permissions.enum';
-import { EAuthSuccess } from '../../../enum/auth-success.enum';
+import { EPermission } from '../../../common/enum/permissions.enum';
+import { EAuthSuccess } from '../../../common/enum/auth-success.enum';
 import { LoginDto } from '../dtos/login.dto';
-import { EErrorsGlobal } from '../../../enum/errors-global.enum';
+import { EErrorsGlobal } from '../../../common/enum/errors-global.enum';
 
 describe('AuthService', () => {
   let service: AuthService;

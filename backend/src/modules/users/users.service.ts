@@ -14,12 +14,14 @@ import { UserDto } from './dtos/user.dto';
 import { UpdatePasswordDto } from './dtos/update-password.dto';
 import { UpdateResult } from 'typeorm';
 import type { ICacheStorageService } from '../../common/redis/interface/cache-storage.interface';
-import { EUsersSuccess } from '../../enum/users-sucess.enum';
-import { EUsersErrors } from '../../enum/users-errors.enum';
-import { IResponse } from '../../interfaces/response.interface';
+import { EUsersSuccess } from '../../common/enum/users-sucess.enum';
+import { EUsersErrors } from '../../common/enum/users-errors.enum';
+import { IResponse } from '../../common/interfaces/response.interface';
 import type { IRolesRepository } from '../roles/interfaces/roles.repository.interface';
-import { ERolesErrors } from '../../enum/roles-errors.enum';
-import { ERolesSuccess } from '../../enum/roles-success.enum';
+import { ERolesErrors } from '../../common/enum/roles-errors.enum';
+import { ERolesSuccess } from '../../common/enum/roles-success.enum';
+import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
+import { IPaginatedResponse } from '../../common/interfaces/paginated-response.interface';
 
 @Injectable()
 export class UsersService implements IUsersService {
@@ -55,21 +57,10 @@ export class UsersService implements IUsersService {
     return { message: EUsersSuccess.CREATE_USER, data: userDto.password };
   }
 
-  async findAllUsers(
-    tenantId: string,
-  ): Promise<IResponse<Omit<User, 'password'>[]>> {
-    return {
-      message: EUsersSuccess.USERS_FOUND,
-      data: await this.getExistingUsersList(tenantId),
-    };
-  }
-
   async findOneByUsername(
     username: string,
     tenantId: string,
   ): Promise<IResponse<Omit<User, 'password'>>> {
-    this.verifyInvalidUsername(username);
-
     const user = await this.usersRepository.findOneByUsername(
       username,
       tenantId,
@@ -84,11 +75,38 @@ export class UsersService implements IUsersService {
     };
   }
 
+  async findAllUsers(
+    tenantId: string,
+    pagination: PaginationQueryDto,
+  ): Promise<IPaginatedResponse<Omit<User, 'password'>[]>> {
+    const currentPage = pagination.page ?? 1;
+    const itemsPerPage = pagination.limit ?? 10;
+
+    const [users, totalItems] = await this.usersRepository.findAllUsers(
+      tenantId,
+      { page: currentPage, limit: itemsPerPage },
+    );
+
+    if (!users || users.length === 0) {
+      throw new NotFoundException(EUsersErrors.USERS_NOT_FOUND);
+    }
+
+    return {
+      message: EUsersSuccess.USERS_FOUND,
+      data: users,
+      meta: {
+        itemCount: users.length,
+        totalItems,
+        itemsPerPage,
+        totalPages: Math.ceil(totalItems / itemsPerPage),
+        currentPage,
+      },
+    };
+  }
+
   async updateUserPassword(
     passwordDto: UpdatePasswordDto,
   ): Promise<IResponse<string | null>> {
-    this.verifyInvalidUsername(passwordDto.username);
-
     const plainPassword =
       passwordDto.password || this.generateTemporaryPassword();
 
@@ -168,8 +186,6 @@ export class UsersService implements IUsersService {
     username: string,
     tenantId: string,
   ): Promise<IResponse<null>> {
-    this.verifyInvalidUsername(username);
-
     const user = await this.usersRepository.findOneByUsername(
       username,
       tenantId,
@@ -190,16 +206,6 @@ export class UsersService implements IUsersService {
     return { message: EUsersSuccess.DELETE_USER, data: null };
   }
 
-  private async getExistingUsersList(
-    tenantId: string,
-  ): Promise<Omit<User, 'password'>[]> {
-    const usersList = await this.usersRepository.findAllUsers(tenantId);
-    if (!usersList) {
-      throw new NotFoundException(EUsersErrors.USERS_NOT_FOUND);
-    }
-    return usersList;
-  }
-
   private generateTemporaryPassword(): string {
     return generatePassword.generate({
       length: 8,
@@ -209,11 +215,5 @@ export class UsersService implements IUsersService {
       lowercase: true,
       strict: true,
     });
-  }
-
-  private verifyInvalidUsername(username: string): void {
-    if (!username || username.trim() === '') {
-      throw new BadRequestException(EUsersErrors.USERNAME_INVALID);
-    }
   }
 }

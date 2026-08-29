@@ -1,35 +1,37 @@
 import {
-  Body,
+  UseGuards,
   Controller,
-  Delete,
-  Get,
+  Logger,
+  Inject,
+  Post,
   HttpCode,
   HttpStatus,
-  Inject,
-  Logger,
+  Body,
+  Get,
   Param,
   Patch,
-  Post,
-  UseGuards,
+  Delete,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
+  ApiBearerAuth,
   ApiOperation,
   ApiResponse,
-  ApiBearerAuth,
   ApiParam,
 } from '@nestjs/swagger';
-import { ICategoriesController } from './interfaces/categories.controller.interface';
-import { IResponse } from '../../interfaces/response.interface';
+import { RequiresPermission } from '../../common/decorators/permission.decorator';
+import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { EPermission } from '../../common/enum/permissions.enum';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { PermissionGuard } from '../../common/guards/permission.guard';
+import { IResponse } from '../../common/interfaces/response.interface';
 import { CategoryDto } from './dtos/category.dto';
-import type { ICategoriesService } from './interfaces/categories.service.interface';
-import { Category } from './entities/category.entity';
 import { UpdateCategoryDto } from './dtos/update-category.dto';
-import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
-import { TenantId } from '../../decorators/tenant-id.decorator';
-import { PermissionGuard } from '../../guards/permission.guard';
-import { RequiresPermission } from '../../decorators/permission.decorator';
-import { EPermission } from '../../enum/permissions.enum';
+import { Category } from './entities/category.entity';
+import { ICategoriesController } from './interfaces/categories.controller.interface';
+import type { ICategoriesService } from './interfaces/categories.service.interface';
+import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
 
 @ApiTags('Categories')
 @ApiBearerAuth()
@@ -162,12 +164,13 @@ export class CategoriesController implements ICategoriesController {
   })
   async findAllCategories(
     @TenantId() tenantId: string,
-  ): Promise<IResponse<Category[]>> {
+    @Query() pagination: PaginationQueryDto,
+  ): Promise<IResponse<[Category[], number]>> {
     try {
       this.logger.log(
         `Buscando listagem de categorias para o tenant "${tenantId}".`,
       );
-      return await this.service.findAllCategories(tenantId);
+      return await this.service.findAllCategories(tenantId, pagination);
     } catch (error) {
       this.logger.error(
         `Erro ao buscar lista de categorias do tenant "${tenantId}": ${(error as Error).message}`,

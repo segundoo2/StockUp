@@ -1,10 +1,10 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-jwt';
-import { RequestWithCookies } from '../interfaces/req-with-cookies.interface';
-import { IJwtPayloadWithExpiry } from '../interfaces/jwt-payload.interface';
-import { EErrors } from '../../../enum/auth-errors.enum';
-import { RedisService } from '../../../common/redis/redis.service';
+import { IJwtPayloadWithExpiry } from '../../modules/auth/interfaces/jwt-payload.interface';
+import { RequestWithCookies } from '../../modules/auth/interfaces/req-with-cookies.interface';
+import { RedisService } from '../redis/redis.service';
+import { EErrorsGlobal } from '../enum/errors-global.enum';
 
 export const cookieRefreshExtractor = (
   req: RequestWithCookies,
@@ -36,7 +36,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
     payload: IJwtPayloadWithExpiry,
   ): Promise<IJwtPayloadWithExpiry> {
     if (!payload) {
-      throw new UnauthorizedException(EErrors.FAILED_RETRIEVE_SESSION);
+      throw new UnauthorizedException(EErrorsGlobal.FAILED_RETRIEVE_SESSION);
     }
 
     // 1. Validação cruzada do Fingerprint

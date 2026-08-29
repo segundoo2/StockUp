@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Location } from './entities/location.entity';
 import { DeleteResult, Repository, UpdateResult } from 'typeorm';
 import { LocationDto } from './dtos/location.dto';
-import { EErrorsGlobal } from '../../enum/errors-global.enum';
+import { EErrorsGlobal } from '../../common/enum/errors-global.enum';
 import { UpdateDescriptionLocationDto } from './dtos/update-description-location.dto';
 
 @Injectable()

@@ -1,11 +1,15 @@
 import { DeleteResult, UpdateResult } from 'typeorm';
-import { User } from '../entities/user.entity';
+import { PaginationQueryDto } from '../../../common/dtos/pagination-query.dto';
 import { UpdatePasswordDto } from '../dtos/update-password.dto';
+import { User } from '../entities/user.entity';
 
 export interface IUsersRepository {
-  createUser(userData: Partial<User>): Promise<void>; // 👈 Altere de UserDto para Partial<User>
+  createUser(userData: Partial<User>): Promise<void>;
 
-  findAllUsers(tenantId: string): Promise<Omit<User, 'password'>[] | null>;
+  findAllUsers(
+    tenantId: string,
+    pagination: PaginationQueryDto,
+  ): Promise<[Omit<User, 'password'>[], number]>;
 
   findOneByUsername(
     username: string,

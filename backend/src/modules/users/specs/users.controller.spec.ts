@@ -1,12 +1,13 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { createFakeUser } from '../../../helpers/create-fake-user.helper';
-import { IResponse } from '../../../interfaces/response.interface';
+import { createFakeUser } from '../../../common/helpers/create-fake-user.helper';
+import { IResponse } from '../../../common/interfaces/response.interface';
 import { UserDto } from '../dtos/user.dto';
 import { User } from '../entities/user.entity';
-import { EUsersSuccess } from '../../../enum/users-sucess.enum';
+import { EUsersSuccess } from '../../../common/enum/users-sucess.enum';
 import { IUsersService } from '../interfaces/users.service.interface';
 import { UsersController } from '../users.controller';
-import { ERolesSuccess } from '../../../enum/roles-success.enum';
+import { ERolesSuccess } from '../../../common/enum/roles-success.enum';
+import { IPaginatedResponse } from '../../../common/interfaces/paginated-response.interface';
 
 describe('UsersController', () => {
   let controller: UsersController;
@@ -49,6 +50,55 @@ describe('UsersController', () => {
     });
   });
 
+  describe('findOneByUsername', () => {
+    it('should query specific user matching parameters context structures', async () => {
+      const response: IResponse<Omit<User, 'password'>> = {
+        message: EUsersSuccess.USER_FOUND,
+        data: user,
+      };
+      mockService.findOneByUsername.mockResolvedValue(response);
+
+      expect(
+        await controller.findOneByUsername(user.username, tenantId),
+      ).toEqual(response);
+      expect(mockService.findOneByUsername).toHaveBeenCalledWith(
+        user.username,
+        tenantId,
+      );
+    });
+  });
+
+  describe('findAllUsers', () => {
+    it('should load list wrapped output schemas properly with meta data', async () => {
+      const usersMock = [createFakeUser(), createFakeUser()] as Omit<
+        User,
+        'password'
+      >[];
+      const pagination = { page: 1, limit: 10 };
+      const response: IPaginatedResponse<Omit<User, 'password'>[]> = {
+        message: EUsersSuccess.USERS_FOUND,
+        data: usersMock,
+        meta: {
+          itemCount: 2,
+          totalItems: 2,
+          itemsPerPage: 10,
+          totalPages: 1,
+          currentPage: 1,
+        },
+      };
+
+      mockService.findAllUsers.mockResolvedValue(response);
+
+      expect(await controller.findAllUsers(tenantId, pagination)).toEqual(
+        response,
+      );
+      expect(mockService.findAllUsers).toHaveBeenCalledWith(
+        tenantId,
+        pagination,
+      );
+    });
+  });
+
   describe('updateUserPassword', () => {
     it('should return corresponding payload details containing update responses', async () => {
       const response: IResponse<string | null> = {
@@ -68,59 +118,6 @@ describe('UsersController', () => {
         response,
       );
       expect(mockService.updateUserPassword).toHaveBeenCalledWith(userDto);
-    });
-  });
-
-  describe('findAllUsers', () => {
-    it('should load list wrapped output schemas properly', async () => {
-      const usersMock = [createFakeUser(), createFakeUser()] as Omit<
-        User,
-        'password'
-      >[];
-      const response: IResponse<Omit<User, 'password'>[]> = {
-        message: EUsersSuccess.USERS_FOUND,
-        data: usersMock,
-      };
-
-      mockService.findAllUsers.mockResolvedValue(response);
-
-      expect(await controller.findAllUsers(tenantId)).toEqual(response);
-    });
-  });
-
-  describe('findOneByUsername', () => {
-    it('should query specific user matching parameters context structures', async () => {
-      const response: IResponse<Omit<User, 'password'>> = {
-        message: EUsersSuccess.USER_FOUND,
-        data: user,
-      };
-      mockService.findOneByUsername.mockResolvedValue(response);
-
-      expect(
-        await controller.findOneByUsername(user.username, tenantId),
-      ).toEqual(response);
-      expect(mockService.findOneByUsername).toHaveBeenCalledWith(
-        user.username,
-        tenantId,
-      );
-    });
-  });
-
-  describe('deleteUser', () => {
-    it('should perform deletion operation forwarding dynamic statuses', async () => {
-      const response: IResponse<null> = {
-        message: EUsersSuccess.DELETE_USER,
-        data: null,
-      };
-      mockService.deleteUser.mockResolvedValue(response);
-
-      expect(await controller.deleteUser(user.username, tenantId)).toEqual(
-        response,
-      );
-      expect(mockService.deleteUser).toHaveBeenCalledWith(
-        user.username,
-        tenantId,
-      );
     });
   });
 
@@ -157,6 +154,24 @@ describe('UsersController', () => {
       expect(mockService.removeRoleFromUser).toHaveBeenCalledWith(
         user.id,
         roleId,
+        tenantId,
+      );
+    });
+  });
+
+  describe('deleteUser', () => {
+    it('should perform deletion operation forwarding dynamic statuses', async () => {
+      const response: IResponse<null> = {
+        message: EUsersSuccess.DELETE_USER,
+        data: null,
+      };
+      mockService.deleteUser.mockResolvedValue(response);
+
+      expect(await controller.deleteUser(user.username, tenantId)).toEqual(
+        response,
+      );
+      expect(mockService.deleteUser).toHaveBeenCalledWith(
+        user.username,
         tenantId,
       );
     });

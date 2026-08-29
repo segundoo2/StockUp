@@ -1,11 +1,11 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { ELocationSuccessMessage } from '../../../enum/location-success.enum';
-import { IResponse } from '../../../interfaces/response.interface';
+import { ELocationSuccessMessage } from '../../../common/enum/location-success.enum';
+import { IResponse } from '../../../common/interfaces/response.interface';
 import { LocationDto } from '../dtos/location.dto';
 import { Location } from '../entities/location.entity';
 import { ILocationsRepository } from '../interfaces/locations.repository.interface';
 import { LocationsService } from '../locations.service';
-import { ELocationErrorsMessage } from '../../../enum/location-errors.enum';
+import { ELocationErrorsMessage } from '../../../common/enum/location-errors.enum';
 
 describe('LocationsService', () => {
   let service: LocationsService;

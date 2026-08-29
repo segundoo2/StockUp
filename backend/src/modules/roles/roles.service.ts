@@ -8,10 +8,12 @@ import { IRolesService } from './interfaces/roles.service.interface';
 import type { IRolesRepository } from './interfaces/roles.repository.interface';
 import { UpdateRoleDto } from './dtos/update-role.dto';
 import { Role } from './entities/role.entity';
-import { IResponse } from '../../interfaces/response.interface';
-import { ERolesSuccess } from '../../enum/roles-success.enum';
-import { ERolesErrors } from '../../enum/roles-errors.enum';
+import { IResponse } from '../../common/interfaces/response.interface';
+import { ERolesSuccess } from '../../common/enum/roles-success.enum';
+import { ERolesErrors } from '../../common/enum/roles-errors.enum';
 import { RoleDto } from './dtos/role.dto';
+import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
+import { IPaginatedResponse } from '../../common/interfaces/paginated-response.interface';
 
 @Injectable()
 export class RolesService implements IRolesService {
@@ -28,14 +30,34 @@ export class RolesService implements IRolesService {
     };
   }
 
-  async findAllRoles(tenantId: string): Promise<IResponse<Role[]>> {
-    const roles = await this.rolesRepository.findAllRoles(tenantId);
-    if (!roles) {
+  async findAllRoles(
+    tenantId: string,
+    paginationQuery: PaginationQueryDto,
+  ): Promise<IPaginatedResponse<Role>> {
+    const page = paginationQuery.page ?? 1;
+    const limit = paginationQuery.limit ?? 10;
+
+    const [roles, totalItems] = await this.rolesRepository.findAllRoles(
+      tenantId,
+      { page, limit },
+    );
+
+    if (roles.length === 0) {
       throw new NotFoundException(ERolesErrors.ROLES_NOT_FOUND);
     }
+
+    const totalPages = Math.ceil(totalItems / limit);
+
     return {
       message: ERolesSuccess.ROLES_FOUND,
       data: roles,
+      meta: {
+        itemCount: roles.length,
+        totalItems,
+        itemsPerPage: limit,
+        totalPages,
+        currentPage: page,
+      },
     };
   }
 

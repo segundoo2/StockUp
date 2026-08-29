@@ -14,10 +14,11 @@ import {
 import { IRolesRepository } from './interfaces/roles.repository.interface';
 import { Role } from './entities/role.entity';
 import { UpdateRoleDto } from './dtos/update-role.dto';
-import { EErrorsGlobal } from '../../enum/errors-global.enum';
-import { ERolesErrors } from '../../enum/roles-errors.enum';
-import { IDatabaseDriverError } from '../../interfaces/database-driver-Error.interface';
+import { EErrorsGlobal } from '../../common/enum/errors-global.enum';
+import { ERolesErrors } from '../../common/enum/roles-errors.enum';
+import { IDatabaseDriverError } from '../../common/interfaces/database-driver-Error.interface';
 import { RoleDto } from './dtos/role.dto';
+import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
 
 @Injectable()
 export class RolesRepository implements IRolesRepository {
@@ -41,10 +42,20 @@ export class RolesRepository implements IRolesRepository {
     }
   }
 
-  async findAllRoles(tenantId: string): Promise<Role[] | null> {
+  async findAllRoles(
+    tenantId: string,
+    pagination: PaginationQueryDto,
+  ): Promise<[Role[], number]> {
     try {
-      const roles = await this.repository.find({ where: { tenantId } });
-      return roles.length === 0 ? null : roles;
+      const page = pagination.page ?? 1;
+      const limit = pagination.limit ?? 10;
+      const skip = (page - 1) * limit;
+
+      return await this.repository.findAndCount({
+        where: { tenantId },
+        skip,
+        take: limit,
+      });
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }

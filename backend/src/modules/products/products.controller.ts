@@ -11,6 +11,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -25,13 +26,15 @@ import { IProductsController } from './interfaces/products.controller.interface'
 import { ProductDto } from './dtos/product.dto';
 import type { IProductsService } from './interfaces/products.service.interface';
 import { Product } from './entities/product.entity';
-import { IResponse } from '../../interfaces/response.interface';
-import { TenantId } from '../../decorators/tenant-id.decorator';
-import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
+import { IResponse } from '../../common/interfaces/response.interface';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { UpdateProductDto } from './dtos/update-product.dto';
-import { PermissionGuard } from '../../guards/permission.guard';
-import { RequiresPermission } from '../../decorators/permission.decorator';
-import { EPermission } from '../../enum/permissions.enum';
+import { PermissionGuard } from '../../common/guards/permission.guard';
+import { EPermission } from '../../common/enum/permissions.enum';
+import { RequiresPermission } from '../../common/decorators/permission.decorator';
+import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
+import { IPaginatedResponse } from '../../common/interfaces/paginated-response.interface';
 
 @ApiTags('Products')
 @ApiBearerAuth()
@@ -181,11 +184,10 @@ export class ProductsController implements IProductsController {
   @Get()
   @HttpCode(HttpStatus.OK)
   @RequiresPermission(EPermission.PRODUCTS_READ)
-  @ApiOperation({ summary: 'Lista todos os produtos do tenant' })
+  @ApiOperation({ summary: 'Lista os produtos do tenant com paginação' })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Lista de produtos retornada com sucesso.',
-    type: [Product],
+    description: 'Lista paginada de produtos retornada com sucesso.',
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -193,12 +195,16 @@ export class ProductsController implements IProductsController {
   })
   async findAllProducts(
     @TenantId() tenantId: string,
-  ): Promise<IResponse<Product[]>> {
+    @Query() paginationQuery: PaginationQueryDto,
+  ): Promise<IPaginatedResponse<Product>> {
     try {
       this.logger.log(
-        `Buscando listagem de todos os produtos do tenant "${tenantId}".`,
+        `Buscando listagem de produtos do tenant "${tenantId}" - Página: ${paginationQuery.page ?? 1}, Limite: ${paginationQuery.limit ?? 10}.`,
       );
-      return await this.productsService.findAllProducts(tenantId);
+      return await this.productsService.findAllProducts(
+        tenantId,
+        paginationQuery,
+      );
     } catch (error) {
       this.logger.error(
         `Erro ao buscar listagem de produtos do tenant "${tenantId}": ${(error as Error).message}`,

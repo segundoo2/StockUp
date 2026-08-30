@@ -10,6 +10,7 @@ import { ProductsModule } from './modules/products/products.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { LocationsModule } from './modules/locations/locations.module';
 import { RolesModule } from './modules/roles/roles.module';
+import { MovementsModule } from './modules/movements/movements.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { RolesModule } from './modules/roles/roles.module';
     CategoriesModule,
     LocationsModule,
     RolesModule,
+    MovementsModule,
   ],
   controllers: [AppController],
   providers: [AppService, ThrottlerGuard],

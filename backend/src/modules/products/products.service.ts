@@ -12,10 +12,11 @@ import { EProductsSuccess } from '../../common/enum/products-success.enum';
 import { Product } from './entities/product.entity';
 import { IResponse } from '../../common/interfaces/response.interface';
 import { EProductsErrors } from '../../common/enum/products-errors.enum';
-import { DeleteResult } from 'typeorm';
+import { DeleteResult, EntityManager } from 'typeorm';
 import { UpdateProductDto } from './dtos/update-product.dto';
 import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
 import { IPaginatedResponse } from '../../common/interfaces/paginated-response.interface';
+import { IRawStockRow } from './interfaces/raw-stock-row.interface';
 
 @Injectable()
 export class ProductsService implements IProductsService {
@@ -68,32 +69,44 @@ export class ProductsService implements IProductsService {
     productId: string,
     tenantId: string,
     delta: number,
-  ): Promise<IResponse<{ newCurrentStock: number }>> {
-    const findCurrentStock =
-      await this.productsRepository.findOneCurrentStockById(
-        productId,
-        tenantId,
-      );
-    if (!findCurrentStock) {
-      throw new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND);
-    }
-    const newCurrentStock: number = findCurrentStock.currentStock + delta;
-    if (newCurrentStock < 0) {
-      throw new BadRequestException(
-        `${EProductsErrors.PRODUCT_QUANTITY_INVALID} ${findCurrentStock.currentStock} ${findCurrentStock.uom}`,
-      );
-    }
-    await this.productsRepository.updateCurrentStockById(
+    entityManager?: EntityManager,
+  ): Promise<IResponse<{ newCurrentStock: number; uom: string }>> {
+    const updateResult = await this.productsRepository.updateStockAtomic(
       productId,
       tenantId,
-      newCurrentStock,
+      delta,
+      entityManager,
     );
+
+    if (!updateResult.affected || updateResult.affected === 0) {
+      const existingProduct =
+        await this.productsRepository.findOneCurrentStockById(
+          productId,
+          tenantId,
+          entityManager,
+        );
+
+      if (!existingProduct) {
+        throw new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND);
+      }
+
+      const availableStock = Number(existingProduct.currentStock);
+      throw new BadRequestException(
+        `${EProductsErrors.PRODUCT_QUANTITY_INVALID} ${availableStock} ${existingProduct.uom}`,
+      );
+    }
+
+    const rawRows = updateResult.raw as IRawStockRow[];
+    const updatedRow = rawRows[0];
+    const newCurrentStock = Number(updatedRow.current_stock);
+    const uom = updatedRow.uom;
+
     return {
       message:
         delta > 0
           ? EProductsSuccess.INPUT_MOVIMENT
           : EProductsSuccess.OUTPUT_MOVIMENT,
-      data: { newCurrentStock },
+      data: { newCurrentStock, uom },
     };
   }
 
@@ -115,7 +128,7 @@ export class ProductsService implements IProductsService {
   async findAllProducts(
     tenantId: string,
     paginationQuery: PaginationQueryDto,
-  ): Promise<IPaginatedResponse<Product>> {
+  ): Promise<IPaginatedResponse<Product[]>> {
     const page = paginationQuery.page ?? 1;
     const limit = paginationQuery.limit ?? 10;
 

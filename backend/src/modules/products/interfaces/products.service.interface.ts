@@ -1,3 +1,4 @@
+import { EntityManager } from 'typeorm';
 import { PaginationQueryDto } from '../../../common/dtos/pagination-query.dto';
 import { IPaginatedResponse } from '../../../common/interfaces/paginated-response.interface';
 import { IResponse } from '../../../common/interfaces/response.interface';
@@ -17,9 +18,10 @@ export interface IProductsService {
   ): Promise<IResponse<null>>;
 
   applyStockDelta(
-    ProductId: string,
+    productId: string,
     tenantId: string,
     delta: number,
+    entityManager?: EntityManager,
   ): Promise<IResponse<{ newCurrentStock: number }>>;
 
   findOneBySku(sku: string, tenantId: string): Promise<IResponse<Product>>;
@@ -27,7 +29,7 @@ export interface IProductsService {
   findAllProducts(
     tenantId: string,
     paginationQuery: PaginationQueryDto,
-  ): Promise<IPaginatedResponse<Product>>;
+  ): Promise<IPaginatedResponse<Product[]>>;
 
   deleteProduct(sku: string, tenantId: string): Promise<IResponse<null>>;
 }

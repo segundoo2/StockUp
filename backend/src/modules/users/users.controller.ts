@@ -10,7 +10,6 @@ import {
   Delete,
   HttpCode,
   UseGuards,
-  Logger,
   Query,
 } from '@nestjs/common';
 import {
@@ -42,8 +41,6 @@ import { IPaginatedResponse } from '../../common/interfaces/paginated-response.i
 @UseGuards(JwtAuthGuard, PermissionGuard)
 @Controller('users')
 export class UsersController implements IUsersController {
-  private readonly logger = new Logger(UsersController.name);
-
   constructor(
     @Inject('IUsersService') private readonly usersService: IUsersService,
   ) {}
@@ -73,43 +70,10 @@ export class UsersController implements IUsersController {
     @Body() userDto: UserDto,
     @TenantId() tenantId: string,
   ): Promise<IResponse<string>> {
-    try {
-      userDto.tenantId = tenantId;
-      this.logger.log(
-        `Tentativa de criação de usuário "${userDto.username}" no tenant "${tenantId}".`,
-      );
-
-      const result = await this.usersService.createUser(userDto);
-
-      this.logger.log(`Usuário "${userDto.username}" criado com sucesso.`);
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `Erro ao criar usuário "${userDto.username}" no tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    userDto.tenantId = tenantId;
+    return await this.usersService.createUser(userDto);
   }
 
-  @Get()
-  @HttpCode(HttpStatus.OK)
-  @RequiresPermission(EPermission.USERS_READ)
-  @ApiOperation({ summary: 'Buscar lista de todos os usuários' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description:
-      'Retorna uma mensagem de status e os dados parciais de todos os usuários cadastrados.',
-    type: Object,
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Nenhum usuário cadastrado no sistema.',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Não autorizado.',
-  })
   @Get(':username')
   @HttpCode(HttpStatus.OK)
   @RequiresPermission(EPermission.USERS_READ)
@@ -137,18 +101,7 @@ export class UsersController implements IUsersController {
     @Param('username') username: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<Omit<User, 'password'>>> {
-    try {
-      this.logger.log(
-        `Buscando dados parciais do perfil do username "${username}" no tenant "${tenantId}".`,
-      );
-      return await this.usersService.findOneByUsername(username, tenantId);
-    } catch (error) {
-      this.logger.error(
-        `Erro ao buscar usuário "${username}" no tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    return await this.usersService.findOneByUsername(username, tenantId);
   }
 
   @Get()
@@ -175,18 +128,7 @@ export class UsersController implements IUsersController {
     @TenantId() tenantId: string,
     @Query() pagination: PaginationQueryDto,
   ): Promise<IPaginatedResponse<Omit<User, 'password'>[]>> {
-    try {
-      this.logger.log(
-        `Buscando listagem geral de usuários do tenant "${tenantId}".`,
-      );
-      return await this.usersService.findAllUsers(tenantId, pagination);
-    } catch (error) {
-      this.logger.error(
-        `Erro ao buscar listagem de usuários do tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    return await this.usersService.findAllUsers(tenantId, pagination);
   }
 
   @Patch()
@@ -211,25 +153,8 @@ export class UsersController implements IUsersController {
     @Body() userDto: UpdatePasswordDto,
     @TenantId() tenantId: string,
   ): Promise<IResponse<string | null>> {
-    try {
-      userDto.tenantId = tenantId;
-      this.logger.log(
-        `Requisição recebida para atualização de senha do usuário "${userDto.username}".`,
-      );
-
-      const result = await this.usersService.updateUserPassword(userDto);
-
-      this.logger.log(
-        `Senha do usuário "${userDto.username}" atualizada com sucesso.`,
-      );
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `Erro ao atualizar senha do usuário "${userDto.username}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    userDto.tenantId = tenantId;
+    return await this.usersService.updateUserPassword(userDto);
   }
 
   @Post(':username/roles/:roleId')
@@ -241,28 +166,7 @@ export class UsersController implements IUsersController {
     @Param('roleId') roleId: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    try {
-      this.logger.log(
-        `Vinculando role "${roleId}" ao usuário "${username}" no tenant "${tenantId}".`,
-      );
-
-      const result = await this.usersService.addRoleToUser(
-        username,
-        roleId,
-        tenantId,
-      );
-
-      this.logger.log(
-        `Role "${roleId}" vinculada ao usuário "${username}" com sucesso.`,
-      );
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `Erro ao vincular role "${roleId}" ao usuário "${username}" no tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    return await this.usersService.addRoleToUser(username, roleId, tenantId);
   }
 
   @Delete(':username/roles/:roleId')
@@ -274,28 +178,11 @@ export class UsersController implements IUsersController {
     @Param('roleId') roleId: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    try {
-      this.logger.log(
-        `Removendo role "${roleId}" do usuário "${username}" no tenant "${tenantId}".`,
-      );
-
-      const result = await this.usersService.removeRoleFromUser(
-        username,
-        roleId,
-        tenantId,
-      );
-
-      this.logger.log(
-        `Role "${roleId}" removida do usuário "${username}" com sucesso.`,
-      );
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `Erro ao remover role "${roleId}" do usuário "${username}" no tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    return await this.usersService.removeRoleFromUser(
+      username,
+      roleId,
+      tenantId,
+    );
   }
 
   @Delete(':username')
@@ -330,23 +217,6 @@ export class UsersController implements IUsersController {
     @Param('username') username: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    try {
-      this.logger.warn(
-        `COMANDO CRÍTICO: Solicitação de exclusão permanente para o username "${username}" no tenant "${tenantId}".`,
-      );
-
-      const result = await this.usersService.deleteUser(username, tenantId);
-
-      this.logger.log(
-        `Usuário "${username}" foi excluído permanentemente do banco de dados.`,
-      );
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `Erro crítico ao deletar o usuário "${username}" no tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    return await this.usersService.deleteUser(username, tenantId);
   }
 }

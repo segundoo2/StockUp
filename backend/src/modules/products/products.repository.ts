@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Product } from './entities/product.entity';
 import { ProductDto } from './dtos/product.dto';
 import { EErrorsGlobal } from '../../common/enum/errors-global.enum';
-import { DeleteResult, Repository, UpdateResult } from 'typeorm';
+import { DeleteResult, EntityManager, Repository, UpdateResult } from 'typeorm';
 import { UpdateProductDto } from './dtos/update-product.dto';
 import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
 
@@ -42,38 +42,49 @@ export class ProductsRepository implements ProductsRepository {
     }
   }
 
-  async updateCurrentStockById(
+  private getRepository(manager?: EntityManager): Repository<Product> {
+    return manager ? manager.getRepository(Product) : this.repository;
+  }
+
+  async updateStockAtomic(
     productId: string,
     tenantId: string,
-    newCurrentStock: number,
+    delta: number,
+    manager?: EntityManager,
   ): Promise<UpdateResult> {
-    try {
-      return await this.repository.update(
-        {
-          id: productId,
-          tenantId,
-        },
-        {
-          currentStock: newCurrentStock,
-        },
-      );
-    } catch {
-      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    const repo = this.getRepository(manager);
+
+    const query = repo
+      .createQueryBuilder('product')
+      .update(Product)
+      .set({
+        currentStock: () => `current_stock + ${delta}`,
+      })
+      .where('id = :productId AND tenant_id = :tenantId', {
+        productId,
+        tenantId,
+      });
+
+    if (delta < 0) {
+      query.andWhere('current_stock + :delta >= 0', { delta });
     }
+
+    return await query.returning(['current_stock', 'uom']).execute();
   }
 
   async findOneCurrentStockById(
     id: string,
     tenantId: string,
+    manager?: EntityManager,
   ): Promise<Pick<Product, 'currentStock' | 'uom'> | null> {
-    try {
-      return await this.repository.findOne({
-        where: { id, tenantId },
-        select: { currentStock: true, uom: true },
-      });
-    } catch {
-      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
-    }
+    const repo = this.getRepository(manager);
+
+    return await repo.findOne({
+      where: { id, tenantId },
+      select: { currentStock: true, uom: true },
+      // Garante que a linha fica travada para leitura/escrita na transação ativa
+      lock: manager ? { mode: 'pessimistic_write' } : undefined,
+    });
   }
 
   async findOneBySku(sku: string, tenantId: string): Promise<Product | null> {

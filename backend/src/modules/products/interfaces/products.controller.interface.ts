@@ -19,6 +19,6 @@ export interface IProductsController {
   findAllProducts(
     tenantId: string,
     paginationQuery: PaginationQueryDto,
-  ): Promise<IPaginatedResponse<Product>>;
+  ): Promise<IPaginatedResponse<Product[]>>;
   deleteProduct(sku: string, tenantId: string): Promise<IResponse<null>>;
 }

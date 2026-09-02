@@ -14,7 +14,7 @@ import { Location } from '../../locations/entities/location.entity';
 @Entity('stock_movements')
 @Index(['tenantId', 'productId'])
 @Index(['tenantId', 'createdAt'])
-export class MovementEntity {
+export class Movement {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 

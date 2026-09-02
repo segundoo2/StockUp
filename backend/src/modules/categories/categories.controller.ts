@@ -1,7 +1,6 @@
 import {
   UseGuards,
   Controller,
-  Logger,
   Inject,
   Post,
   HttpCode,
@@ -38,8 +37,6 @@ import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
 @UseGuards(JwtAuthGuard, PermissionGuard)
 @Controller('categories')
 export class CategoriesController implements ICategoriesController {
-  private readonly logger = new Logger(CategoriesController.name);
-
   constructor(
     @Inject('ICategoriesService')
     private readonly service: ICategoriesService,
@@ -73,27 +70,10 @@ export class CategoriesController implements ICategoriesController {
     @TenantId() tenantId: string,
     @Body() categoryDto: CategoryDto,
   ): Promise<IResponse<null>> {
-    try {
-      this.logger.log(
-        `Tentativa de criação da categoria "${categoryDto.name}" no tenant "${tenantId}".`,
-      );
-
-      const result = await this.service.createCategory({
-        tenantId,
-        ...categoryDto,
-      });
-
-      this.logger.log(
-        `Categoria "${categoryDto.name}" criada com sucesso no tenant "${tenantId}".`,
-      );
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `Erro ao criar categoria "${categoryDto.name}" no tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    return await this.service.createCategory({
+      tenantId,
+      ...categoryDto,
+    });
   }
 
   @Get(':name')
@@ -127,18 +107,7 @@ export class CategoriesController implements ICategoriesController {
     @TenantId() tenantId: string,
     @Param('name') nameCategory: string,
   ): Promise<IResponse<Category>> {
-    try {
-      this.logger.log(
-        `Buscando categoria pelo nome "${nameCategory}" no tenant "${tenantId}".`,
-      );
-      return await this.service.findByCategoryName(tenantId, nameCategory);
-    } catch (error) {
-      this.logger.error(
-        `Erro ao buscar categoria "${nameCategory}" no tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    return await this.service.findByCategoryName(tenantId, nameCategory);
   }
 
   @Get()
@@ -166,18 +135,7 @@ export class CategoriesController implements ICategoriesController {
     @TenantId() tenantId: string,
     @Query() pagination: PaginationQueryDto,
   ): Promise<IResponse<[Category[], number]>> {
-    try {
-      this.logger.log(
-        `Buscando listagem de categorias para o tenant "${tenantId}".`,
-      );
-      return await this.service.findAllCategories(tenantId, pagination);
-    } catch (error) {
-      this.logger.error(
-        `Erro ao buscar lista de categorias do tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    return await this.service.findAllCategories(tenantId, pagination);
   }
 
   @Patch(':id')
@@ -215,28 +173,7 @@ export class CategoriesController implements ICategoriesController {
     @TenantId() tenantId: string,
     @Body() updateCategoryDto: UpdateCategoryDto,
   ): Promise<IResponse<null>> {
-    try {
-      this.logger.log(
-        `Atualizando categoria ID "${id}" no tenant "${tenantId}".`,
-      );
-
-      const result = await this.service.updateCategory(
-        id,
-        tenantId,
-        updateCategoryDto,
-      );
-
-      this.logger.log(
-        `Categoria ID "${id}" atualizada com sucesso no tenant "${tenantId}".`,
-      );
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `Erro ao atualizar categoria ID "${id}" no tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    return await this.service.updateCategory(id, tenantId, updateCategoryDto);
   }
 
   @Delete(':id')
@@ -269,23 +206,6 @@ export class CategoriesController implements ICategoriesController {
     @Param('id') id: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    try {
-      this.logger.warn(
-        `Solicitação de remoção da categoria ID "${id}" no tenant "${tenantId}".`,
-      );
-
-      const result = await this.service.deleteCategory(id, tenantId);
-
-      this.logger.log(
-        `Categoria ID "${id}" removida com sucesso do tenant "${tenantId}".`,
-      );
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `Erro ao remover categoria ID "${id}" no tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    return await this.service.deleteCategory(id, tenantId);
   }
 }

@@ -6,7 +6,6 @@ import {
   HttpCode,
   HttpStatus,
   Inject,
-  Logger,
   Param,
   Patch,
   Post,
@@ -33,8 +32,6 @@ import { IPaginatedResponse } from '../../common/interfaces/paginated-response.i
 @UseGuards(JwtAuthGuard, PermissionGuard)
 @Controller('roles')
 export class RolesController implements IRolesController {
-  private readonly logger = new Logger(RolesController.name);
-
   constructor(
     @Inject('IRolesService')
     private readonly rolesService: IRolesService,
@@ -48,25 +45,8 @@ export class RolesController implements IRolesController {
     @Body() roleDto: RoleDto,
     @TenantId() tenantId: string,
   ): Promise<IResponse<Role>> {
-    try {
-      roleDto.tenantId = tenantId;
-      this.logger.log(
-        `Tentativa de criação da role "${roleDto.name}" no tenant "${tenantId}".`,
-      );
-
-      const result = await this.rolesService.createRole(roleDto);
-
-      this.logger.log(
-        `Role "${roleDto.name}" criada com sucesso no tenant "${tenantId}".`,
-      );
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `Erro ao criar role "${roleDto.name}" no tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    roleDto.tenantId = tenantId;
+    return await this.rolesService.createRole(roleDto);
   }
 
   @Get()
@@ -77,18 +57,7 @@ export class RolesController implements IRolesController {
     @TenantId() tenantId: string,
     @Query() paginationQuery: PaginationQueryDto,
   ): Promise<IPaginatedResponse<Role>> {
-    try {
-      this.logger.log(
-        `Buscando listagem de roles do tenant "${tenantId}" - Página: ${paginationQuery.page ?? 1}, Limite: ${paginationQuery.limit ?? 10}.`,
-      );
-      return await this.rolesService.findAllRoles(tenantId, paginationQuery);
-    } catch (error) {
-      this.logger.error(
-        `Erro ao buscar roles do tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    return await this.rolesService.findAllRoles(tenantId, paginationQuery);
   }
 
   @Get(':id')
@@ -99,16 +68,7 @@ export class RolesController implements IRolesController {
     @Param('id') id: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<Role>> {
-    try {
-      this.logger.log(`Buscando role ID "${id}" no tenant "${tenantId}".`);
-      return await this.rolesService.findRoleById(id, tenantId);
-    } catch (error) {
-      this.logger.error(
-        `Erro ao buscar role ID "${id}" no tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    return await this.rolesService.findRoleById(id, tenantId);
   }
 
   @Patch(':id')
@@ -120,26 +80,7 @@ export class RolesController implements IRolesController {
     @Body() updateRoleDto: UpdateRoleDto,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    try {
-      this.logger.log(`Atualizando role ID "${id}" no tenant "${tenantId}".`);
-
-      const result = await this.rolesService.updateRole(
-        id,
-        tenantId,
-        updateRoleDto,
-      );
-
-      this.logger.log(
-        `Role ID "${id}" atualizada com sucesso no tenant "${tenantId}".`,
-      );
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `Erro ao atualizar role ID "${id}" no tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    return await this.rolesService.updateRole(id, tenantId, updateRoleDto);
   }
 
   @Delete(':id')
@@ -150,23 +91,6 @@ export class RolesController implements IRolesController {
     @Param('id') id: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    try {
-      this.logger.warn(
-        `Solicitação de remoção da role ID "${id}" no tenant "${tenantId}".`,
-      );
-
-      const result = await this.rolesService.deleteRole(id, tenantId);
-
-      this.logger.log(
-        `Role ID "${id}" removida com sucesso do tenant "${tenantId}".`,
-      );
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `Erro ao remover role ID "${id}" no tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    return await this.rolesService.deleteRole(id, tenantId);
   }
 }

@@ -8,7 +8,6 @@ import {
   UseGuards,
   UseInterceptors,
   Body,
-  Logger,
   Inject,
 } from '@nestjs/common';
 import {
@@ -33,8 +32,6 @@ import { LoginDto } from './dtos/login.dto';
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController implements IAuthController {
-  private readonly logger = new Logger(AuthController.name);
-
   constructor(
     @Inject('IAuthService') private readonly authService: IAuthService,
   ) {}
@@ -70,23 +67,7 @@ export class AuthController implements IAuthController {
       (req.headers['user-agent'] as string) ||
       'unknown';
 
-    try {
-      this.logger.log(
-        `[AUTH] Tentativa de login para o usuário "${loginDto.username}" no tenant "${loginDto.tenantId}".`,
-      );
-
-      const response = await this.authService.login(loginDto, fingerprint);
-
-      this.logger.log(
-        `[AUTH] Usuário "${loginDto.username}" do Tenant "${loginDto.tenantId}" logado com sucesso.`,
-      );
-      return response;
-    } catch (error) {
-      this.logger.warn(
-        `[AUTH] Tentativa de login falhou para o usuário: "${loginDto.username}" - ${(error as Error).message}`,
-      );
-      throw error;
-    }
+    return await this.authService.login(loginDto, fingerprint);
   }
 
   @Post('refresh')
@@ -119,23 +100,7 @@ export class AuthController implements IAuthController {
       (req.headers['user-agent'] as string) ||
       'unknown';
 
-    try {
-      this.logger.log(
-        `[AUTH] Solicitando rotação de token para o usuário "${userPayload.username}".`,
-      );
-
-      const response = await this.authService.refresh(userPayload, fingerprint);
-
-      this.logger.log(
-        `[AUTH] Sessão do usuário "${userPayload.username}" rotacionada com sucesso.`,
-      );
-      return response;
-    } catch (error) {
-      this.logger.warn(
-        `[AUTH] Falha na rotação de token para o usuário: "${userPayload.username}" - ${(error as Error).message}`,
-      );
-      throw error;
-    }
+    return await this.authService.refresh(userPayload, fingerprint);
   }
 
   @Post('logout')
@@ -160,40 +125,24 @@ export class AuthController implements IAuthController {
   ): Promise<Response> {
     const userPayload = req.user as IJwtPayloadWithExpiry;
 
-    try {
-      this.logger.log(
-        `[AUTH] Iniciando encerramento de sessão para o usuário "${userPayload.username}".`,
-      );
+    await this.authService.logout(userPayload);
 
-      await this.authService.logout(userPayload);
+    const isProd = process.env.NODE_ENV === 'production';
+    const cookieOptions = {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'strict' as const,
+    };
 
-      const isProd = process.env.NODE_ENV === 'production';
-      const cookieOptions = {
-        httpOnly: true,
-        secure: isProd,
-        sameSite: 'strict' as const,
-      };
+    res.clearCookie('access_token', {
+      ...cookieOptions,
+      path: '/',
+    });
+    res.clearCookie('refresh_token', {
+      ...cookieOptions,
+      path: '/auth',
+    });
 
-      res.clearCookie('access_token', {
-        ...cookieOptions,
-        path: '/',
-      });
-      res.clearCookie('refresh_token', {
-        ...cookieOptions,
-        path: '/auth',
-      });
-
-      this.logger.log(
-        `[AUTH] O usuário "${userPayload.username}" encerrou a sessão (Logout concluído).`,
-      );
-
-      return res.json({ message: EAuthSuccess.LOGOUT });
-    } catch (error) {
-      this.logger.error(
-        `[AUTH] Erro ao encerrar sessão do usuário "${userPayload.username}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    return res.json({ message: EAuthSuccess.LOGOUT });
   }
 }

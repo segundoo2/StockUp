@@ -1,4 +1,5 @@
 import { ELocationSuccessMessage } from '../../../common/enum/location-success.enum';
+import { IPaginatedResponse } from '../../../common/interfaces/paginated-response.interface';
 import { IResponse } from '../../../common/interfaces/response.interface';
 import { LocationDto } from '../dtos/location.dto';
 import { Location } from '../entities/location.entity';
@@ -71,7 +72,9 @@ describe('LocationController', () => {
         },
       };
 
-      service.findAllLocations.mockResolvedValue(expectedResponse);
+      service.findAllLocations.mockResolvedValue(
+        expectedResponse as unknown as IPaginatedResponse<Location>,
+      );
 
       expect(
         await controller.findAllLocations(tenantId, { page: 1, limit: 10 }),

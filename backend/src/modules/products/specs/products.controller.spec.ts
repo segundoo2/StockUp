@@ -132,7 +132,7 @@ describe('ProductsController', () => {
   describe('findAllProducts', () => {
     it('should return paginated products when it is found', async () => {
       const paginationQuery: PaginationQueryDto = { page: 1, limit: 10 };
-      const response: IPaginatedResponse<Product> = {
+      const response: IPaginatedResponse<Product | Product[]> = {
         message: EProductsSuccess.FIND_ALL,
         data: [mockProduct, mockProduct, mockProduct],
         meta: {
@@ -143,7 +143,9 @@ describe('ProductsController', () => {
           currentPage: 1,
         },
       };
-      mockService.findAllProducts.mockResolvedValue(response);
+      mockService.findAllProducts.mockResolvedValue(
+        response as IPaginatedResponse<Product[]>,
+      );
       expect(
         await controller.findAllProducts(mockProduct.tenantId, paginationQuery),
       ).toEqual(response);

@@ -6,7 +6,6 @@ import {
   HttpCode,
   HttpStatus,
   Inject,
-  Logger,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -46,8 +45,6 @@ import { IPaginatedResponse } from '../../common/interfaces/paginated-response.i
 @UseGuards(JwtAuthGuard, PermissionGuard)
 @Controller('products')
 export class ProductsController implements IProductsController {
-  private readonly logger = new Logger(ProductsController.name);
-
   constructor(
     @Inject('IProductsService')
     private readonly productsService: IProductsService,
@@ -73,27 +70,10 @@ export class ProductsController implements IProductsController {
     @Body() productDto: ProductDto,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    try {
-      this.logger.log(
-        `Tentativa de criação do produto SKU "${productDto.sku}" no tenant "${tenantId}".`,
-      );
-
-      const result = await this.productsService.createProduct({
-        ...productDto,
-        tenantId,
-      });
-
-      this.logger.log(
-        `Produto SKU "${productDto.sku}" criado com sucesso no tenant "${tenantId}".`,
-      );
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `Erro ao criar produto SKU "${productDto.sku}" no tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    return await this.productsService.createProduct({
+      ...productDto,
+      tenantId,
+    });
   }
 
   @Patch(':id')
@@ -120,28 +100,11 @@ export class ProductsController implements IProductsController {
     @Param('id', ParseUUIDPipe) id: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    try {
-      this.logger.log(
-        `Atualizando produto ID "${id}" no tenant "${tenantId}".`,
-      );
-
-      const result = await this.productsService.updateProduct(
-        updateProductDto,
-        id,
-        tenantId,
-      );
-
-      this.logger.log(
-        `Produto ID "${id}" atualizado com sucesso no tenant "${tenantId}".`,
-      );
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `Erro ao atualizar produto ID "${id}" no tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    return await this.productsService.updateProduct(
+      updateProductDto,
+      id,
+      tenantId,
+    );
   }
 
   @Get(':sku')
@@ -167,18 +130,7 @@ export class ProductsController implements IProductsController {
     @Param('sku') sku: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<Product>> {
-    try {
-      this.logger.log(
-        `Buscando produto pelo SKU "${sku}" no tenant "${tenantId}".`,
-      );
-      return await this.productsService.findOneBySku(sku, tenantId);
-    } catch (error) {
-      this.logger.error(
-        `Erro ao buscar produto SKU "${sku}" no tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    return await this.productsService.findOneBySku(sku, tenantId);
   }
 
   @Get()
@@ -196,22 +148,11 @@ export class ProductsController implements IProductsController {
   async findAllProducts(
     @TenantId() tenantId: string,
     @Query() paginationQuery: PaginationQueryDto,
-  ): Promise<IPaginatedResponse<Product>> {
-    try {
-      this.logger.log(
-        `Buscando listagem de produtos do tenant "${tenantId}" - Página: ${paginationQuery.page ?? 1}, Limite: ${paginationQuery.limit ?? 10}.`,
-      );
-      return await this.productsService.findAllProducts(
-        tenantId,
-        paginationQuery,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Erro ao buscar listagem de produtos do tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+  ): Promise<IPaginatedResponse<Product[]>> {
+    return await this.productsService.findAllProducts(
+      tenantId,
+      paginationQuery,
+    );
   }
 
   @Delete(':sku')
@@ -235,23 +176,6 @@ export class ProductsController implements IProductsController {
     @Param('sku') sku: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    try {
-      this.logger.warn(
-        `Solicitação de remoção do produto SKU "${sku}" no tenant "${tenantId}".`,
-      );
-
-      const result = await this.productsService.deleteProduct(sku, tenantId);
-
-      this.logger.log(
-        `Produto SKU "${sku}" removido com sucesso do tenant "${tenantId}".`,
-      );
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `Erro ao remover produto SKU "${sku}" no tenant "${tenantId}": ${(error as Error).message}`,
-        (error as Error).stack,
-      );
-      throw error;
-    }
+    return await this.productsService.deleteProduct(sku, tenantId);
   }
 }

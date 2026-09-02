@@ -71,7 +71,7 @@ describe('ProductsService', () => {
     mockRepository = {
       createProduct: jest.fn(),
       updateProduct: jest.fn(),
-      updateCurrentStockById: jest.fn(),
+      updateStockAtomic: jest.fn(),
       findOneCurrentStockById: jest.fn(),
       findOneBySku: jest.fn(),
       findAllProducts: jest.fn(),
@@ -161,70 +161,105 @@ describe('ProductsService', () => {
   });
 
   describe('applyStockDelta', () => {
-    let delta: number = 3;
-    mockProduct.currentStock = 10;
-    const responseIncrement: IResponse<{ newCurrentStock: number }> = {
-      message: EProductsSuccess.INPUT_MOVIMENT,
-      data: { newCurrentStock: mockProduct.currentStock + delta },
-    };
-    const responsedecrement: IResponse<{ newCurrentStock: number }> = {
-      message: EProductsSuccess.OUTPUT_MOVIMENT,
-      data: { newCurrentStock: mockProduct.currentStock - delta },
-    };
-    const responseUpdated: UpdateResult = {
-      raw: [],
-      affected: 1,
-      generatedMaps: [],
-    };
+    const initialStock = 10;
+    const uom = 'UN';
 
-    it('should return the object { message: string, data: { newCurrentStock: number } } when currentStock is increment success', async () => {
-      mockRepository.findOneCurrentStockById.mockResolvedValue({
-        currentStock: mockProduct.currentStock,
-        uom: mockProduct.uom,
+    it('should return success object with newCurrentStock and uom when currentStock increment succeeds', async () => {
+      const delta = 3;
+      const expectedStock = initialStock + delta;
+
+      const responseUpdated: UpdateResult = {
+        raw: [{ current_stock: expectedStock, uom }],
+        affected: 1,
+        generatedMaps: [],
+      };
+
+      mockRepository.updateStockAtomic.mockResolvedValue(responseUpdated);
+
+      const result = await service.applyStockDelta(
+        mockProduct.id,
+        mockProduct.tenantId,
+        delta,
+      );
+
+      expect(result).toEqual({
+        message: EProductsSuccess.INPUT_MOVIMENT,
+        data: { newCurrentStock: expectedStock, uom },
       });
-      mockRepository.updateCurrentStockById.mockResolvedValue(responseUpdated);
-      expect(
-        await service.applyStockDelta(
-          mockProduct.id,
-          mockProduct.tenantId,
-          delta,
-        ),
-      ).toEqual(responseIncrement);
+      expect(mockRepository.updateStockAtomic).toHaveBeenCalledWith(
+        mockProduct.id,
+        mockProduct.tenantId,
+        delta,
+        undefined,
+      );
     });
 
-    it('should return the object { message: string, data: { newCurrentStock: number } } when currentStock is decrement success', async () => {
-      delta = -3;
-      mockRepository.findOneCurrentStockById.mockResolvedValue({
-        currentStock: mockProduct.currentStock,
-        uom: mockProduct.uom,
+    it('should return success object with newCurrentStock and uom when currentStock decrement succeeds', async () => {
+      const delta = -3;
+      const expectedStock = initialStock + delta;
+
+      const responseUpdated: UpdateResult = {
+        raw: [{ current_stock: expectedStock, uom }],
+        affected: 1,
+        generatedMaps: [],
+      };
+
+      mockRepository.updateStockAtomic.mockResolvedValue(responseUpdated);
+
+      const result = await service.applyStockDelta(
+        mockProduct.id,
+        mockProduct.tenantId,
+        delta,
+      );
+
+      expect(result).toEqual({
+        message: EProductsSuccess.OUTPUT_MOVIMENT,
+        data: { newCurrentStock: expectedStock, uom },
       });
-      mockRepository.updateCurrentStockById.mockResolvedValue(responseUpdated);
-      expect(
-        await service.applyStockDelta(
-          mockProduct.id,
-          mockProduct.tenantId,
-          delta,
-        ),
-      ).toEqual(responsedecrement);
     });
 
-    it('should return BadRequestException when newCurrentStock is negative', async () => {
-      delta = -11;
+    it('should return BadRequestException when updateStockAtomic affects 0 rows but product exists (insufficient stock)', async () => {
+      const delta = -15;
+
+      const failedUpdateResult: UpdateResult = {
+        raw: [],
+        affected: 0,
+        generatedMaps: [],
+      };
+
+      mockRepository.updateStockAtomic.mockResolvedValue(failedUpdateResult);
       mockRepository.findOneCurrentStockById.mockResolvedValue({
-        currentStock: mockProduct.currentStock,
-        uom: mockProduct.uom,
+        currentStock: initialStock,
+        uom,
       });
+
       await expect(
         service.applyStockDelta(mockProduct.id, mockProduct.tenantId, delta),
       ).rejects.toThrow(
         new BadRequestException(
-          `${EProductsErrors.PRODUCT_QUANTITY_INVALID} ${mockProduct.currentStock} ${mockProduct.uom}`,
+          `${EProductsErrors.PRODUCT_QUANTITY_INVALID} ${initialStock} ${uom}`,
         ),
+      );
+
+      expect(mockRepository.findOneCurrentStockById).toHaveBeenCalledWith(
+        mockProduct.id,
+        mockProduct.tenantId,
+        undefined,
       );
     });
 
-    it('should return NotFoundException when the findOneById not found product', async () => {
+    it('should return NotFoundException when updateStockAtomic affects 0 rows and product is not found', async () => {
+      const delta = 5;
+
+      const failedUpdateResult: UpdateResult = {
+        raw: [],
+        affected: 0,
+        generatedMaps: [],
+      };
+
+      mockRepository.updateStockAtomic.mockResolvedValue(failedUpdateResult);
       mockRepository.findOneCurrentStockById.mockResolvedValue(null);
+
       await expect(
         service.applyStockDelta(mockProduct.id, mockProduct.tenantId, delta),
       ).rejects.toThrow(
@@ -269,7 +304,7 @@ describe('ProductsService', () => {
 
     it('should return paginated list when products are found', async () => {
       const mockList: Product[] = [mockProduct, mockProduct, mockProduct];
-      const response: IPaginatedResponse<Product> = {
+      const response: IPaginatedResponse<Product[]> = {
         message: EProductsSuccess.FIND_ALL,
         data: mockList,
         meta: {

@@ -1,4 +1,4 @@
-import { DeleteResult, UpdateResult } from 'typeorm';
+import { DeleteResult, EntityManager, UpdateResult } from 'typeorm';
 import { ProductDto } from '../dtos/product.dto';
 import { Product } from '../entities/product.entity';
 import { UpdateProductDto } from '../dtos/update-product.dto';
@@ -13,14 +13,16 @@ export interface IProductsRepository {
     id: string,
     tenantId: string,
   ): Promise<UpdateResult>;
-  updateCurrentStockById(
+  updateStockAtomic(
     productId: string,
     tenantId: string,
-    newCurrentStock: number,
+    delta: number,
+    manager?: EntityManager,
   ): Promise<UpdateResult>;
   findOneCurrentStockById(
     id: string,
     tenantId: string,
+    manager?: EntityManager,
   ): Promise<Pick<Product, 'currentStock' | 'uom'> | null>;
   findOneBySku(sku: string, tenantId: string): Promise<Product | null>;
   findAllProducts(

@@ -11,9 +11,8 @@ describe('MovementsController', () => {
   let service: IMovementsService;
   let repository: jest.Mocked<IMovementsRepository>;
 
-  const tenantId = 'tenant-uuid-123';
-
-  const movementDto: MovementDto = {
+  const movementDto: MovementDto & { tenantId: string } = {
+    tenantId: 'tenant-uuid-123',
     typeMovement: EMovementType.IN,
     productId: 'd3b07384-d113-424a-a1d2-06834d858348',
     locationId: 'f21a48c9-598d-4a14-8789-08226edb3b0d',
@@ -37,14 +36,11 @@ describe('MovementsController', () => {
   describe('registerMovement', () => {
     it('should return success response when stock movement is registered successfully', async () => {
       repository.registerMovement.mockResolvedValue();
-      expect(
-        await service.registerMovement({ ...movementDto, tenantId }),
-      ).toEqual(expectedResponse);
+      expect(await service.registerMovement(movementDto)).toEqual(
+        expectedResponse,
+      );
       expect(repository.registerMovement).toHaveBeenCalledTimes(1);
-      expect(repository.registerMovement).toHaveBeenCalledWith({
-        ...movementDto,
-        tenantId,
-      });
+      expect(repository.registerMovement).toHaveBeenCalledWith(movementDto);
     });
   });
 });

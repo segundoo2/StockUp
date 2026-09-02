@@ -81,7 +81,7 @@ describe('RolesController', () => {
   describe('findAllRoles', () => {
     it('should return paginated list of roles response', async () => {
       const paginationQuery: PaginationQueryDto = { page: 1, limit: 10 };
-      const response: IPaginatedResponse<Role> = {
+      const response: IPaginatedResponse<Role | Role[]> = {
         message: ERolesSuccess.ROLES_FOUND,
         data: [mockRole],
         meta: {
@@ -93,7 +93,9 @@ describe('RolesController', () => {
         },
       };
 
-      mockService.findAllRoles.mockResolvedValue(response);
+      mockService.findAllRoles.mockResolvedValue(
+        response as IPaginatedResponse<Role>,
+      );
 
       const result = await controller.findAllRoles(tenantId, paginationQuery);
 

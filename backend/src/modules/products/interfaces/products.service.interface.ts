@@ -22,7 +22,7 @@ export interface IProductsService {
     tenantId: string,
     delta: number,
     entityManager?: EntityManager,
-  ): Promise<IResponse<{ newCurrentStock: number }>>;
+  ): Promise<IResponse<{ newCurrentStock: number; uom: string }>>;
 
   findOneBySku(sku: string, tenantId: string): Promise<IResponse<Product>>;
 

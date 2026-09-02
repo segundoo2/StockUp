@@ -1,11 +1,10 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { EMovementType, MovementDto } from '../dtos/movement.dto';
 import { Movement } from '../entities/movement.entity';
 import { MovementsRepository } from '../movements.repository';
-import { InternalServerErrorException } from '@nestjs/common';
-import { EErrorsGlobal } from '../../../common/enum/errors-global.enum';
 
 type MockRepository<T extends object = object> = {
   [P in keyof Repository<T>]?: jest.Mock;
@@ -48,25 +47,12 @@ describe('MovementsRepository', () => {
     repository = module.get<MovementsRepository>(MovementsRepository);
   });
 
-  afterEach(() => jest.restoreAllMocks());
-
-  const shouldHandleDatabaseErrors = (
-    operation: () => Promise<unknown>,
-    mockMethod: () => jest.Mock | undefined,
-  ) => {
-    it('should return InternalServerException when TypeORM throws an error', async () => {
-      mockMethod()?.mockRejectedValue(
-        new Error('[TypeOrmModule] Unable to connect to the database'),
-      );
-
-      await expect(operation()).rejects.toThrow(
-        new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR),
-      );
-    });
-  };
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
 
   describe('registerMovement', () => {
-    it('it should register movement with success', async () => {
+    it('should register movement successfully using default repository', async () => {
       ormMock.create?.mockReturnValue(mockEntity);
       ormMock.save?.mockResolvedValue(mockEntity);
 
@@ -80,9 +66,35 @@ describe('MovementsRepository', () => {
       expect(ormMock.save).toHaveBeenCalledTimes(1);
     });
 
-    shouldHandleDatabaseErrors(
-      () => repository.registerMovement(movementDto),
-      () => ormMock.save,
-    );
+    it('should register movement using transactional EntityManager repository when provided', async () => {
+      const mockTxRepository = {
+        create: jest.fn().mockReturnValue(mockEntity),
+        save: jest.fn().mockResolvedValue(mockEntity),
+      };
+
+      const mockEntityManager = {
+        getRepository: jest.fn().mockReturnValue(mockTxRepository),
+      } as unknown as EntityManager;
+
+      await expect(
+        repository.registerMovement(movementDto, mockEntityManager),
+      ).resolves.not.toThrow();
+
+      expect(mockEntityManager.getRepository).toHaveBeenCalledWith(Movement);
+      expect(mockTxRepository.create).toHaveBeenCalledWith(movementDto);
+      expect(mockTxRepository.save).toHaveBeenCalledWith(mockEntity);
+      expect(ormMock.create).not.toHaveBeenCalled();
+      expect(ormMock.save).not.toHaveBeenCalled();
+    });
+
+    it('should throw error when repository save fails', async () => {
+      const dbError = new Error('Database insertion failed');
+      ormMock.create?.mockReturnValue(mockEntity);
+      ormMock.save?.mockRejectedValue(dbError);
+
+      await expect(repository.registerMovement(movementDto)).rejects.toThrow(
+        dbError,
+      );
+    });
   });
 });

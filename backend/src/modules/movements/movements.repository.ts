@@ -1,25 +1,27 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { MovementDto } from './dtos/movement.dto';
-import type { IMovementsRepository } from './interfaces/movements.repository.interface';
-import { Repository } from 'typeorm';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { Movement } from './entities/movement.entity';
-import { EErrorsGlobal } from '../../common/enum/errors-global.enum';
+import { MovementDto } from './dtos/movement.dto';
+import { IMovementsRepository } from './interfaces/movements.repository.interface';
 
 @Injectable()
 export class MovementsRepository implements IMovementsRepository {
   constructor(
-    @InjectRepository(Movement) private readonly orm: Repository<Movement>,
+    @InjectRepository(Movement)
+    private readonly repository: Repository<Movement>,
   ) {}
+
+  private getRepository(manager?: EntityManager): Repository<Movement> {
+    return manager ? manager.getRepository(Movement) : this.repository;
+  }
 
   async registerMovement(
     movements: MovementDto & { tenantId: string },
+    manager?: EntityManager,
   ): Promise<void> {
-    try {
-      const movement = this.orm.create(movements);
-      await this.orm.save(movement);
-    } catch {
-      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
-    }
+    const repo = this.getRepository(manager);
+    const movement = repo.create(movements);
+    await repo.save(movement);
   }
 }

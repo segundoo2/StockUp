@@ -4,16 +4,16 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ILocationsService } from './interfaces/locations.service.interface';
 import type { ILocationsRepository } from './interfaces/locations.repository.interface';
-import { IResponse } from '../../common/interfaces/response.interface';
+import type { ILocationsService } from './interfaces/locations.service.interface';
 import { LocationDto } from './dtos/location.dto';
-import { ELocationSuccessMessage } from '../../common/enum/location-success.enum';
+import { UpdateLocationDto } from './dtos/update-location.dto';
 import { Location } from './entities/location.entity';
-import { ELocationErrorsMessage } from '../../common/enum/location-errors.enum';
-import { UpdateDescriptionLocationDto } from './dtos/update-description-location.dto';
 import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
+import { IResponse } from '../../common/interfaces/response.interface';
 import { IPaginatedResponse } from '../../common/interfaces/paginated-response.interface';
+import { ELocationSuccessMessage } from '../../common/enum/location-success.enum';
+import { ELocationErrorsMessage } from '../../common/enum/location-errors.enum';
 
 @Injectable()
 export class LocationsService implements ILocationsService {
@@ -25,14 +25,17 @@ export class LocationsService implements ILocationsService {
   async createLocation(
     locationDto: LocationDto & { tenantId: string },
   ): Promise<IResponse<null>> {
-    const findLocation: Location | null = await this.repository.findByCode(
+    const findLocation = await this.repository.findByCode(
       locationDto.code,
       locationDto.tenantId,
     );
+
     if (findLocation) {
       throw new ConflictException(ELocationErrorsMessage.CONFLICT);
     }
+
     await this.repository.createLocation(locationDto);
+
     return {
       message: ELocationSuccessMessage.CREATE,
       data: null,
@@ -43,13 +46,12 @@ export class LocationsService implements ILocationsService {
     code: string,
     tenantId: string,
   ): Promise<IResponse<Location>> {
-    const locationFound: Location | null = await this.repository.findByCode(
-      code,
-      tenantId,
-    );
+    const locationFound = await this.repository.findByCode(code, tenantId);
+
     if (!locationFound) {
       throw new NotFoundException(ELocationErrorsMessage.NOT_FOUND);
     }
+
     return {
       message: ELocationSuccessMessage.FINDONE,
       data: locationFound,
@@ -59,7 +61,7 @@ export class LocationsService implements ILocationsService {
   async findAllLocations(
     tenantId: string,
     pagination: PaginationQueryDto,
-  ): Promise<IPaginatedResponse<Location>> {
+  ): Promise<IPaginatedResponse<Location[]>> {
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? 10;
 
@@ -88,36 +90,22 @@ export class LocationsService implements ILocationsService {
     };
   }
 
-  async updateCodeLocation(
+  async updateLocation(
     code: string,
+    updateLocationDto: UpdateLocationDto,
     tenantId: string,
   ): Promise<IResponse<null>> {
-    const updatedLocation = await this.repository.updateCodeLocation(
+    const updatedLocation = await this.repository.updateLocation(
       code,
+      updateLocationDto,
       tenantId,
     );
+
     if (updatedLocation.affected === 0) {
       throw new NotFoundException(ELocationErrorsMessage.NOT_FOUND);
     }
-    return { message: ELocationSuccessMessage.UPDATE_CODE, data: null };
-  }
 
-  async updateDescriptionLocation(
-    updateDescriptionLocation: UpdateDescriptionLocationDto,
-    tenantId: string,
-  ): Promise<IResponse<null>> {
-    const updatedDescriptionLocation =
-      await this.repository.updateDescriptionLocation(
-        updateDescriptionLocation,
-        tenantId,
-      );
-    if (updatedDescriptionLocation.affected === 0) {
-      throw new NotFoundException(ELocationErrorsMessage.NOT_FOUND);
-    }
-    return {
-      message: ELocationSuccessMessage.UPDATE_DESCRIPTION,
-      data: null,
-    };
+    return { message: ELocationSuccessMessage.UPDATE, data: null };
   }
 
   async deleteLocation(
@@ -128,19 +116,23 @@ export class LocationsService implements ILocationsService {
       code,
       tenantId,
     );
+
     if (
       productListLocation?.productLocations &&
       productListLocation.productLocations.length > 0
     ) {
       throw new ConflictException(ELocationErrorsMessage.CONFLICT_DELETE);
     }
+
     const deletedLocation = await this.repository.deleteLocation(
       code,
       tenantId,
     );
+
     if (deletedLocation.affected === 0) {
       throw new NotFoundException(ELocationErrorsMessage.NOT_FOUND);
     }
+
     return {
       message: ELocationSuccessMessage.DELETE,
       data: null,

@@ -2,10 +2,12 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ELocationSuccessMessage } from '../../../common/enum/location-success.enum';
 import { IResponse } from '../../../common/interfaces/response.interface';
 import { LocationDto } from '../dtos/location.dto';
-import { Location } from '../entities/location.entity';
+import { UpdateLocationDto } from '../dtos/update-location.dto';
+import { ELocationType, Location } from '../entities/location.entity';
 import { ILocationsRepository } from '../interfaces/locations.repository.interface';
 import { LocationsService } from '../locations.service';
 import { ELocationErrorsMessage } from '../../../common/enum/location-errors.enum';
+import { ProductLocation } from '../entities/product-location.entity';
 
 describe('LocationsService', () => {
   let service: LocationsService;
@@ -16,8 +18,7 @@ describe('LocationsService', () => {
       createLocation: jest.fn(),
       findByCode: jest.fn(),
       findAllPaginated: jest.fn(),
-      updateCodeLocation: jest.fn(),
-      updateDescriptionLocation: jest.fn(),
+      updateLocation: jest.fn(),
       deleteLocation: jest.fn(),
     };
     service = new LocationsService(repository);
@@ -26,7 +27,11 @@ describe('LocationsService', () => {
   const locationDto: LocationDto & { tenantId: string } = {
     tenantId: 'uuid',
     code: 'B1AP001',
+    type: ELocationType.STORAGE,
     description: 'descrição',
+  };
+  const updateLocationDto: UpdateLocationDto = {
+    description: 'nova descrição',
   };
   const response: IResponse<Location | null> = {
     message: ELocationSuccessMessage.CREATE,
@@ -36,6 +41,7 @@ describe('LocationsService', () => {
     id: 'uuid',
     tenantId: 'uuid',
     code: 'B1AP001',
+    type: ELocationType.STORAGE,
     description: 'descrição',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -91,14 +97,13 @@ describe('LocationsService', () => {
 
       const expectedResult = {
         message: ELocationSuccessMessage.FIND_ALL,
-        data: {
-          data: locationsList,
-          meta: {
-            page: 1,
-            limit: 10,
-            total: 1,
-            totalPages: 1,
-          },
+        data: locationsList,
+        meta: {
+          itemCount: 1,
+          totalItems: 1,
+          itemsPerPage: 10,
+          totalPages: 1,
+          currentPage: 1,
         },
       };
 
@@ -108,72 +113,34 @@ describe('LocationsService', () => {
     });
   });
 
-  describe('updateCodeLocation', () => {
-    it(`should return { message: ${ELocationSuccessMessage.UPDATE_CODE}, data: null }`, async () => {
-      response.message = ELocationSuccessMessage.UPDATE_CODE;
+  describe('updateLocation', () => {
+    it(`should return { message: ${ELocationSuccessMessage.UPDATE}, data: null }`, async () => {
+      response.message = ELocationSuccessMessage.UPDATE;
       response.data = null;
-      repository.updateCodeLocation.mockResolvedValue({
+      repository.updateLocation.mockResolvedValue({
         raw: [],
         affected: 1,
         generatedMaps: [],
       });
       expect(
-        await service.updateCodeLocation(
+        await service.updateLocation(
           responseRepository.code,
+          updateLocationDto,
           responseRepository.tenantId,
         ),
       ).toEqual(response);
     });
 
     it('should return NotFoundException when the location not found', async () => {
-      repository.updateCodeLocation.mockResolvedValue({
+      repository.updateLocation.mockResolvedValue({
         raw: [],
         affected: 0,
         generatedMaps: [],
       });
       await expect(
-        service.updateCodeLocation(
+        service.updateLocation(
           responseRepository.code,
-          responseRepository.tenantId,
-        ),
-      ).rejects.toThrow(
-        new NotFoundException(ELocationErrorsMessage.NOT_FOUND),
-      );
-    });
-  });
-
-  describe('updateDescriptionLocation', () => {
-    it(`should return { message: ${ELocationSuccessMessage.UPDATE_DESCRIPTION}, data: null }`, async () => {
-      response.message = ELocationSuccessMessage.UPDATE_DESCRIPTION;
-      response.data = null;
-      repository.updateDescriptionLocation.mockResolvedValue({
-        raw: [],
-        affected: 1,
-        generatedMaps: [],
-      });
-      expect(
-        await service.updateDescriptionLocation(
-          {
-            code: responseRepository.code,
-            description: responseRepository.description,
-          },
-          responseRepository.tenantId,
-        ),
-      ).toEqual(response);
-    });
-
-    it('should return NotFoundException when the location not found', async () => {
-      repository.updateDescriptionLocation.mockResolvedValue({
-        raw: [],
-        affected: 0,
-        generatedMaps: [],
-      });
-      await expect(
-        service.updateDescriptionLocation(
-          {
-            code: responseRepository.code,
-            description: responseRepository.description,
-          },
+          updateLocationDto,
           responseRepository.tenantId,
         ),
       ).rejects.toThrow(
@@ -201,7 +168,7 @@ describe('LocationsService', () => {
     it('should return ConflictException when the location has products associated', async () => {
       repository.findByCode.mockResolvedValue({
         ...responseRepository,
-        productLocations: [{} as any],
+        productLocations: [{} as ProductLocation],
       });
       await expect(
         service.deleteLocation(

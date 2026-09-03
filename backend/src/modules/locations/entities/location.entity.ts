@@ -10,6 +10,11 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ProductLocation } from './product-location.entity';
 
+export enum ELocationType {
+  DISPLAY = 'DISPLAY', // Mostruário / Góndola / Área de Venda
+  STORAGE = 'STORAGE', // Depósito / Almoxarifado / Estoque Principal
+}
+
 @Entity({ name: 'locations' })
 @Index(['tenantId', 'code'], { unique: true })
 export class Location {
@@ -34,6 +39,20 @@ export class Location {
   })
   @Column({ type: 'varchar', length: 50 })
   code!: string;
+
+  @ApiProperty({
+    enum: ELocationType,
+    description:
+      'Tipo da localização (DISPLAY: Mostruário/Área de venda, STORAGE: Depósito/Estoque)',
+    example: ELocationType.STORAGE,
+    default: ELocationType.STORAGE,
+  })
+  @Column({
+    type: 'enum',
+    enum: ELocationType,
+    default: ELocationType.STORAGE,
+  })
+  type!: ELocationType;
 
   @ApiPropertyOptional({
     description: 'Descrição opcional ou observações sobre a localização',

@@ -13,6 +13,10 @@ export class ProductsRepository implements ProductsRepository {
     @InjectRepository(Product) private readonly repository: Repository<Product>,
   ) {}
 
+  private getRepository(manager?: EntityManager): Repository<Product> {
+    return manager ? manager.getRepository(Product) : this.repository;
+  }
+
   async createProduct(
     productDto: ProductDto & { tenantId: string },
   ): Promise<Product> {
@@ -22,54 +26,6 @@ export class ProductsRepository implements ProductsRepository {
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }
-  }
-
-  async updateProduct(
-    updateProductDto: UpdateProductDto,
-    id: string,
-    tenantId: string,
-  ): Promise<UpdateResult> {
-    try {
-      return await this.repository.update(
-        {
-          id,
-          tenantId,
-        },
-        updateProductDto,
-      );
-    } catch {
-      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
-    }
-  }
-
-  private getRepository(manager?: EntityManager): Repository<Product> {
-    return manager ? manager.getRepository(Product) : this.repository;
-  }
-
-  async updateStockAtomic(
-    productId: string,
-    tenantId: string,
-    delta: number,
-    manager?: EntityManager,
-  ): Promise<UpdateResult> {
-    const repo = this.getRepository(manager);
-
-    const query = repo
-      .createQueryBuilder('product')
-      .update(Product)
-      .set({
-        currentStock: () => `current_stock + ${delta}`,
-      })
-      .where('id = :productId AND tenant_id = :tenantId', {
-        productId,
-        tenantId,
-      });
-
-    if (delta < 0) {
-      query.andWhere('current_stock + :delta >= 0', { delta });
-    }
-
-    return await query.returning(['current_stock', 'uom']).execute();
   }
 
   async findOneCurrentStockById(
@@ -82,8 +38,18 @@ export class ProductsRepository implements ProductsRepository {
     return await repo.findOne({
       where: { id, tenantId },
       select: { currentStock: true, uom: true },
-      // Garante que a linha fica travada para leitura/escrita na transação ativa
       lock: manager ? { mode: 'pessimistic_write' } : undefined,
+    });
+  }
+
+  async findOneById(
+    id: string,
+    tenantId: string,
+    manager?: EntityManager,
+  ): Promise<Product | null> {
+    const repo = this.getRepository(manager);
+    return await repo.findOne({
+      where: { id, tenantId },
     });
   }
 
@@ -114,6 +80,50 @@ export class ProductsRepository implements ProductsRepository {
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }
+  }
+
+  async updateProduct(
+    updateProductDto: UpdateProductDto,
+    id: string,
+    tenantId: string,
+  ): Promise<UpdateResult> {
+    try {
+      return await this.repository.update(
+        {
+          id,
+          tenantId,
+        },
+        updateProductDto,
+      );
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
+
+  async updateStockAtomic(
+    productId: string,
+    tenantId: string,
+    delta: number,
+    manager?: EntityManager,
+  ): Promise<UpdateResult> {
+    const repo = this.getRepository(manager);
+
+    const query = repo
+      .createQueryBuilder('product')
+      .update(Product)
+      .set({
+        currentStock: () => `current_stock + ${delta}`,
+      })
+      .where('id = :productId AND tenant_id = :tenantId', {
+        productId,
+        tenantId,
+      });
+
+    if (delta < 0) {
+      query.andWhere('current_stock + :delta >= 0', { delta });
+    }
+
+    return await query.returning(['current_stock', 'uom']).execute();
   }
 
   async deleteProduct(sku: string, tenantId: string): Promise<DeleteResult> {

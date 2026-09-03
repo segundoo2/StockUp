@@ -1,8 +1,9 @@
 import { LocationsRepository } from '../locations.repository';
-import { Location } from '../entities/location.entity';
+import { ELocationType, Location } from '../entities/location.entity';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { LocationDto } from '../dtos/location.dto';
+import { UpdateLocationDto } from '../dtos/update-location.dto';
 import { InternalServerErrorException } from '@nestjs/common';
 import { EErrorsGlobal } from '../../../common/enum/errors-global.enum';
 import { ObjectLiteral, Repository } from 'typeorm';
@@ -64,12 +65,17 @@ describe('LocationsRepository', () => {
   const locationDto: LocationDto & { tenantId: string } = {
     tenantId: 'uuid',
     code: 'B1AP001',
+    type: ELocationType.STORAGE,
     description: 'descrição',
+  };
+  const updateLocationDto: UpdateLocationDto = {
+    description: 'nova descrição',
   };
   const response: Location = {
     id: 'uuid',
     tenantId: 'uuid',
     code: 'B1AP001',
+    type: ELocationType.STORAGE,
     description: 'descrição',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -120,7 +126,7 @@ describe('LocationsRepository', () => {
     );
   });
 
-  describe('updateCodeLocation', () => {
+  describe('updateLocation', () => {
     it('should return { raw [], affected: 1, generatedMaps: [] } when location found and updated', async () => {
       repositoryOrm.update?.mockResolvedValue({
         raw: [],
@@ -128,27 +134,9 @@ describe('LocationsRepository', () => {
         generatedMaps: [],
       });
       expect(
-        await repository.updateCodeLocation(response.code, response.tenantId),
-      ).toEqual({ raw: [], affected: 1, generatedMaps: [] });
-    });
-
-    shouldHandleDatabaseErrors(
-      () =>
-        repository.updateCodeLocation(locationDto.code, locationDto.tenantId),
-      () => repositoryOrm.update,
-    );
-  });
-
-  describe('updateDescriptionLocation', () => {
-    it('should return { raw [], affected: 1, generatedMaps: [] } when location found and updated', async () => {
-      repositoryOrm.update?.mockResolvedValue({
-        raw: [],
-        affected: 1,
-        generatedMaps: [],
-      });
-      expect(
-        await repository.updateDescriptionLocation(
-          { code: response.code, description: response.description },
+        await repository.updateLocation(
+          response.code,
+          updateLocationDto,
           response.tenantId,
         ),
       ).toEqual({ raw: [], affected: 1, generatedMaps: [] });
@@ -156,8 +144,9 @@ describe('LocationsRepository', () => {
 
     shouldHandleDatabaseErrors(
       () =>
-        repository.updateDescriptionLocation(
-          { code: locationDto.code, description: locationDto.description },
+        repository.updateLocation(
+          locationDto.code,
+          updateLocationDto,
           locationDto.tenantId,
         ),
       () => repositoryOrm.update,

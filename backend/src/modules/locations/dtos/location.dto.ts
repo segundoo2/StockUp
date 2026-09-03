@@ -1,6 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
-import { Location } from '../entities/location.entity';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
+import { ELocationType, Location } from '../entities/location.entity';
 
 export type CreateLocationInput = Omit<
   Location,
@@ -17,6 +23,16 @@ export class LocationDto implements CreateLocationInput {
   @IsNotEmpty()
   @MaxLength(50)
   code!: string;
+
+  @ApiPropertyOptional({
+    enum: ELocationType,
+    description: 'Tipo da localização (DISPLAY ou STORAGE)',
+    example: ELocationType.STORAGE,
+    default: ELocationType.STORAGE,
+  })
+  @IsEnum(ELocationType)
+  @IsOptional()
+  type!: ELocationType;
 
   @ApiPropertyOptional({
     description: 'Descrição opcional ou observações sobre a localização',

@@ -1,12 +1,7 @@
 import { DeleteResult, UpdateResult } from 'typeorm';
-import { LocationDto } from '../dtos/location.dto';
 import { Location } from '../entities/location.entity';
-import { UpdateDescriptionLocationDto } from '../dtos/update-description-location.dto';
-
-export interface IFindAllPaginatedResult {
-  locations: Location[];
-  total: number;
-}
+import { LocationDto } from '../dtos/location.dto';
+import { UpdateLocationDto } from '../dtos/update-location.dto';
 
 export interface ILocationsRepository {
   createLocation(
@@ -19,12 +14,11 @@ export interface ILocationsRepository {
     tenantId: string,
     page: number,
     limit: number,
-  ): Promise<IFindAllPaginatedResult>;
+  ): Promise<{ locations: Location[]; total: number }>;
 
-  updateCodeLocation(code: string, tenantId: string): Promise<UpdateResult>;
-
-  updateDescriptionLocation(
-    updateDescriptionLocation: UpdateDescriptionLocationDto,
+  updateLocation(
+    code: string,
+    updateLocationDto: UpdateLocationDto,
     tenantId: string,
   ): Promise<UpdateResult>;
 

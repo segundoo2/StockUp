@@ -44,6 +44,61 @@ export class ProductsService implements IProductsService {
     };
   }
 
+  async findOneById(
+    id: string,
+    tenantId: string,
+    manager?: EntityManager,
+  ): Promise<Product | null> {
+    return await this.productsRepository.findOneById(id, tenantId, manager);
+  }
+
+  async findOneBySku(
+    sku: string,
+    tenantId: string,
+  ): Promise<IResponse<Product>> {
+    const product = await this.productsRepository.findOneBySku(sku, tenantId);
+
+    if (!product) {
+      throw new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND);
+    }
+    return {
+      message: EProductsSuccess.FIND_ONE,
+      data: product,
+    };
+  }
+
+  async findAllProducts(
+    tenantId: string,
+    paginationQuery: PaginationQueryDto,
+  ): Promise<IPaginatedResponse<Product[]>> {
+    const page = paginationQuery.page ?? 1;
+    const limit = paginationQuery.limit ?? 10;
+
+    const [products, totalItems] =
+      await this.productsRepository.findAllProducts(tenantId, {
+        page,
+        limit,
+      });
+
+    if (products.length === 0) {
+      throw new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND);
+    }
+
+    const totalPages = Math.ceil(totalItems / limit);
+
+    return {
+      message: EProductsSuccess.FIND_ALL,
+      data: products,
+      meta: {
+        itemCount: products.length,
+        totalItems,
+        itemsPerPage: limit,
+        totalPages,
+        currentPage: page,
+      },
+    };
+  }
+
   async updateProduct(
     updateProductDto: UpdateProductDto,
     id: string,
@@ -107,53 +162,6 @@ export class ProductsService implements IProductsService {
           ? EProductsSuccess.INPUT_MOVIMENT
           : EProductsSuccess.OUTPUT_MOVIMENT,
       data: { newCurrentStock, uom },
-    };
-  }
-
-  async findOneBySku(
-    sku: string,
-    tenantId: string,
-  ): Promise<IResponse<Product>> {
-    const product = await this.productsRepository.findOneBySku(sku, tenantId);
-
-    if (!product) {
-      throw new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND);
-    }
-    return {
-      message: EProductsSuccess.FIND_ONE,
-      data: product,
-    };
-  }
-
-  async findAllProducts(
-    tenantId: string,
-    paginationQuery: PaginationQueryDto,
-  ): Promise<IPaginatedResponse<Product[]>> {
-    const page = paginationQuery.page ?? 1;
-    const limit = paginationQuery.limit ?? 10;
-
-    const [products, totalItems] =
-      await this.productsRepository.findAllProducts(tenantId, {
-        page,
-        limit,
-      });
-
-    if (products.length === 0) {
-      throw new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND);
-    }
-
-    const totalPages = Math.ceil(totalItems / limit);
-
-    return {
-      message: EProductsSuccess.FIND_ALL,
-      data: products,
-      meta: {
-        itemCount: products.length,
-        totalItems,
-        itemsPerPage: limit,
-        totalPages,
-        currentPage: page,
-      },
     };
   }
 

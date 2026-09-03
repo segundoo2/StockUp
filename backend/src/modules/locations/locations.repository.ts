@@ -1,11 +1,11 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { ILocationsRepository } from './interfaces/locations.repository.interface';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Location } from './entities/location.entity';
 import { DeleteResult, Repository, UpdateResult } from 'typeorm';
+import { ILocationsRepository } from './interfaces/locations.repository.interface';
+import { Location } from './entities/location.entity';
 import { LocationDto } from './dtos/location.dto';
+import { UpdateLocationDto } from './dtos/update-location.dto';
 import { EErrorsGlobal } from '../../common/enum/errors-global.enum';
-import { UpdateDescriptionLocationDto } from './dtos/update-description-location.dto';
 
 @Injectable()
 export class LocationsRepository implements ILocationsRepository {
@@ -14,9 +14,11 @@ export class LocationsRepository implements ILocationsRepository {
     private readonly repository: Repository<Location>,
   ) {}
 
-  async createLocation(locationDto: LocationDto): Promise<Location> {
+  async createLocation(
+    locationDto: LocationDto & { tenantId: string },
+  ): Promise<Location> {
     try {
-      const location: Location = this.repository.create(locationDto);
+      const location = this.repository.create(locationDto);
       return await this.repository.save(location);
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
@@ -25,7 +27,10 @@ export class LocationsRepository implements ILocationsRepository {
 
   async findByCode(code: string, tenantId: string): Promise<Location | null> {
     try {
-      return await this.repository.findOne({ where: { code, tenantId } });
+      return await this.repository.findOne({
+        where: { code, tenantId },
+        relations: { productLocations: true },
+      });
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }
@@ -50,25 +55,15 @@ export class LocationsRepository implements ILocationsRepository {
     }
   }
 
-  async updateCodeLocation(
+  async updateLocation(
     code: string,
-    tenantId: string,
-  ): Promise<UpdateResult> {
-    try {
-      return await this.repository.update({ code, tenantId }, { code });
-    } catch {
-      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
-    }
-  }
-
-  async updateDescriptionLocation(
-    updateDescriptionLocation: UpdateDescriptionLocationDto,
+    updateLocationDto: UpdateLocationDto,
     tenantId: string,
   ): Promise<UpdateResult> {
     try {
       return await this.repository.update(
-        { code: updateDescriptionLocation.code, tenantId },
-        { description: updateDescriptionLocation.description },
+        { code, tenantId },
+        updateLocationDto,
       );
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);

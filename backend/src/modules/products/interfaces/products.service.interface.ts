@@ -24,6 +24,12 @@ export interface IProductsService {
     entityManager?: EntityManager,
   ): Promise<IResponse<{ newCurrentStock: number; uom: string }>>;
 
+  findOneById(
+    id: string,
+    tenantId: string,
+    manager?: EntityManager,
+  ): Promise<Product | null>;
+
   findOneBySku(sku: string, tenantId: string): Promise<IResponse<Product>>;
 
   findAllProducts(

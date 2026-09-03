@@ -11,11 +11,10 @@ import {
   Patch,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
@@ -25,42 +24,37 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { ILocationsController } from './interfaces/locations.controller.interface';
+import type { ILocationsController } from './interfaces/locations.controller.interface';
 import type { ILocationsService } from './interfaces/locations.service.interface';
-import { IResponse } from '../../common/interfaces/response.interface';
 import { LocationDto } from './dtos/location.dto';
+import { UpdateLocationDto } from './dtos/update-location.dto';
 import { Location } from './entities/location.entity';
-import { EErrorsGlobal } from '../../common/enum/errors-global.enum';
-import { UpdateDescriptionLocationDto } from './dtos/update-description-location.dto';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { PermissionGuard } from '../../common/guards/permission.guard';
-import { EPermission } from '../../common/enum/permissions.enum';
-import { ELocationSuccessMessage } from '../../common/enum/location-success.enum';
-import { RequiresPermission } from '../../common/decorators/permission.decorator';
-import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
+import { IResponse } from '../../common/interfaces/response.interface';
 import { IPaginatedResponse } from '../../common/interfaces/paginated-response.interface';
+import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { EPermission } from '../../common/enum/permissions.enum';
+import { EErrorsGlobal } from '../../common/enum/errors-global.enum';
+import { RequiresPermission } from '../../common/decorators/permission.decorator';
 
-@ApiTags('Locations')
+@ApiTags('locations')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, PermissionGuard)
 @Controller('locations')
 export class LocationsController implements ILocationsController {
   constructor(
     @Inject('ILocationsService')
-    private readonly service: ILocationsService,
+    private readonly locationsService: ILocationsService,
   ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @RequiresPermission(EPermission.LOCATION_CREATE)
   @ApiOperation({
-    summary: 'Criar nova localização',
-    description:
-      'Cadastra uma nova localização associada ao tenant autenticado.',
+    summary: 'Criar localização',
+    description: 'Cria uma nova localização para o tenant logado.',
   })
   @ApiCreatedResponse({ description: 'Localização criada com sucesso.' })
-  @ApiBadRequestResponse({ description: 'Dados de entrada inválidos.' })
+  @ApiBadRequestResponse({ description: 'Dados informados inválidos.' })
   @ApiUnauthorizedResponse({
     description: 'Token de acesso inválido ou expirado.',
   })
@@ -71,7 +65,11 @@ export class LocationsController implements ILocationsController {
     @TenantId() tenantId: string,
     @Body() locationDto: LocationDto,
   ): Promise<IResponse<null>> {
-    return await this.service.createLocation({
+    if (!tenantId) {
+      throw new BadRequestException(EErrorsGlobal.INVALID_DATA);
+    }
+
+    return await this.locationsService.createLocation({
       ...locationDto,
       tenantId,
     });
@@ -82,18 +80,10 @@ export class LocationsController implements ILocationsController {
   @RequiresPermission(EPermission.LOCATION_FIND)
   @ApiOperation({
     summary: 'Buscar localização por código',
-    description:
-      'Retorna os detalhes de uma localização pelo seu código único.',
+    description: 'Busca uma localização pelo código informado.',
   })
-  @ApiParam({
-    name: 'code',
-    description: 'Código identificador da localização',
-  })
-  @ApiOkResponse({
-    description: 'Localização encontrada com sucesso.',
-    type: Location,
-  })
-  @ApiBadRequestResponse({ description: 'Código ou TenantId inválidos.' })
+  @ApiParam({ name: 'code', description: 'Código da localização' })
+  @ApiOkResponse({ description: 'Localização encontrada.' })
   @ApiNotFoundResponse({ description: 'Localização não encontrada.' })
   @ApiUnauthorizedResponse({
     description: 'Token de acesso inválido ou expirado.',
@@ -109,45 +99,18 @@ export class LocationsController implements ILocationsController {
       throw new BadRequestException(EErrorsGlobal.INVALID_DATA);
     }
 
-    return await this.service.findByCode(code, tenantId);
+    return await this.locationsService.findByCode(code, tenantId);
   }
 
   @Get()
   @HttpCode(HttpStatus.OK)
   @RequiresPermission(EPermission.LOCATION_FIND)
   @ApiOperation({
-    summary: 'Listar localizações paginadas',
-    description:
-      'Retorna a lista paginada de localizações pertencentes ao tenant do usuário autenticado.',
+    summary: 'Listar todas as localizações',
+    description: 'Retorna uma lista paginada de localizações.',
   })
-  @ApiOkResponse({
-    description: 'Lista paginada de localizações retornada com sucesso.',
-    schema: {
-      type: 'object',
-      properties: {
-        message: { type: 'string', example: ELocationSuccessMessage.FIND_ALL },
-        data: {
-          type: 'object',
-          properties: {
-            data: {
-              type: 'array',
-              items: { $ref: '#/components/schemas/Location' },
-            },
-            meta: {
-              type: 'object',
-              properties: {
-                page: { type: 'number', example: 1 },
-                limit: { type: 'number', example: 10 },
-                total: { type: 'number', example: 42 },
-                totalPages: { type: 'number', example: 5 },
-              },
-            },
-          },
-        },
-      },
-    },
-  })
-  @ApiBadRequestResponse({ description: 'Parâmetros de paginação inválidos.' })
+  @ApiOkResponse({ description: 'Lista de localizações retornada.' })
+  @ApiNotFoundResponse({ description: 'Nenhuma localização encontrada.' })
   @ApiUnauthorizedResponse({
     description: 'Token de acesso inválido ou expirado.',
   })
@@ -157,22 +120,24 @@ export class LocationsController implements ILocationsController {
   async findAllLocations(
     @TenantId() tenantId: string,
     @Query() query: PaginationQueryDto,
-  ): Promise<IPaginatedResponse<Location>> {
-    return await this.service.findAllLocations(tenantId, query);
+  ): Promise<IPaginatedResponse<Location[]>> {
+    if (!tenantId) {
+      throw new BadRequestException(EErrorsGlobal.INVALID_DATA);
+    }
+
+    return await this.locationsService.findAllLocations(tenantId, query);
   }
 
-  @Patch(':code/code')
+  @Patch(':code')
   @HttpCode(HttpStatus.OK)
   @RequiresPermission(EPermission.LOCATION_UPDATE)
   @ApiOperation({
-    summary: 'Atualizar código da localização',
+    summary: 'Atualizar localização',
     description:
-      'Atualiza a chave/código de identificação de uma localização existente.',
+      'Atualiza parcialmente os campos de uma localização existente.',
   })
   @ApiParam({ name: 'code', description: 'Código atual da localização' })
-  @ApiOkResponse({
-    description: 'Código da localização atualizado com sucesso.',
-  })
+  @ApiOkResponse({ description: 'Localização atualizada com sucesso.' })
   @ApiBadRequestResponse({ description: 'Dados informados inválidos.' })
   @ApiNotFoundResponse({ description: 'Localização não encontrada.' })
   @ApiUnauthorizedResponse({
@@ -181,39 +146,18 @@ export class LocationsController implements ILocationsController {
   @ApiForbiddenResponse({
     description: 'Acesso negado: permissão insuficiente.',
   })
-  async updateCodeLocation(
+  async updateLocation(
     @Param('code') code: string,
+    @Body() updateLocationDto: UpdateLocationDto,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
     if (!code || !tenantId) {
       throw new BadRequestException(EErrorsGlobal.INVALID_DATA);
     }
 
-    return await this.service.updateCodeLocation(code, tenantId);
-  }
-
-  @Patch('description')
-  @HttpCode(HttpStatus.OK)
-  @RequiresPermission(EPermission.LOCATION_UPDATE)
-  @ApiOperation({
-    summary: 'Atualizar descrição da localização',
-    description: 'Atualiza o texto descritivo de uma localização.',
-  })
-  @ApiOkResponse({ description: 'Descrição atualizada com sucesso.' })
-  @ApiBadRequestResponse({ description: 'Dados de entrada inválidos.' })
-  @ApiNotFoundResponse({ description: 'Localização não encontrada.' })
-  @ApiUnauthorizedResponse({
-    description: 'Token de acesso inválido ou expirado.',
-  })
-  @ApiForbiddenResponse({
-    description: 'Acesso negado: permissão insuficiente.',
-  })
-  async updateDescriptionLocation(
-    @Body() updateDescriptionLocation: UpdateDescriptionLocationDto,
-    @TenantId() tenantId: string,
-  ): Promise<IResponse<null>> {
-    return await this.service.updateDescriptionLocation(
-      updateDescriptionLocation,
+    return await this.locationsService.updateLocation(
+      code,
+      updateLocationDto,
       tenantId,
     );
   }
@@ -223,13 +167,10 @@ export class LocationsController implements ILocationsController {
   @RequiresPermission(EPermission.LOCATION_DELETE)
   @ApiOperation({
     summary: 'Deletar localização',
-    description: 'Remove um registro de localização pelo código.',
+    description: 'Remove uma localização pelo código fornecido.',
   })
-  @ApiParam({
-    name: 'code',
-    description: 'Código da localização a ser removida',
-  })
-  @ApiOkResponse({ description: 'Localização removida com sucesso.' })
+  @ApiParam({ name: 'code', description: 'Código da localização' })
+  @ApiOkResponse({ description: 'Localização deletada com sucesso.' })
   @ApiNotFoundResponse({ description: 'Localização não encontrada.' })
   @ApiUnauthorizedResponse({
     description: 'Token de acesso inválido ou expirado.',
@@ -241,6 +182,10 @@ export class LocationsController implements ILocationsController {
     @Param('code') code: string,
     @TenantId() tenantId: string,
   ): Promise<IResponse<null>> {
-    return await this.service.deleteLocation(code, tenantId);
+    if (!code || !tenantId) {
+      throw new BadRequestException(EErrorsGlobal.INVALID_DATA);
+    }
+
+    return await this.locationsService.deleteLocation(code, tenantId);
   }
 }

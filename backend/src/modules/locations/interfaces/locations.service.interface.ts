@@ -2,7 +2,7 @@ import { PaginationQueryDto } from '../../../common/dtos/pagination-query.dto';
 import { IPaginatedResponse } from '../../../common/interfaces/paginated-response.interface';
 import { IResponse } from '../../../common/interfaces/response.interface';
 import { LocationDto } from '../dtos/location.dto';
-import { UpdateDescriptionLocationDto } from '../dtos/update-description-location.dto';
+import { UpdateLocationDto } from '../dtos/update-location.dto';
 import { Location } from '../entities/location.entity';
 
 export interface ILocationsService {
@@ -15,12 +15,11 @@ export interface ILocationsService {
   findAllLocations(
     tenantId: string,
     pagination: PaginationQueryDto,
-  ): Promise<IPaginatedResponse<Location>>;
+  ): Promise<IPaginatedResponse<Location[]>>;
 
-  updateCodeLocation(code: string, tenantId: string): Promise<IResponse<null>>;
-
-  updateDescriptionLocation(
-    updateDescriptionLocation: UpdateDescriptionLocationDto,
+  updateLocation(
+    code: string,
+    updateLocationDto: UpdateLocationDto,
     tenantId: string,
   ): Promise<IResponse<null>>;
 

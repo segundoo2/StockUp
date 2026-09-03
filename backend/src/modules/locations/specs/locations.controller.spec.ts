@@ -2,7 +2,8 @@ import { ELocationSuccessMessage } from '../../../common/enum/location-success.e
 import { IPaginatedResponse } from '../../../common/interfaces/paginated-response.interface';
 import { IResponse } from '../../../common/interfaces/response.interface';
 import { LocationDto } from '../dtos/location.dto';
-import { Location } from '../entities/location.entity';
+import { UpdateLocationDto } from '../dtos/update-location.dto';
+import { ELocationType, Location } from '../entities/location.entity';
 import { ILocationsService } from '../interfaces/locations.service.interface';
 import { LocationsController } from '../locations.controller';
 
@@ -15,8 +16,7 @@ describe('LocationController', () => {
       createLocation: jest.fn(),
       findByCode: jest.fn(),
       findAllLocations: jest.fn(),
-      updateCodeLocation: jest.fn(),
-      updateDescriptionLocation: jest.fn(),
+      updateLocation: jest.fn(),
       deleteLocation: jest.fn(),
     };
     controller = new LocationsController(service);
@@ -25,7 +25,11 @@ describe('LocationController', () => {
   const tenantId: string = 'uuid';
   const locationDto: LocationDto = {
     code: 'B1AP001',
+    type: ELocationType.STORAGE,
     description: 'descrição',
+  };
+  const updateLocationDto: UpdateLocationDto = {
+    description: 'nova descrição',
   };
   const response: IResponse<Location | null> = {
     message: ELocationSuccessMessage.CREATE,
@@ -35,6 +39,7 @@ describe('LocationController', () => {
     id: 'uuid',
     tenantId: 'uuid',
     code: 'B1AP001',
+    type: ELocationType.STORAGE,
     description: 'descrição',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -64,17 +69,19 @@ describe('LocationController', () => {
 
   describe('findAllLocations', () => {
     it('should return paginated response from service', async () => {
-      const expectedResponse = {
+      const expectedResponse: IPaginatedResponse<Location[]> = {
         message: ELocationSuccessMessage.FIND_ALL,
-        data: {
-          data: [responseService],
-          meta: { page: 1, limit: 10, total: 1, totalPages: 1 },
+        data: [responseService],
+        meta: {
+          itemCount: 1,
+          totalItems: 1,
+          itemsPerPage: 10,
+          totalPages: 1,
+          currentPage: 1,
         },
       };
 
-      service.findAllLocations.mockResolvedValue(
-        expectedResponse as unknown as IPaginatedResponse<Location>,
-      );
+      service.findAllLocations.mockResolvedValue(expectedResponse);
 
       expect(
         await controller.findAllLocations(tenantId, { page: 1, limit: 10 }),
@@ -82,31 +89,15 @@ describe('LocationController', () => {
     });
   });
 
-  describe('updateCodeLocation', () => {
-    it(`should return { message: ${ELocationSuccessMessage.UPDATE_CODE}, data: null }`, async () => {
-      response.message = ELocationSuccessMessage.UPDATE_CODE;
-      service.updateCodeLocation.mockResolvedValue(response as IResponse<null>);
+  describe('updateLocation', () => {
+    it(`should return { message: ${ELocationSuccessMessage.UPDATE}, data: null }`, async () => {
+      response.message = ELocationSuccessMessage.UPDATE;
+      response.data = null;
+      service.updateLocation.mockResolvedValue(response as IResponse<null>);
       expect(
-        await controller.updateCodeLocation(
+        await controller.updateLocation(
           responseService.code,
-          responseService.tenantId,
-        ),
-      ).toEqual(response);
-    });
-  });
-
-  describe('updateDescriptionLocation', () => {
-    it(`should return { message: ${ELocationSuccessMessage.UPDATE_DESCRIPTION}, data: null }`, async () => {
-      response.message = ELocationSuccessMessage.UPDATE_DESCRIPTION;
-      service.updateDescriptionLocation.mockResolvedValue(
-        response as IResponse<null>,
-      );
-      expect(
-        await controller.updateDescriptionLocation(
-          {
-            code: responseService.code,
-            description: responseService.description,
-          },
+          updateLocationDto,
           responseService.tenantId,
         ),
       ).toEqual(response);

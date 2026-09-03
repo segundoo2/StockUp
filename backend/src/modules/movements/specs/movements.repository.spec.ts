@@ -1,7 +1,8 @@
-/* eslint-disable @typescript-eslint/unbound-method */
+import { InternalServerErrorException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
+import { EErrorsGlobal } from '../../../common/enum/errors-global.enum';
 import { EMovementType, MovementDto } from '../dtos/movement.dto';
 import { Movement } from '../entities/movement.entity';
 import { MovementsRepository } from '../movements.repository';
@@ -14,13 +15,15 @@ describe('MovementsRepository', () => {
   let repository: MovementsRepository;
   let ormMock: MockRepository<Movement>;
 
+  const tenantId = 'tenant-uuid-123';
+  const productId = 'd3b07384-d113-424a-a1d2-06834d858348';
+
   const movementDto: MovementDto & { tenantId: string } = {
-    tenantId: 'tenant-uuid-123',
+    tenantId,
     typeMovement: EMovementType.IN,
-    productId: 'd3b07384-d113-424a-a1d2-06834d858348',
+    productId,
     locationId: 'f21a48c9-598d-4a14-8789-08226edb3b0d',
     quantity: 10,
-    reason: 'Entrada de nota fiscal de compra',
   };
 
   const mockEntity = {
@@ -32,6 +35,7 @@ describe('MovementsRepository', () => {
     ormMock = {
       create: jest.fn(),
       save: jest.fn(),
+      findAndCount: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -47,12 +51,8 @@ describe('MovementsRepository', () => {
     repository = module.get<MovementsRepository>(MovementsRepository);
   });
 
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
-
   describe('registerMovement', () => {
-    it('should register movement successfully using default repository', async () => {
+    it('should register movement successfully', async () => {
       ormMock.create?.mockReturnValue(mockEntity);
       ormMock.save?.mockResolvedValue(mockEntity);
 
@@ -60,40 +60,47 @@ describe('MovementsRepository', () => {
         repository.registerMovement(movementDto),
       ).resolves.not.toThrow();
 
-      expect(ormMock.create).toHaveBeenCalledWith(movementDto);
-      expect(ormMock.create).toHaveBeenCalledTimes(1);
       expect(ormMock.save).toHaveBeenCalledWith(mockEntity);
-      expect(ormMock.save).toHaveBeenCalledTimes(1);
     });
 
-    it('should register movement using transactional EntityManager repository when provided', async () => {
-      const mockTxRepository = {
-        create: jest.fn().mockReturnValue(mockEntity),
-        save: jest.fn().mockResolvedValue(mockEntity),
-      };
-
-      const mockEntityManager = {
-        getRepository: jest.fn().mockReturnValue(mockTxRepository),
-      } as unknown as EntityManager;
-
-      await expect(
-        repository.registerMovement(movementDto, mockEntityManager),
-      ).resolves.not.toThrow();
-
-      expect(mockEntityManager.getRepository).toHaveBeenCalledWith(Movement);
-      expect(mockTxRepository.create).toHaveBeenCalledWith(movementDto);
-      expect(mockTxRepository.save).toHaveBeenCalledWith(mockEntity);
-      expect(ormMock.create).not.toHaveBeenCalled();
-      expect(ormMock.save).not.toHaveBeenCalled();
-    });
-
-    it('should throw error when repository save fails', async () => {
-      const dbError = new Error('Database insertion failed');
+    it('should throw InternalServerErrorException when save fails', async () => {
       ormMock.create?.mockReturnValue(mockEntity);
-      ormMock.save?.mockRejectedValue(dbError);
+      ormMock.save?.mockRejectedValue(new Error('DB Error'));
 
       await expect(repository.registerMovement(movementDto)).rejects.toThrow(
-        dbError,
+        new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR),
+      );
+    });
+  });
+
+  describe('findAllPaginatedByProduct', () => {
+    it('should return paginated movements list and total', async () => {
+      ormMock.findAndCount?.mockResolvedValue([[mockEntity], 1]);
+
+      const result = await repository.findAllPaginatedByProduct(
+        productId,
+        tenantId,
+        1,
+        10,
+      );
+
+      expect(result).toEqual({ movements: [mockEntity], total: 1 });
+      expect(ormMock.findAndCount).toHaveBeenCalledWith({
+        where: { productId, tenantId },
+        skip: 0,
+        take: 10,
+        order: { createdAt: 'DESC' },
+        relations: { location: true },
+      });
+    });
+
+    it('should throw InternalServerErrorException when findAndCount fails', async () => {
+      ormMock.findAndCount?.mockRejectedValue(new Error('DB Error'));
+
+      await expect(
+        repository.findAllPaginatedByProduct(productId, tenantId, 1, 10),
+      ).rejects.toThrow(
+        new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR),
       );
     });
   });

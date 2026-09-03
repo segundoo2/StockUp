@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -9,35 +9,30 @@ import {
 } from 'class-validator';
 
 export class AllocateLocationDto {
-  @ApiProperty({ description: 'ID do produto (UUID v4)' })
-  @IsUUID('4')
+  @ApiProperty({ description: 'ID do produto' })
+  @IsUUID()
   @IsNotEmpty()
   productId!: string;
 
-  @ApiPropertyOptional({
-    description:
-      'ID da localização de origem (null se estiver saindo do estoque geral não alocado)',
-    nullable: true,
-  })
-  @IsOptional()
-  @IsUUID('4')
-  sourceLocationId?: string | null;
-
-  @ApiProperty({ description: 'ID da localização de destino (UUID v4)' })
-  @IsUUID('4')
+  @ApiProperty({ description: 'ID da posição de destino' })
+  @IsUUID()
   @IsNotEmpty()
   targetLocationId!: string;
 
-  @ApiProperty({
-    description: 'Quantidade a ser alocada ou transferida',
-    example: 5,
+  @ApiPropertyOptional({
+    description: 'ID da posição de origem (se for transferência)',
   })
-  @IsInt()
+  @IsUUID()
+  @IsOptional()
+  sourceLocationId?: string;
+
+  @ApiProperty({ description: 'Quantidade a ser movimentada' })
+  @IsNumber()
   @Min(1)
   quantity!: number;
 
-  @ApiPropertyOptional({ description: 'Motivo da movimentação/transferência' })
-  @IsOptional()
+  @ApiPropertyOptional({ description: 'Motivo da movimentação' })
   @IsString()
+  @IsOptional()
   reason?: string;
 }

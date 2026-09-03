@@ -5,24 +5,27 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { IMovementsService } from './interfaces/movements.service.interface';
-import type { IMovementsRepository } from './interfaces/movements.repository.interface';
-import type { IProductsService } from '../products/interfaces/products.service.interface';
-import { MovementDto, EMovementType } from './dtos/movement.dto';
-import { IResponse } from '../../common/interfaces/response.interface';
 import { EMovementsSuccess } from '../../common/enum/movements-success.enum';
-import type { IProductLocationsRepository } from '../locations/interfaces/product-location.repository.interface';
-import { AllocateLocationDto } from './dtos/allocate-product-location.dto';
 import { EProductsErrors } from '../../common/enum/products-errors.enum';
+import { IPaginatedResponse } from '../../common/interfaces/paginated-response.interface';
+import { IResponse } from '../../common/interfaces/response.interface';
+import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
+import type { IProductsService } from '../products/interfaces/products.service.interface';
+import { AllocateLocationDto } from './dtos/allocate-product-location.dto';
+import { EMovementType, MovementDto } from './dtos/movement.dto';
+import { Movement } from './entities/movement.entity';
+import type { IMovementsRepository } from './interfaces/movements.repository.interface';
+import { IMovementsService } from './interfaces/movements.service.interface';
+import type { IProductLocationsRepository } from '../locations/interfaces/product-locations.repository.interface';
 
 @Injectable()
 export class MovementsService implements IMovementsService {
   constructor(
-    @Inject('IMovimentsRepository')
+    @Inject('IMovementsRepository')
     private readonly movementsRepository: IMovementsRepository,
     @Inject('IProductsService')
     private readonly productsService: IProductsService,
-    @Inject('IProductLocationRepository')
+    @Inject('IProductLocationsRepository') // Corrigido para plural
     private readonly productLocationsRepository: IProductLocationsRepository,
     private readonly dataSource: DataSource,
   ) {}
@@ -72,7 +75,8 @@ export class MovementsService implements IMovementsService {
             manager,
           );
 
-        const unallocatedStock = Number(product.currentStock) - totalAllocated;
+        const currentStock = Number(product.currentStock);
+        const unallocatedStock = currentStock - totalAllocated;
 
         if (dto.quantity > unallocatedStock) {
           throw new BadRequestException(
@@ -115,8 +119,48 @@ export class MovementsService implements IMovementsService {
     });
 
     return {
-      message: EMovementsSuccess.CREATE,
+      message: EMovementsSuccess.ALLOCATE_PRODUCT,
       data: null,
+    };
+  }
+
+  async findAllPaginatedByProduct(
+    productId: string,
+    tenantId: string,
+    query: PaginationQueryDto,
+  ): Promise<IPaginatedResponse<Movement[]>> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+
+    const productExists = await this.productsService.findOneById(
+      productId,
+      tenantId,
+    );
+
+    if (!productExists) {
+      throw new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND);
+    }
+
+    const { movements, total } =
+      await this.movementsRepository.findAllPaginatedByProduct(
+        productId,
+        tenantId,
+        page,
+        limit,
+      );
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      message: EMovementsSuccess.FIND_ALL,
+      data: movements,
+      meta: {
+        itemCount: movements.length,
+        totalItems: total,
+        itemsPerPage: limit,
+        totalPages,
+        currentPage: page,
+      },
     };
   }
 }

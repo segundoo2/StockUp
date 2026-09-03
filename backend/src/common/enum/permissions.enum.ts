@@ -20,9 +20,13 @@ export enum EPermission {
   ROLES_DELETE = 'roles.delete',
 
   LOCATION_CREATE = 'locations.create',
-  LOCATION_FIND = 'locations.find',
+  LOCATION_READ = 'locations.read',
   LOCATION_UPDATE = 'locations.update',
   LOCATION_DELETE = 'locations.delete',
+
+  MOVEMENT_REGISTER = 'movement.register',
+  MOVEMENT_ALLOCATE = 'movement.allocate',
+  MOVIMENT_READ = 'movement.read',
 }
 
 export const ALL_PERMISSIONS = Object.values(EPermission);

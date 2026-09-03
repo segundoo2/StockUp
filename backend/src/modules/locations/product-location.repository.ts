@@ -1,8 +1,13 @@
-import { Injectable } from '@nestjs/common';
-import { EntityManager, Repository } from 'typeorm';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { EntityManager, Repository } from 'typeorm';
+import { EErrorsGlobal } from '../../common/enum/errors-global.enum';
 import { ProductLocation } from './entities/product-location.entity';
-import { IProductLocationsRepository } from './interfaces/product-location.repository.interface';
+import { IProductLocationsRepository } from './interfaces/product-locations.repository.interface';
 
 @Injectable()
 export class ProductLocationsRepository implements IProductLocationsRepository {
@@ -21,9 +26,13 @@ export class ProductLocationsRepository implements IProductLocationsRepository {
     tenantId: string,
     em?: EntityManager,
   ): Promise<ProductLocation | null> {
-    return this.getRepo(em).findOne({
-      where: { productId, locationId, tenantId },
-    });
+    try {
+      return await this.getRepo(em).findOne({
+        where: { productId, locationId, tenantId },
+      });
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
   }
 
   async sumAllocatedStock(
@@ -31,16 +40,20 @@ export class ProductLocationsRepository implements IProductLocationsRepository {
     tenantId: string,
     em?: EntityManager,
   ): Promise<number> {
-    const result = await this.getRepo(em)
-      .createQueryBuilder('pl')
-      .select('SUM(pl.quantity)', 'total')
-      .where('pl.product_id = :productId AND pl.tenant_id = :tenantId', {
-        productId,
-        tenantId,
-      })
-      .getRawOne<{ total: string | null }>();
+    try {
+      const result = await this.getRepo(em)
+        .createQueryBuilder('pl')
+        .select('SUM(pl.quantity)', 'total')
+        .where('pl.product_id = :productId AND pl.tenant_id = :tenantId', {
+          productId,
+          tenantId,
+        })
+        .getRawOne<{ total: string | null }>();
 
-    return parseFloat(result?.total ?? '0');
+      return parseFloat(result?.total ?? '0');
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
   }
 
   async incrementQuantity(
@@ -50,24 +63,33 @@ export class ProductLocationsRepository implements IProductLocationsRepository {
     quantity: number,
     em?: EntityManager,
   ): Promise<void> {
-    const repo = this.getRepo(em);
+    try {
+      const repo = this.getRepo(em);
 
-    let record = await repo.findOne({
-      where: { productId, locationId, tenantId },
-    });
-
-    if (!record) {
-      record = repo.create({
-        productId,
-        locationId,
-        tenantId,
-        quantity,
+      const record = await repo.findOne({
+        where: { productId, locationId, tenantId },
       });
-    } else {
-      record.quantity = Number(record.quantity) + quantity;
-    }
 
-    await repo.save(record);
+      if (!record) {
+        const newRecord = repo.create({
+          productId,
+          locationId,
+          tenantId,
+          quantity,
+        });
+        await repo.save(newRecord);
+        return;
+      }
+
+      await repo.increment(
+        { productId, locationId, tenantId },
+        'quantity',
+        quantity,
+      );
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
   }
 
   async decrementQuantity(
@@ -77,16 +99,27 @@ export class ProductLocationsRepository implements IProductLocationsRepository {
     quantity: number,
     em?: EntityManager,
   ): Promise<void> {
-    const repo = this.getRepo(em);
-    const record = await repo.findOne({
-      where: { productId, locationId, tenantId },
-    });
+    try {
+      const repo = this.getRepo(em);
 
-    if (!record || Number(record.quantity) < quantity) {
-      throw new Error('Estoque insuficiente na localização de origem');
+      const record = await repo.findOne({
+        where: { productId, locationId, tenantId },
+      });
+
+      if (!record || Number(record.quantity) < quantity) {
+        throw new BadRequestException(
+          'Estoque insuficiente na localização de origem',
+        );
+      }
+
+      await repo.decrement(
+        { productId, locationId, tenantId },
+        'quantity',
+        quantity,
+      );
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }
-
-    record.quantity = Number(record.quantity) - quantity;
-    await repo.save(record);
   }
 }

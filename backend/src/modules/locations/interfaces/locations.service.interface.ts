@@ -1,3 +1,4 @@
+import { EntityManager } from 'typeorm';
 import { PaginationQueryDto } from '../../../common/dtos/pagination-query.dto';
 import { IPaginatedResponse } from '../../../common/interfaces/paginated-response.interface';
 import { IResponse } from '../../../common/interfaces/response.interface';
@@ -12,6 +13,12 @@ export interface ILocationsService {
 
   findByCode(code: string, tenantId: string): Promise<IResponse<Location>>;
 
+  findById(
+    id: string,
+    tenantId: string,
+    em?: EntityManager,
+  ): Promise<Location | null>;
+
   findAllLocations(
     tenantId: string,
     pagination: PaginationQueryDto,
@@ -24,4 +31,38 @@ export interface ILocationsService {
   ): Promise<IResponse<null>>;
 
   deleteLocation(code: string, tenantId: string): Promise<IResponse<null>>;
+
+  allocateProduct(
+    dto: {
+      productId: string;
+      targetLocationId: string;
+      sourceLocationId?: string;
+      quantity: number;
+      tenantId: string;
+      currentProductStock: number;
+    },
+    em?: EntityManager,
+  ): Promise<void>;
+
+  sumAllocatedStock(
+    productId: string,
+    tenantId: string,
+    em?: EntityManager,
+  ): Promise<number>;
+
+  incrementQuantity(
+    productId: string,
+    locationId: string,
+    tenantId: string,
+    quantity: number,
+    em?: EntityManager,
+  ): Promise<void>;
+
+  decrementQuantity(
+    productId: string,
+    locationId: string,
+    tenantId: string,
+    quantity: number,
+    em?: EntityManager,
+  ): Promise<void>;
 }

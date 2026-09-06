@@ -36,8 +36,8 @@ export class MovementDto {
   @IsNotEmpty()
   productId!: string;
 
-  @ApiProperty({ description: 'ID da localização (UUID v4)' })
+  @ApiPropertyOptional({ description: 'ID da localização (UUID v4)' })
   @IsUUID('4')
-  @IsNotEmpty()
-  locationId!: string;
+  @IsOptional()
+  locationId?: string;
 }

@@ -1,12 +1,13 @@
-import { LocationsRepository } from '../locations.repository';
-import { ELocationType, Location } from '../entities/location.entity';
+/* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { InternalServerErrorException } from '@nestjs/common';
+import { ObjectLiteral, Repository, EntityManager } from 'typeorm';
+import { LocationsRepository } from '../locations.repository';
+import { ELocationType, Location } from '../entities/location.entity';
 import { LocationDto } from '../dtos/location.dto';
 import { UpdateLocationDto } from '../dtos/update-location.dto';
-import { InternalServerErrorException } from '@nestjs/common';
 import { EErrorsGlobal } from '../../../common/enum/errors-global.enum';
-import { ObjectLiteral, Repository } from 'typeorm';
 
 type MockRepository<T extends ObjectLiteral> = {
   [P in keyof Repository<T>]?: Repository<T>[P] extends (
@@ -51,7 +52,7 @@ describe('LocationsRepository', () => {
     operation: () => Promise<unknown>,
     mockMethod: () => jest.Mock | undefined,
   ) => {
-    it('should return InternalServerException when TypeORM throws an error', async () => {
+    it('should return InternalServerErrorException when TypeORM throws an error', async () => {
       mockMethod()?.mockRejectedValue(
         new Error('[TypeOrmModule] Unable to connect to the database'),
       );
@@ -66,16 +67,21 @@ describe('LocationsRepository', () => {
     tenantId: 'uuid',
     code: 'B1AP001',
     type: ELocationType.STORAGE,
+    capacity: 100,
     description: 'descrição',
   };
+
   const updateLocationDto: UpdateLocationDto = {
     description: 'nova descrição',
+    capacity: 150,
   };
+
   const response: Location = {
     id: 'uuid',
     tenantId: 'uuid',
     code: 'B1AP001',
     type: ELocationType.STORAGE,
+    capacity: 100,
     description: 'descrição',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -83,8 +89,28 @@ describe('LocationsRepository', () => {
 
   describe('createLocation', () => {
     it('should invoke create and save operations successfully', async () => {
+      repositoryOrm.create?.mockReturnValue(response);
       repositoryOrm.save?.mockResolvedValue(response);
       expect(await repository.createLocation(locationDto)).toEqual(response);
+    });
+
+    it('should use transactional EntityManager when provided', async () => {
+      const txRepository = {
+        create: jest.fn().mockReturnValue(response),
+        save: jest.fn().mockResolvedValue(response),
+      };
+      const entityManager = {
+        getRepository: jest.fn().mockReturnValue(txRepository),
+      } as unknown as EntityManager;
+
+      const result = await repository.createLocation(
+        locationDto,
+        entityManager,
+      );
+
+      expect(result).toEqual(response);
+      expect(entityManager.getRepository).toHaveBeenCalledWith(Location);
+      expect(txRepository.save).toHaveBeenCalled();
     });
 
     shouldHandleDatabaseErrors(
@@ -94,7 +120,7 @@ describe('LocationsRepository', () => {
   });
 
   describe('findByCode', () => {
-    it('It should return a location object when it is found', async () => {
+    it('should return a location object when it is found', async () => {
       repositoryOrm.findOne?.mockResolvedValue(response);
       expect(
         await repository.findByCode(locationDto.code, locationDto.tenantId),
@@ -103,6 +129,20 @@ describe('LocationsRepository', () => {
 
     shouldHandleDatabaseErrors(
       () => repository.findByCode(locationDto.code, locationDto.tenantId),
+      () => repositoryOrm.findOne,
+    );
+  });
+
+  describe('findById', () => {
+    it('should return a location object by ID when found', async () => {
+      repositoryOrm.findOne?.mockResolvedValue(response);
+      expect(await repository.findById(response.id, response.tenantId)).toEqual(
+        response,
+      );
+    });
+
+    shouldHandleDatabaseErrors(
+      () => repository.findById(response.id, response.tenantId),
       () => repositoryOrm.findOne,
     );
   });
@@ -127,12 +167,13 @@ describe('LocationsRepository', () => {
   });
 
   describe('updateLocation', () => {
-    it('should return { raw [], affected: 1, generatedMaps: [] } when location found and updated', async () => {
+    it('should return update result when location found and updated', async () => {
       repositoryOrm.update?.mockResolvedValue({
         raw: [],
         affected: 1,
         generatedMaps: [],
       });
+
       expect(
         await repository.updateLocation(
           response.code,
@@ -154,11 +195,12 @@ describe('LocationsRepository', () => {
   });
 
   describe('deleteLocation', () => {
-    it('should return { raw [], affected: 1, generatedMaps: [] } when location found and deleted', async () => {
+    it('should return delete result when location found and deleted', async () => {
       repositoryOrm.delete?.mockResolvedValue({
         raw: [],
         affected: 1,
       });
+
       expect(
         await repository.deleteLocation(response.code, response.tenantId),
       ).toEqual({ raw: [], affected: 1 });

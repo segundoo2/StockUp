@@ -10,8 +10,19 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ProductLocation } from './product-location.entity';
 
+interface ValueTransformer {
+  to(value: number | null): number | null;
+  from(value: string | null): number | null;
+}
+
+const decimalTransformer: ValueTransformer = {
+  to: (value: number | null): number | null => value,
+  from: (value: string | null): number | null =>
+    value ? parseFloat(value) : null,
+};
+
 export enum ELocationType {
-  DISPLAY = 'DISPLAY', // Mostruário / Góndola / Área de Venda
+  DISPLAY = 'DISPLAY', // Mostruário / Gôndola / Área de Venda
   STORAGE = 'STORAGE', // Depósito / Almoxarifado / Estoque Principal
 }
 
@@ -53,6 +64,21 @@ export class Location {
     default: ELocationType.STORAGE,
   })
   type!: ELocationType;
+
+  @ApiPropertyOptional({
+    description: 'Capacidade máxima suportada por esta posição (opcional)',
+    example: 100.0,
+    nullable: true,
+    type: Number,
+  })
+  @Column({
+    type: 'decimal',
+    precision: 12,
+    scale: 4,
+    nullable: true,
+    transformer: decimalTransformer,
+  })
+  capacity?: number | null;
 
   @ApiPropertyOptional({
     description: 'Descrição opcional ou observações sobre a localização',

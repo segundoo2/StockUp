@@ -43,12 +43,12 @@ export class Movement {
   @JoinColumn({ name: 'product_id' })
   product!: Product;
 
-  @Column({ type: 'uuid', name: 'location_id', nullable: false })
-  locationId!: string;
+  @Column({ type: 'uuid', name: 'location_id', nullable: true })
+  locationId?: string;
 
-  @ManyToOne(() => Location, { onDelete: 'RESTRICT' })
+  @ManyToOne(() => Location, { onDelete: 'RESTRICT', nullable: true })
   @JoinColumn({ name: 'location_id' })
-  location!: Location;
+  location?: Location;
 
   @Column({ type: 'uuid', name: 'user_id', nullable: true })
   userId?: string;

@@ -7,22 +7,25 @@ import { ELocationType, Location } from '../entities/location.entity';
 import { ILocationsService } from '../interfaces/locations.service.interface';
 import { LocationsController } from '../locations.controller';
 
+const createMockLocationsService = (): jest.Mocked<ILocationsService> =>
+  ({
+    createLocation: jest.fn(),
+    findByCode: jest.fn(),
+    findAllLocations: jest.fn(),
+    updateLocation: jest.fn(),
+    deleteLocation: jest.fn(),
+  }) as unknown as jest.Mocked<ILocationsService>;
+
 describe('LocationController', () => {
   let controller: LocationsController;
   let service: jest.Mocked<ILocationsService>;
 
   beforeEach(() => {
-    service = {
-      createLocation: jest.fn(),
-      findByCode: jest.fn(),
-      findAllLocations: jest.fn(),
-      updateLocation: jest.fn(),
-      deleteLocation: jest.fn(),
-    };
+    service = createMockLocationsService();
     controller = new LocationsController(service);
   });
 
-  const tenantId: string = 'uuid';
+  const tenantId = 'uuid';
   const locationDto: LocationDto = {
     code: 'B1AP001',
     type: ELocationType.STORAGE,
@@ -30,10 +33,6 @@ describe('LocationController', () => {
   };
   const updateLocationDto: UpdateLocationDto = {
     description: 'nova descrição',
-  };
-  const response: IResponse<Location | null> = {
-    message: ELocationSuccessMessage.CREATE,
-    data: null,
   };
   const responseService: Location = {
     id: 'uuid',
@@ -47,7 +46,13 @@ describe('LocationController', () => {
 
   describe('createLocation', () => {
     it(`should return the object {message: ${ELocationSuccessMessage.CREATE}, data: null}`, async () => {
-      service.createLocation.mockResolvedValue(response as IResponse<null>);
+      const response: IResponse<null> = {
+        message: ELocationSuccessMessage.CREATE,
+        data: null,
+      };
+
+      service.createLocation.mockResolvedValue(response);
+
       expect(await controller.createLocation(tenantId, locationDto)).toEqual(
         response,
       );
@@ -56,8 +61,13 @@ describe('LocationController', () => {
 
   describe('findByCode', () => {
     it(`should return { message: ${ELocationSuccessMessage.FINDONE}, data: Location } when Location is found`, async () => {
-      response.data = responseService;
-      service.findByCode.mockResolvedValue(response as IResponse<Location>);
+      const response: IResponse<Location> = {
+        message: ELocationSuccessMessage.FINDONE,
+        data: responseService,
+      };
+
+      service.findByCode.mockResolvedValue(response);
+
       expect(
         await controller.findByCode(
           responseService.code,
@@ -91,9 +101,13 @@ describe('LocationController', () => {
 
   describe('updateLocation', () => {
     it(`should return { message: ${ELocationSuccessMessage.UPDATE}, data: null }`, async () => {
-      response.message = ELocationSuccessMessage.UPDATE;
-      response.data = null;
-      service.updateLocation.mockResolvedValue(response as IResponse<null>);
+      const response: IResponse<null> = {
+        message: ELocationSuccessMessage.UPDATE,
+        data: null,
+      };
+
+      service.updateLocation.mockResolvedValue(response);
+
       expect(
         await controller.updateLocation(
           responseService.code,
@@ -106,8 +120,13 @@ describe('LocationController', () => {
 
   describe('deleteLocation', () => {
     it(`should return { message: ${ELocationSuccessMessage.DELETE}, data: null }`, async () => {
-      response.message = ELocationSuccessMessage.DELETE;
-      service.deleteLocation.mockResolvedValue(response as IResponse<null>);
+      const response: IResponse<null> = {
+        message: ELocationSuccessMessage.DELETE,
+        data: null,
+      };
+
+      service.deleteLocation.mockResolvedValue(response);
+
       expect(
         await controller.deleteLocation(
           responseService.code,

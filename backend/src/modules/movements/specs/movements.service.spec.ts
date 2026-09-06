@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { EMovementsSuccess } from '../../../common/enum/movements-success.enum';
 import { EProductsErrors } from '../../../common/enum/products-errors.enum';
-import { IProductLocationsRepository } from '../../locations/interfaces/product-locations.repository.interface';
+import { ILocationsService } from '../../locations/interfaces/locations.service.interface';
 import { Product } from '../../products/entities/product.entity';
 import { IProductsService } from '../../products/interfaces/products.service.interface';
 import { AllocateLocationDto } from '../dtos/allocate-product-location.dto';
@@ -16,7 +16,7 @@ describe('MovementsService', () => {
   let service: IMovementsService;
   let mockMovementsRepository: jest.Mocked<IMovementsRepository>;
   let mockProductsService: jest.Mocked<IProductsService>;
-  let mockProductLocationsRepository: jest.Mocked<IProductLocationsRepository>;
+  let mockLocationsService: jest.Mocked<ILocationsService>;
   let mockDataSource: Partial<DataSource>;
 
   const mockEntityManager = {} as EntityManager;
@@ -61,11 +61,17 @@ describe('MovementsService', () => {
       deleteProduct: jest.fn(),
     };
 
-    mockProductLocationsRepository = {
-      findByProductAndLocation: jest.fn(),
+    mockLocationsService = {
+      createLocation: jest.fn(),
+      findByCode: jest.fn(),
+      findAllLocations: jest.fn(),
+      updateLocation: jest.fn(),
+      deleteLocation: jest.fn(),
+      findById: jest.fn(),
+      allocateProduct: jest.fn(),
+      sumAllocatedStock: jest.fn(),
       incrementQuantity: jest.fn(),
       decrementQuantity: jest.fn(),
-      sumAllocatedStock: jest.fn(),
     };
 
     mockDataSource = {
@@ -83,13 +89,14 @@ describe('MovementsService', () => {
     service = new MovementsService(
       mockMovementsRepository,
       mockProductsService,
-      mockProductLocationsRepository,
+      mockLocationsService,
       mockDataSource as DataSource,
     );
   });
 
   describe('registerMovement', () => {
     it('should register IN movement successfully', async () => {
+      mockProductsService.findOneById.mockResolvedValue(mockProduct);
       mockProductsService.applyStockDelta.mockResolvedValue({
         message: 'Success',
         data: { newCurrentStock: 20, uom: 'UN' },
@@ -107,10 +114,15 @@ describe('MovementsService', () => {
         10,
         mockEntityManager,
       );
+      expect(mockMovementsRepository.registerMovement).toHaveBeenCalledWith(
+        movementDto,
+        mockEntityManager,
+      );
     });
 
     it('should register OUT movement using negative delta', async () => {
       const outDto = { ...movementDto, typeMovement: EMovementType.OUT };
+      mockProductsService.findOneById.mockResolvedValue(mockProduct);
       mockProductsService.applyStockDelta.mockResolvedValue({
         message: 'Success',
         data: { newCurrentStock: 0, uom: 'UN' },
@@ -125,12 +137,20 @@ describe('MovementsService', () => {
         mockEntityManager,
       );
     });
+
+    it('should throw NotFoundException if product is not found', async () => {
+      mockProductsService.findOneById.mockResolvedValue(null);
+
+      await expect(service.registerMovement(movementDto)).rejects.toThrow(
+        new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND),
+      );
+    });
   });
 
   describe('allocateLocation', () => {
     it('should allocate unallocated stock to location successfully', async () => {
       mockProductsService.findOneById.mockResolvedValue(mockProduct);
-      mockProductLocationsRepository.sumAllocatedStock.mockResolvedValue(2);
+      mockLocationsService.allocateProduct.mockResolvedValue();
 
       const result = await service.allocateLocation(allocateDto);
 
@@ -138,13 +158,26 @@ describe('MovementsService', () => {
         message: EMovementsSuccess.ALLOCATE_PRODUCT,
         data: null,
       });
-      expect(
-        mockProductLocationsRepository.incrementQuantity,
-      ).toHaveBeenCalledWith(
-        productId,
-        allocateDto.targetLocationId,
-        tenantId,
-        5,
+      expect(mockLocationsService.allocateProduct).toHaveBeenCalledWith(
+        {
+          productId: allocateDto.productId,
+          targetLocationId: allocateDto.targetLocationId,
+          sourceLocationId: undefined,
+          quantity: allocateDto.quantity,
+          tenantId: allocateDto.tenantId,
+          currentProductStock: Number(mockProduct.currentStock),
+        },
+        mockEntityManager,
+      );
+      expect(mockMovementsRepository.registerMovement).toHaveBeenCalledWith(
+        {
+          tenantId: allocateDto.tenantId,
+          productId: allocateDto.productId,
+          locationId: allocateDto.targetLocationId,
+          quantity: allocateDto.quantity,
+          typeMovement: EMovementType.TRANSFER,
+          reason: `Alocação do estoque geral para a posição ${allocateDto.targetLocationId}`,
+        },
         mockEntityManager,
       );
     });
@@ -157,40 +190,37 @@ describe('MovementsService', () => {
       );
     });
 
-    it('should throw BadRequestException when requested quantity exceeds available unallocated stock', async () => {
-      mockProductsService.findOneById.mockResolvedValue(mockProduct);
-      mockProductLocationsRepository.sumAllocatedStock.mockResolvedValue(8);
-
-      await expect(service.allocateLocation(allocateDto)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('should transfer from sourceLocationId to targetLocationId when sourceLocationId is provided', async () => {
+    it('should register both OUT and IN movements when sourceLocationId is provided (transfer)', async () => {
       const transferDto = {
         ...allocateDto,
         sourceLocationId: 'loc-source-uuid',
       };
       mockProductsService.findOneById.mockResolvedValue(mockProduct);
+      mockLocationsService.allocateProduct.mockResolvedValue();
 
       await service.allocateLocation(transferDto);
 
-      expect(
-        mockProductLocationsRepository.decrementQuantity,
-      ).toHaveBeenCalledWith(
-        productId,
-        'loc-source-uuid',
-        tenantId,
-        5,
+      expect(mockMovementsRepository.registerMovement).toHaveBeenCalledWith(
+        {
+          tenantId: transferDto.tenantId,
+          productId: transferDto.productId,
+          locationId: transferDto.sourceLocationId,
+          quantity: transferDto.quantity,
+          typeMovement: EMovementType.OUT,
+          reason: `Transferência para posição ${transferDto.targetLocationId}`,
+        },
         mockEntityManager,
       );
-      expect(
-        mockProductLocationsRepository.incrementQuantity,
-      ).toHaveBeenCalledWith(
-        productId,
-        allocateDto.targetLocationId,
-        tenantId,
-        5,
+
+      expect(mockMovementsRepository.registerMovement).toHaveBeenCalledWith(
+        {
+          tenantId: transferDto.tenantId,
+          productId: transferDto.productId,
+          locationId: transferDto.targetLocationId,
+          quantity: transferDto.quantity,
+          typeMovement: EMovementType.IN,
+          reason: `Transferência recebida da posição ${transferDto.sourceLocationId}`,
+        },
         mockEntityManager,
       );
     });

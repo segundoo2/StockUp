@@ -1,6 +1,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DeleteResult, Repository, UpdateResult } from 'typeorm';
+import { DeleteResult, EntityManager, Repository, UpdateResult } from 'typeorm';
 import { ILocationsRepository } from './interfaces/locations.repository.interface';
 import { Location } from './entities/location.entity';
 import { LocationDto } from './dtos/location.dto';
@@ -14,22 +14,46 @@ export class LocationsRepository implements ILocationsRepository {
     private readonly repository: Repository<Location>,
   ) {}
 
+  private getRepo(em?: EntityManager): Repository<Location> {
+    return em ? em.getRepository(Location) : this.repository;
+  }
+
   async createLocation(
     locationDto: LocationDto & { tenantId: string },
+    em?: EntityManager,
   ): Promise<Location> {
     try {
-      const location = this.repository.create(locationDto);
-      return await this.repository.save(location);
+      const repo = this.getRepo(em);
+      const location = repo.create(locationDto);
+      return await repo.save(location);
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }
   }
 
-  async findByCode(code: string, tenantId: string): Promise<Location | null> {
+  async findByCode(
+    code: string,
+    tenantId: string,
+    em?: EntityManager,
+  ): Promise<Location | null> {
     try {
-      return await this.repository.findOne({
+      return await this.getRepo(em).findOne({
         where: { code, tenantId },
         relations: { productLocations: true },
+      });
+    } catch {
+      throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
+    }
+  }
+
+  async findById(
+    id: string,
+    tenantId: string,
+    em?: EntityManager,
+  ): Promise<Location | null> {
+    try {
+      return await this.getRepo(em).findOne({
+        where: { id, tenantId },
       });
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
@@ -40,9 +64,10 @@ export class LocationsRepository implements ILocationsRepository {
     tenantId: string,
     page: number,
     limit: number,
+    em?: EntityManager,
   ): Promise<{ locations: Location[]; total: number }> {
     try {
-      const [locations, total] = await this.repository.findAndCount({
+      const [locations, total] = await this.getRepo(em).findAndCount({
         where: { tenantId },
         skip: (page - 1) * limit,
         take: limit,
@@ -59,9 +84,10 @@ export class LocationsRepository implements ILocationsRepository {
     code: string,
     updateLocationDto: UpdateLocationDto,
     tenantId: string,
+    em?: EntityManager,
   ): Promise<UpdateResult> {
     try {
-      return await this.repository.update(
+      return await this.getRepo(em).update(
         { code, tenantId },
         updateLocationDto,
       );
@@ -70,9 +96,13 @@ export class LocationsRepository implements ILocationsRepository {
     }
   }
 
-  async deleteLocation(code: string, tenantId: string): Promise<DeleteResult> {
+  async deleteLocation(
+    code: string,
+    tenantId: string,
+    em?: EntityManager,
+  ): Promise<DeleteResult> {
     try {
-      return await this.repository.delete({ code, tenantId });
+      return await this.getRepo(em).delete({ code, tenantId });
     } catch {
       throw new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR);
     }

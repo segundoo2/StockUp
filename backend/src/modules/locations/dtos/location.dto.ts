@@ -1,10 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsEnum,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { ELocationType, Location } from '../entities/location.entity';
 
@@ -33,6 +36,19 @@ export class LocationDto implements CreateLocationInput {
   @IsEnum(ELocationType)
   @IsOptional()
   type!: ELocationType;
+
+  @ApiPropertyOptional({
+    description:
+      'Capacidade máxima suportada por esta posição (opcional para STORAGE, recomendada para DISPLAY)',
+    example: 100.0,
+    nullable: true,
+    type: Number,
+  })
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0.0001, { message: 'A capacidade deve ser maior que zero' })
+  @IsOptional()
+  capacity?: number | null;
 
   @ApiPropertyOptional({
     description: 'Descrição opcional ou observações sobre a localização',

@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { InternalServerErrorException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { EErrorsGlobal } from '../../../common/enum/errors-global.enum';
 import { EMovementType, MovementDto } from '../dtos/movement.dto';
 import { Movement } from '../entities/movement.entity';
@@ -24,11 +25,13 @@ describe('MovementsRepository', () => {
     productId,
     locationId: 'f21a48c9-598d-4a14-8789-08226edb3b0d',
     quantity: 10,
+    reason: 'Entrada NF',
   };
 
   const mockEntity = {
     id: '123-uuid',
     ...movementDto,
+    createdAt: new Date(),
   } as Movement;
 
   beforeEach(async () => {
@@ -51,8 +54,12 @@ describe('MovementsRepository', () => {
     repository = module.get<MovementsRepository>(MovementsRepository);
   });
 
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   describe('registerMovement', () => {
-    it('should register movement successfully', async () => {
+    it('should register movement successfully using default repository', async () => {
       ormMock.create?.mockReturnValue(mockEntity);
       ormMock.save?.mockResolvedValue(mockEntity);
 
@@ -60,7 +67,43 @@ describe('MovementsRepository', () => {
         repository.registerMovement(movementDto),
       ).resolves.not.toThrow();
 
+      expect(ormMock.create).toHaveBeenCalledWith(movementDto);
       expect(ormMock.save).toHaveBeenCalledWith(mockEntity);
+    });
+
+    it('should register movement successfully using transactional EntityManager when provided', async () => {
+      const txRepository = {
+        create: jest.fn().mockReturnValue(mockEntity),
+        save: jest.fn().mockResolvedValue(mockEntity),
+      };
+
+      const mockEntityManager = {
+        getRepository: jest.fn().mockReturnValue(txRepository),
+      } as unknown as EntityManager;
+
+      await expect(
+        repository.registerMovement(movementDto, mockEntityManager),
+      ).resolves.not.toThrow();
+
+      expect(mockEntityManager.getRepository).toHaveBeenCalledWith(Movement);
+      expect(txRepository.create).toHaveBeenCalledWith(movementDto);
+      expect(txRepository.save).toHaveBeenCalledWith(mockEntity);
+    });
+
+    it('should allow registering movement without locationId (general stock input)', async () => {
+      const movementWithoutLocation = {
+        ...movementDto,
+        locationId: undefined,
+      };
+
+      ormMock.create?.mockReturnValue(mockEntity);
+      ormMock.save?.mockResolvedValue(mockEntity);
+
+      await expect(
+        repository.registerMovement(movementWithoutLocation),
+      ).resolves.not.toThrow();
+
+      expect(ormMock.create).toHaveBeenCalledWith(movementWithoutLocation);
     });
 
     it('should throw InternalServerErrorException when save fails', async () => {
@@ -74,7 +117,7 @@ describe('MovementsRepository', () => {
   });
 
   describe('findAllPaginatedByProduct', () => {
-    it('should return paginated movements list and total', async () => {
+    it('should return paginated movements list and total count', async () => {
       ormMock.findAndCount?.mockResolvedValue([[mockEntity], 1]);
 
       const result = await repository.findAllPaginatedByProduct(

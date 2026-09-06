@@ -77,7 +77,7 @@ export class LocationsController implements ILocationsController {
 
   @Get(':code')
   @HttpCode(HttpStatus.OK)
-  @RequiresPermission(EPermission.LOCATION_FIND)
+  @RequiresPermission(EPermission.LOCATION_READ)
   @ApiOperation({
     summary: 'Buscar localização por código',
     description: 'Busca uma localização pelo código informado.',
@@ -104,7 +104,7 @@ export class LocationsController implements ILocationsController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  @RequiresPermission(EPermission.LOCATION_FIND)
+  @RequiresPermission(EPermission.LOCATION_READ)
   @ApiOperation({
     summary: 'Listar todas as localizações',
     description: 'Retorna uma lista paginada de localizações.',

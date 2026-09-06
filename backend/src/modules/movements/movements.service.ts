@@ -1,22 +1,17 @@
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
 import { EMovementsSuccess } from '../../common/enum/movements-success.enum';
 import { EProductsErrors } from '../../common/enum/products-errors.enum';
 import { IPaginatedResponse } from '../../common/interfaces/paginated-response.interface';
 import { IResponse } from '../../common/interfaces/response.interface';
-import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
+import type { ILocationsService } from '../locations/interfaces/locations.service.interface';
 import type { IProductsService } from '../products/interfaces/products.service.interface';
 import { AllocateLocationDto } from './dtos/allocate-product-location.dto';
 import { EMovementType, MovementDto } from './dtos/movement.dto';
 import { Movement } from './entities/movement.entity';
 import type { IMovementsRepository } from './interfaces/movements.repository.interface';
 import { IMovementsService } from './interfaces/movements.service.interface';
-import type { IProductLocationsRepository } from '../locations/interfaces/product-locations.repository.interface';
 
 @Injectable()
 export class MovementsService implements IMovementsService {
@@ -25,18 +20,28 @@ export class MovementsService implements IMovementsService {
     private readonly movementsRepository: IMovementsRepository,
     @Inject('IProductsService')
     private readonly productsService: IProductsService,
-    @Inject('IProductLocationsRepository') // Corrigido para plural
-    private readonly productLocationsRepository: IProductLocationsRepository,
+    @Inject('ILocationsService')
+    private readonly locationsService: ILocationsService,
     private readonly dataSource: DataSource,
   ) {}
 
   async registerMovement(
     dto: MovementDto & { tenantId: string },
   ): Promise<IResponse<null>> {
+    const product = await this.productsService.findOneById(
+      dto.productId,
+      dto.tenantId,
+    );
+
+    if (!product) {
+      throw new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND);
+    }
+
     const delta =
       dto.typeMovement === EMovementType.IN ? dto.quantity : -dto.quantity;
 
     await this.dataSource.transaction(async (manager) => {
+      // 1. Atualiza o estoque geral no catálogo de produtos
       await this.productsService.applyStockDelta(
         dto.productId,
         dto.tenantId,
@@ -44,6 +49,7 @@ export class MovementsService implements IMovementsService {
         manager,
       );
 
+      // 2. Registra o histórico da movimentação (com locationId opcional)
       await this.movementsRepository.registerMovement(dto, manager);
     });
 
@@ -67,55 +73,65 @@ export class MovementsService implements IMovementsService {
         throw new NotFoundException(EProductsErrors.PRODUCT_NOT_FOUND);
       }
 
-      if (!dto.sourceLocationId) {
-        const totalAllocated =
-          await this.productLocationsRepository.sumAllocatedStock(
-            dto.productId,
-            dto.tenantId,
-            manager,
-          );
-
-        const currentStock = Number(product.currentStock);
-        const unallocatedStock = currentStock - totalAllocated;
-
-        if (dto.quantity > unallocatedStock) {
-          throw new BadRequestException(
-            `Quantidade a alocar (${dto.quantity}) excede o saldo não alocado disponível (${unallocatedStock})`,
-          );
-        }
-      } else {
-        await this.productLocationsRepository.decrementQuantity(
-          dto.productId,
-          dto.sourceLocationId,
-          dto.tenantId,
-          dto.quantity,
-          manager,
-        );
-      }
-
-      await this.productLocationsRepository.incrementQuantity(
-        dto.productId,
-        dto.targetLocationId,
-        dto.tenantId,
-        dto.quantity,
-        manager,
-      );
-
-      await this.movementsRepository.registerMovement(
+      // 1. Executa a alocação/transferência nas tabelas de saldo por localização
+      await this.locationsService.allocateProduct(
         {
-          tenantId: dto.tenantId,
           productId: dto.productId,
-          locationId: dto.targetLocationId,
+          targetLocationId: dto.targetLocationId,
+          sourceLocationId: dto.sourceLocationId,
           quantity: dto.quantity,
-          typeMovement: EMovementType.TRANSFER,
-          reason:
-            dto.reason ??
-            (dto.sourceLocationId
-              ? `Transferência da posição ${dto.sourceLocationId} para ${dto.targetLocationId}`
-              : `Alocação do estoque geral para a posição ${dto.targetLocationId}`),
+          tenantId: dto.tenantId,
+          currentProductStock: Number(product.currentStock),
         },
         manager,
       );
+
+      // 2. Registra o histórico de movimentação
+      if (dto.sourceLocationId) {
+        // Se for transferência, registra a saída da origem e a entrada no destino
+        await this.movementsRepository.registerMovement(
+          {
+            tenantId: dto.tenantId,
+            productId: dto.productId,
+            locationId: dto.sourceLocationId,
+            quantity: dto.quantity,
+            typeMovement: EMovementType.OUT,
+            reason:
+              dto.reason ??
+              `Transferência para posição ${dto.targetLocationId}`,
+          },
+          manager,
+        );
+
+        await this.movementsRepository.registerMovement(
+          {
+            tenantId: dto.tenantId,
+            productId: dto.productId,
+            locationId: dto.targetLocationId,
+            quantity: dto.quantity,
+            typeMovement: EMovementType.IN,
+            reason:
+              dto.reason ??
+              `Transferência recebida da posição ${dto.sourceLocationId}`,
+          },
+          manager,
+        );
+      } else {
+        // Se for alocação do saldo geral, registra apenas a entrada na posição física
+        await this.movementsRepository.registerMovement(
+          {
+            tenantId: dto.tenantId,
+            productId: dto.productId,
+            locationId: dto.targetLocationId,
+            quantity: dto.quantity,
+            typeMovement: EMovementType.TRANSFER,
+            reason:
+              dto.reason ??
+              `Alocação do estoque geral para a posição ${dto.targetLocationId}`,
+          },
+          manager,
+        );
+      }
     });
 
     return {

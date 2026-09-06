@@ -6,8 +6,14 @@ export interface IProductLocationsRepository {
     productId: string,
     locationId: string,
     tenantId: string,
-    entityManager?: EntityManager,
+    em?: EntityManager,
   ): Promise<ProductLocation | null>;
+
+  countActiveProductsInLocation(
+    locationId: string,
+    tenantId: string,
+    em?: EntityManager,
+  ): Promise<number>;
 
   sumAllocatedStock(
     productId: string,

@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import {
-  BadRequestException,
-  InternalServerErrorException,
-} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { EntityManager, Repository, SelectQueryBuilder } from 'typeorm';
-import { EErrorsGlobal } from '../../../common/enum/errors-global.enum';
+import {
+  DataSource,
+  EntityManager,
+  Repository,
+  SelectQueryBuilder,
+} from 'typeorm';
 import { ProductLocation } from '../entities/product-location.entity';
 import { ProductLocationsRepository } from '../product-location.repository';
 
@@ -18,10 +18,15 @@ type MockQueryBuilder<T extends object = object> = {
   [P in keyof SelectQueryBuilder<T>]?: jest.Mock;
 };
 
+type MockDataSource = {
+  [P in keyof DataSource]?: jest.Mock;
+};
+
 describe('ProductLocationsRepository', () => {
   let repository: ProductLocationsRepository;
   let ormMock: MockRepository<ProductLocation>;
   let queryBuilderMock: MockQueryBuilder<ProductLocation>;
+  let dataSourceMock: MockDataSource;
 
   const tenantId = 'tenant-uuid-123';
   const productId = 'prod-uuid-123';
@@ -41,7 +46,9 @@ describe('ProductLocationsRepository', () => {
     queryBuilderMock = {
       select: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
       getRawOne: jest.fn(),
+      getCount: jest.fn(),
     };
 
     ormMock = {
@@ -53,12 +60,21 @@ describe('ProductLocationsRepository', () => {
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilderMock),
     };
 
+    dataSourceMock = {
+      createEntityManager: jest.fn(),
+      getRepository: jest.fn().mockReturnValue(ormMock),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProductLocationsRepository,
         {
           provide: getRepositoryToken(ProductLocation),
           useValue: ormMock,
+        },
+        {
+          provide: DataSource,
+          useValue: dataSourceMock,
         },
       ],
     }).compile();
@@ -109,15 +125,20 @@ describe('ProductLocationsRepository', () => {
         where: { productId, locationId, tenantId },
       });
     });
+  });
 
-    it('should throw InternalServerErrorException on database failure', async () => {
-      ormMock.findOne?.mockRejectedValue(new Error('DB Error'));
+  describe('countActiveProductsInLocation', () => {
+    it('should return active product count in location', async () => {
+      queryBuilderMock.getCount?.mockResolvedValue(1);
 
-      await expect(
-        repository.findByProductAndLocation(productId, locationId, tenantId),
-      ).rejects.toThrow(
-        new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR),
+      const count = await repository.countActiveProductsInLocation(
+        locationId,
+        tenantId,
       );
+
+      expect(count).toBe(1);
+      expect(ormMock.createQueryBuilder).toHaveBeenCalledWith('pl');
+      expect(queryBuilderMock.andWhere).toHaveBeenCalledWith('pl.quantity > 0');
     });
   });
 
@@ -128,11 +149,6 @@ describe('ProductLocationsRepository', () => {
       const total = await repository.sumAllocatedStock(productId, tenantId);
 
       expect(total).toBe(25.5);
-      expect(ormMock.createQueryBuilder).toHaveBeenCalledWith('pl');
-      expect(queryBuilderMock.select).toHaveBeenCalledWith(
-        'SUM(pl.quantity)',
-        'total',
-      );
     });
 
     it('should return 0 when total is null', async () => {
@@ -141,16 +157,6 @@ describe('ProductLocationsRepository', () => {
       const total = await repository.sumAllocatedStock(productId, tenantId);
 
       expect(total).toBe(0);
-    });
-
-    it('should throw InternalServerErrorException on query failure', async () => {
-      queryBuilderMock.getRawOne?.mockRejectedValue(new Error('DB Error'));
-
-      await expect(
-        repository.sumAllocatedStock(productId, tenantId),
-      ).rejects.toThrow(
-        new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR),
-      );
     });
   });
 
@@ -169,7 +175,6 @@ describe('ProductLocationsRepository', () => {
         quantity: 5,
       });
       expect(ormMock.save).toHaveBeenCalledWith(mockProductLocation);
-      expect(ormMock.increment).not.toHaveBeenCalled();
     });
 
     it('should execute atomic increment when record already exists', async () => {
@@ -179,27 +184,15 @@ describe('ProductLocationsRepository', () => {
       await repository.incrementQuantity(productId, locationId, tenantId, 5);
 
       expect(ormMock.increment).toHaveBeenCalledWith(
-        { productId, locationId, tenantId },
+        { id: mockProductLocation.id, tenantId },
         'quantity',
         5,
-      );
-      expect(ormMock.save).not.toHaveBeenCalled();
-    });
-
-    it('should throw InternalServerErrorException on unexpected failure', async () => {
-      ormMock.findOne?.mockRejectedValue(new Error('DB Error'));
-
-      await expect(
-        repository.incrementQuantity(productId, locationId, tenantId, 5),
-      ).rejects.toThrow(
-        new InternalServerErrorException(EErrorsGlobal.SERVER_ERROR),
       );
     });
   });
 
   describe('decrementQuantity', () => {
-    it('should execute atomic decrement when stock is sufficient', async () => {
-      ormMock.findOne?.mockResolvedValue(mockProductLocation);
+    it('should execute atomic decrement', async () => {
       ormMock.decrement?.mockResolvedValue({ generatedMaps: [], raw: [] });
 
       await repository.decrementQuantity(productId, locationId, tenantId, 5);
@@ -209,33 +202,6 @@ describe('ProductLocationsRepository', () => {
         'quantity',
         5,
       );
-    });
-
-    it('should throw BadRequestException when location record is not found', async () => {
-      ormMock.findOne?.mockResolvedValue(null);
-
-      await expect(
-        repository.decrementQuantity(productId, locationId, tenantId, 5),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('should throw BadRequestException when stock quantity is less than requested', async () => {
-      ormMock.findOne?.mockResolvedValue({
-        ...mockProductLocation,
-        quantity: 2,
-      });
-
-      await expect(
-        repository.decrementQuantity(productId, locationId, tenantId, 5),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('should rethrow BadRequestException without converting to InternalServerErrorException', async () => {
-      ormMock.findOne?.mockResolvedValue(null);
-
-      await expect(
-        repository.decrementQuantity(productId, locationId, tenantId, 5),
-      ).rejects.toThrow(BadRequestException);
     });
   });
 });

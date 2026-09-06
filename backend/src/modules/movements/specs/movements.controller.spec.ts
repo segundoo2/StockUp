@@ -33,11 +33,6 @@ describe('MovementsController', () => {
     reason: 'Alocação inicial',
   };
 
-  const responseNull: IResponse<null> = {
-    message: EMovementsSuccess.CREATE,
-    data: null,
-  };
-
   beforeEach(() => {
     service = {
       registerMovement: jest.fn(),
@@ -50,7 +45,13 @@ describe('MovementsController', () => {
 
   describe('registerMovement', () => {
     it('should return success response when stock movement is registered', async () => {
+      const responseNull: IResponse<null> = {
+        message: EMovementsSuccess.CREATE,
+        data: null,
+      };
+
       service.registerMovement.mockResolvedValue(responseNull);
+
       expect(await controller.registerMovement(movementDto, tenantId)).toEqual(
         responseNull,
       );
@@ -69,10 +70,11 @@ describe('MovementsController', () => {
 
   describe('allocateLocation', () => {
     it('should return success response when location allocation succeeds', async () => {
-      const allocateResponse = {
+      const allocateResponse: IResponse<null> = {
         message: EMovementsSuccess.ALLOCATE_PRODUCT,
         data: null,
       };
+
       service.allocateLocation.mockResolvedValue(allocateResponse);
 
       expect(await controller.allocateLocation(allocateDto, tenantId)).toEqual(

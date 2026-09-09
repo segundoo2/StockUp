@@ -1,15 +1,20 @@
-import { ApplicationConfig, provideBrowserGlobalErrorListeners, isDevMode } from '@angular/core';
+import { ApplicationConfig, provideBrowserGlobalErrorListeners, provideZoneChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
-import { provideServiceWorker } from '@angular/service-worker';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { UrlTenantContextAdapter } from './infra/adapter/url-tenant-context.adapter';
+import { tenantInterceptor } from './infra/interceptors/tenant.interceptor';
+import { TENANT_CONTEXT_PORT } from './infra/token/auth.token';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    provideServiceWorker('ngsw-worker.js', {
-      enabled: !isDevMode(),
-      registrationStrategy: 'registerWhenStable:30000',
-    }),
-  ],
+    provideZoneChangeDetection({ eventCoalescing: true }),
+    provideHttpClient(withInterceptors([tenantInterceptor])),
+    {
+      provide: TENANT_CONTEXT_PORT,
+      useClass: UrlTenantContextAdapter,
+    },
+  ]
 };

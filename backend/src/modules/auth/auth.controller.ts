@@ -23,7 +23,7 @@ import { IAuthController } from './interfaces/auth.controller.interface';
 import type { IAuthService } from './interfaces/auth.service.interface';
 import { IAuthPayload } from './interfaces/auth-payload.interface';
 import { AuthGuard } from '@nestjs/passport';
-import { SetCookiesInterceptor } from '../../common/interceptors/auth.interceptor';
+import { SetCookiesInterceptor } from '../../common/interceptors/set-cookie.interceptor';
 import { IJwtPayloadWithExpiry } from './interfaces/jwt-payload.interface';
 import type { RequestWithCookies } from './interfaces/req-with-cookies.interface';
 import { EAuthSuccess } from '../../common/enum/auth-success.enum';
@@ -37,6 +37,7 @@ export class AuthController implements IAuthController {
   ) {}
 
   @Post()
+  @UseInterceptors(SetCookiesInterceptor)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Realiza a autenticação do usuário' })
   @ApiBody({ type: LoginDto })

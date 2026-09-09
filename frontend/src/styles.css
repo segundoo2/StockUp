@@ -1,8 +1,3 @@
-@import "tailwindcss";
+/* You can add global styles to this file, and also import other style files */
 
-@theme {
-  --color-brand-navy: #0A192F;
-  --color-brand-mint: #52B788;
-  --color-brand-offwhite: #F0FBF5;
-  --color-brand-border: #233554;
-}
+@import 'tailwindcss';

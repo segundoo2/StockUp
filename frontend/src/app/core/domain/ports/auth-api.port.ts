@@ -1,4 +1,4 @@
-import { AuthCredentialsModel, IAuthResponseModel } from '../model/auth.model';
+import { AuthCredentialsModel, IAuthResponseModel } from '../models/auth.model';
 
 export interface IAuthApiPort {
   login(credentials: AuthCredentialsModel): Promise<IAuthResponseModel>;

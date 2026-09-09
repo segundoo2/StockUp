@@ -1,6 +1,6 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { TENANT_CONTEXT_PORT } from '../token/auth.token';
+import { TENANT_CONTEXT_PORT } from '../tokens/auth.token';
 
 export const tenantInterceptor: HttpInterceptorFn = (req, next) => {
   const tenantContext = inject(TENANT_CONTEXT_PORT, { optional: true });

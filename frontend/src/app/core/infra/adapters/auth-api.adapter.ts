@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { AuthCredentialsModel, IAuthResponseModel } from '../../domain/model/auth.model';
-import { IAuthApiPort } from '../../domain/port/auth-api.port';
+import { AuthCredentialsModel, IAuthResponseModel } from '../../domain/models/auth.model';
+import { IAuthApiPort } from '../../domain/ports/auth-api.port';
 
 @Injectable({
   providedIn: 'root',

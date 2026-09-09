@@ -3,8 +3,8 @@ import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { describe, beforeEach, afterEach, it, expect, vi } from 'vitest';
 import { tenantInterceptor } from '../tenant.interceptor';
-import { ITenantContextPort } from '../../../domain/port/tenant-context.port';
-import { TENANT_CONTEXT_PORT } from '../../token/auth.token';
+import { ITenantContextPort } from '../../../domain/ports/tenant-context.port';
+import { TENANT_CONTEXT_PORT } from '../../tokens/auth.token';
 
 describe('tenantInterceptor', () => {
   let httpMock: HttpTestingController;

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { ITenantContextPort } from '../../domain/port/tenant-context.port';
+import { ITenantContextPort } from '../../domain/ports/tenant-context.port';
 
 @Injectable({
   providedIn: 'root',

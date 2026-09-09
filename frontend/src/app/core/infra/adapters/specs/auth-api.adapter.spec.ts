@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideHttpClient } from '@angular/common/http';
 import { describe, beforeEach, afterEach, it, expect } from 'vitest';
 import { AuthApiAdapter } from '../auth-api.adapter';
-import { AuthCredentialsModel, IAuthResponseModel } from '../../../domain/model/auth.model';
+import { AuthCredentialsModel, IAuthResponseModel } from '../../../domain/models/auth.model';
 
 describe('AuthApiAdapter', () => {
   let adapter: AuthApiAdapter;
